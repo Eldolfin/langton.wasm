@@ -1,0 +1,24 @@
+[package]
+name = "canvas-2d"
+description = "A web canvas 2d wrapper"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+console_error_panic_hook = "0.1.7"
+js-sys = "0.3.77"
+wasm-bindgen = "0.2.100"
+wasm-bindgen-futures = "0.4.50"
+
+[dependencies.web-sys]
+features = ['CanvasRenderingContext2d', 'Document', 'Element', 'HtmlCanvasElement', 'Window']
+version = "0.3.77"
+
+[dev-dependencies]
+rstest = "0.25.0"
+
+# [lints]
+# workspace = true

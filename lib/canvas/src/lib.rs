@@ -1,0 +1,154 @@
+use std::f64;
+use wasm_bindgen::prelude::*;
+
+const DEFAULT_CELL_SIZE: f64 = 40.;
+
+pub struct Canvas {
+    context: web_sys::CanvasRenderingContext2d,
+    cell_size: f64,
+    width: u32,
+    height: u32,
+    canvas_width: u32,
+    canvas_height: u32,
+}
+
+#[derive(Debug)]
+pub enum NamedColor {
+    White,
+    Black,
+    // TODO: the rest
+}
+
+pub enum Color {
+    Rgb { r: u8, g: u8, b: u8 },
+    Rgba { r: u8, g: u8, b: u8, a: u8 },
+    Named(NamedColor),
+}
+impl Color {
+    fn to_css_color(&self) -> String {
+        match self {
+            Color::Rgb { r, g, b } => format!("#{r:0>2X}{g:0>2X}{b:0>2X}"),
+            Color::Rgba { r, g, b, a } => format!("#{r:0>2X}{g:0>2X}{b:0>2X}{a:0>2X}"),
+            Color::Named(named_color) => format!("{named_color:?}").to_lowercase(),
+        }
+    }
+}
+
+impl Canvas {
+    pub fn get_element_by_id(id: &str) -> Option<Self> {
+        let document = web_sys::window()?.document()?;
+        let canvas = document.get_element_by_id(id)?;
+        let canvas: web_sys::HtmlCanvasElement =
+            canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()?;
+
+        let context = canvas
+            .get_context("2d")
+            .ok()??
+            .dyn_into::<web_sys::CanvasRenderingContext2d>()
+            .ok()?;
+
+        let mut res = Self {
+            context,
+            cell_size: DEFAULT_CELL_SIZE,
+            width: 0,
+            height: 0,
+            canvas_width: canvas.width(),
+            canvas_height: canvas.height(),
+        };
+        res.calculate_size();
+        Some(res)
+    }
+
+    pub fn with_cell_size(mut self, cell_size: f64) -> Self {
+        self.cell_size = cell_size;
+        self.calculate_size();
+        self
+    }
+
+    fn fill_rect(&self, x: u32, y: u32, color: Color) {
+        self.context.set_fill_style_str(&color.to_css_color());
+        self.context.fill_rect(
+            x as f64 * self.cell_size,
+            y as f64 * self.cell_size,
+            self.cell_size,
+            self.cell_size,
+        );
+    }
+
+    fn width(&self) -> u32 {
+        self.width
+    }
+
+    fn height(&self) -> u32 {
+        self.height
+    }
+
+    fn calculate_size(&mut self) {
+        self.width = (self.canvas_width as f64 / self.cell_size).ceil() as u32;
+        self.height = (self.canvas_height as f64 / self.cell_size).ceil() as u32;
+    }
+
+    /// animation: function that renders a single frame and returns true if it is done
+    async fn play_animation(self, mut animation: impl FnMut(&Canvas) -> bool + 'static) {
+        let step = Closure::new(move || animation(&self));
+        start_animation(&step).await;
+    }
+}
+
+#[wasm_bindgen(module = "/lib.js")]
+extern "C" {
+    async fn start_animation(animation_step: &Closure<dyn FnMut() -> bool>);
+}
+
+// Example usage
+#[wasm_bindgen(start)]
+async fn start() {
+    console_error_panic_hook::set_once();
+    let canvas = Canvas::get_element_by_id("canvas")
+        .unwrap()
+        .with_cell_size(10.);
+
+    // shared state across frames
+    let mut frame_counter = 0;
+    let animation = move |canvas: &Canvas| {
+        for x in 0..canvas.width() {
+            for y in 0..canvas.height() {
+                let color = if (x + y) % 2 == (frame_counter / 60) % 2 {
+                    let x = x as f32;
+                    let y = y as f32;
+                    let h = canvas.height() as f32;
+                    let w = canvas.width() as f32;
+
+                    let r = (x * 255. / w).floor() as u8;
+                    let g = (y * 255. / h).floor() as u8;
+                    let b = 255 - ((x + y) * 255. / (h + w)).floor() as u8;
+                    Color::Rgb { r, g, b }
+                } else {
+                    Color::Named(NamedColor::White)
+                };
+                canvas.fill_rect(x, y, color);
+            }
+        }
+        frame_counter += 1;
+        frame_counter >= 300
+    };
+
+    canvas.play_animation(animation).await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Color, NamedColor};
+    use rstest::rstest;
+
+    #[rstest]
+    #[case(Color::Named(NamedColor::Black), "black")]
+    #[case(Color::Named(NamedColor::White), "white")]
+    #[case(Color::Rgb{r: 255, g: 255, b: 255}, "#FFFFFF")]
+    #[case(Color::Rgb{r: 1, g: 2, b: 3}, "#010203")]
+    #[case(Color::Rgb{r: 0, g: 0, b: 0}, "#000000")]
+    #[case(Color::Rgba{r: 1, g: 2, b: 3, a: 4}, "#01020304")]
+    pub fn test_color_to_css_string(#[case] color: Color, #[case] expected_str: &str) {
+        assert_eq!(color.to_css_color(), expected_str);
+    }
+}
