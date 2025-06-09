@@ -1,6 +1,13 @@
 use canvas::{Canvas, Color, NamedColor};
 use wasm_bindgen::prelude::wasm_bindgen;
 
+#[wasm_bindgen(start)]
+async fn start() {
+    console_error_panic_hook::set_once();
+    let steps_per_frame = 5;
+    Game::new(steps_per_frame, 0.80, 0.75).run().await;
+}
+
 struct Game {
     canvas: Canvas,
     /// indexed by x, y
@@ -13,40 +20,6 @@ struct Ant {
     x: usize,
     y: usize,
     direction: Direction,
-}
-impl Ant {
-    fn move_forward(&mut self, board_width: usize, board_height: usize) {
-        match self.direction {
-            Direction::North => {
-                if self.y < board_height - 1 {
-                    self.y += 1
-                } else {
-                    self.y = 0
-                }
-            }
-            Direction::Est => {
-                if self.x < board_width - 1 {
-                    self.x += 1
-                } else {
-                    self.x = 0
-                }
-            }
-            Direction::South => {
-                if self.y > 0 {
-                    self.y -= 1
-                } else {
-                    self.y = board_height - 1
-                }
-            }
-            Direction::West => {
-                if self.x > 0 {
-                    self.x -= 1
-                } else {
-                    self.x = board_width - 1
-                }
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -63,14 +36,6 @@ enum BoardState {
     #[default]
     White,
     Black,
-}
-
-// Example usage
-#[wasm_bindgen(start)]
-async fn start() {
-    console_error_panic_hook::set_once();
-    let steps_per_frame = 5;
-    Game::new(steps_per_frame, 0.80, 0.75).run().await;
 }
 
 impl Game {
@@ -121,6 +86,41 @@ impl Game {
     }
 }
 
+impl Ant {
+    fn move_forward(&mut self, board_width: usize, board_height: usize) {
+        match self.direction {
+            Direction::North => {
+                if self.y < board_height - 1 {
+                    self.y += 1
+                } else {
+                    self.y = 0
+                }
+            }
+            Direction::Est => {
+                if self.x < board_width - 1 {
+                    self.x += 1
+                } else {
+                    self.x = 0
+                }
+            }
+            Direction::South => {
+                if self.y > 0 {
+                    self.y -= 1
+                } else {
+                    self.y = board_height - 1
+                }
+            }
+            Direction::West => {
+                if self.x > 0 {
+                    self.x -= 1
+                } else {
+                    self.x = board_width - 1
+                }
+            }
+        }
+    }
+}
+
 impl Direction {
     fn left(self) -> Self {
         match self {
@@ -142,7 +142,7 @@ impl Direction {
 }
 
 impl BoardState {
-    fn to_canvas_color(&self) -> Color {
+    fn to_canvas_color(self) -> Color {
         match self {
             BoardState::White => Color::Named(NamedColor::White),
             BoardState::Black => Color::Named(NamedColor::Black),

@@ -1,4 +1,9 @@
 // // Example usage
+// macro_rules! log {
+//     ( $( $t:tt )* ) => {
+//         web_sys::console::log_1(&format!( $( $t )* ).into());
+//     }
+// }
 // #[wasm_bindgen(start)]
 // async fn start() {
 //     console_error_panic_hook::set_once();
@@ -49,12 +54,6 @@ use std::f64;
 use wasm_bindgen::prelude::*;
 
 const DEFAULT_CELL_SIZE: f64 = 40.;
-
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
-    }
-}
 
 pub struct Canvas {
     context: web_sys::CanvasRenderingContext2d,
