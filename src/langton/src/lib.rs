@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 #[wasm_bindgen(start)]
 async fn start() {
     console_error_panic_hook::set_once();
-    let steps_per_frame = 5;
+    let steps_per_frame = 2;
     Game::new(steps_per_frame, 0.80, 0.75).run().await;
 }
 
