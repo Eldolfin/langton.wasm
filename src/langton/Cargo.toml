@@ -1,0 +1,14 @@
+[package]
+name = "langton"
+description = "A langton's ant simulation for the web"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+canvas = { version = "0.1.0", path = "../../lib/canvas" }
+console_error_panic_hook = "0.1.7"
+wasm-bindgen = "0.2.100"
+wasm-bindgen-futures = "0.4.50"
