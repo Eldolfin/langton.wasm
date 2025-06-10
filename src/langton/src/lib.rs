@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 #[wasm_bindgen(start)]
 async fn start() {
     console_error_panic_hook::set_once();
-    let steps_per_frame = 2;
+    let steps_per_frame = 50;
     Game::new(steps_per_frame, 0.80, 0.75).run().await;
 }
 
@@ -48,8 +48,7 @@ impl Game {
             y: (canvas.height() as f32 * start_y_rel) as usize,
             direction: Direction::default(),
         };
-        let board =
-            vec![vec![BoardState::default(); canvas.height() as usize]; canvas.width() as usize];
+        let board = vec![vec![BoardState::default(); canvas.height()]; canvas.width()];
 
         Self {
             board,
@@ -60,7 +59,7 @@ impl Game {
     }
 
     async fn run(mut self) {
-        let animation = move |canvas: &Canvas| {
+        let animation = move |canvas: &mut Canvas| {
             for _ in 0..self.steps_per_frame {
                 let at_ant = self.board[self.ant.x][self.ant.y];
                 match at_ant {
@@ -72,13 +71,8 @@ impl Game {
                     }
                 }
                 self.board[self.ant.x][self.ant.y] = !at_ant;
-                canvas.fill_rect(
-                    self.ant.x as u32,
-                    self.ant.y as u32,
-                    (!at_ant).to_canvas_color(),
-                );
-                self.ant
-                    .move_forward(canvas.width() as usize, canvas.height() as usize);
+                canvas.fill_rect(self.ant.x, self.ant.y, (!at_ant).to_canvas_color());
+                self.ant.move_forward(canvas.width(), canvas.height());
             }
             false
         };
