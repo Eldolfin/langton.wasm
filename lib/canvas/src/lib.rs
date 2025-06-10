@@ -1,4 +1,9 @@
 // // Example usage
+// macro_rules! log {
+//     ( $( $t:tt )* ) => {
+//         web_sys::console::log_1(&format!( $( $t )* ).into());
+//     }
+// }
 // #[wasm_bindgen(start)]
 // async fn start() {
 //     console_error_panic_hook::set_once();
@@ -50,12 +55,6 @@ use wasm_bindgen::prelude::*;
 
 const DEFAULT_CELL_SIZE: f64 = 40.;
 
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
-    }
-}
-
 pub struct Canvas {
     context: web_sys::CanvasRenderingContext2d,
     cell_size: f64,
@@ -67,14 +66,14 @@ pub struct Canvas {
     last_frame: Vec<Vec<Option<Color>>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NamedColor {
     White,
     Black,
     // TODO: the rest
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Color {
     Rgb { r: u8, g: u8, b: u8 },
     Rgba { r: u8, g: u8, b: u8, a: u8 },
@@ -163,39 +162,32 @@ impl Canvas {
     }
 
     fn optimise_queue(&mut self) {
-        let size_initial = self.queue.len();
+        // 1. remove dupplicate draw calls to the same cell on the same frame
         let mut map = HashMap::new();
         for draw in &self.queue {
             map.insert((draw.x, draw.y), draw.color);
         }
-        // TODO: sort by color, then avoid changing it each time
         self.queue.clear();
         for ((x, y), color) in map {
             self.queue.push(DrawCall { x, y, color });
         }
-        let size_no_dupp = self.queue.len();
+
+        // 2. remove calls for unchanged cells since last frame
         self.queue
             .retain(|draw| Some(draw.color) != self.last_frame[draw.x][draw.y]);
-        let size_no_change = self.queue.len();
-        log!(
-            "OPTIMISE/remove_dup: Removed {}/{} ({:.2}%)",
-            size_initial - size_no_dupp,
-            size_initial,
-            (size_initial - size_no_dupp) as f32 / size_initial as f32 * 100.
-        );
-        log!(
-            "OPTIMISE/remove_unchanged: Removed {}/{} ({:.2}%)",
-            size_no_dupp - size_no_change,
-            size_no_dupp,
-            (size_no_dupp - size_no_change) as f32 / size_no_dupp as f32 * 100.
-        );
+        // 3. order calls by color to avoid changing the pen color each call
+        self.queue.sort_unstable_by_key(|draw| draw.color);
     }
 
     pub fn flush(&mut self) {
         self.optimise_queue();
+        let mut last_color = None;
         for draw_call in &self.queue {
             let DrawCall { x, y, color } = draw_call;
-            self.context.set_fill_style_str(&color.to_css_color());
+            if Some(color) != last_color {
+                self.context.set_fill_style_str(&color.to_css_color());
+                last_color = Some(color);
+            }
             self.context.fill_rect(
                 *x as f64 * self.cell_size,
                 *y as f64 * self.cell_size,
