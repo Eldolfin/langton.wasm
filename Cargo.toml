@@ -2,5 +2,6 @@
 resolver = "3"
 members = [
   "lib/canvas",
+  "lib/debug_ui",
   "src/langton",
 ]
