@@ -1,4 +1,5 @@
 use gloo::events::EventListener;
+use num_traits::{FromPrimitive, ToPrimitive};
 use std::{ops::Range, sync::mpsc};
 use web_sys::{wasm_bindgen::JsCast as _, Document, Element, HtmlInputElement};
 
@@ -64,7 +65,7 @@ impl DebugUI {
         }
     }
 
-    pub fn param<T: Default + Copy + std::convert::From<f64> + 'static>(
+    pub fn param<T: ToPrimitive + FromPrimitive + Copy + Default + 'static>(
         &mut self,
         name: &str,
         default_value: T,
@@ -105,11 +106,9 @@ impl DebugUI {
                         .dyn_into::<HtmlInputElement>()
                         .unwrap()
                         .value_as_number();
-                    let value = T::try_from(value)
-                        .inspect_err(|err| {
-                            panic!("Failed to cast slider value for parameter {name}: {err}")
-                        })
-                        .unwrap();
+                    let value = T::from_f64(value).unwrap_or_else(|| {
+                        panic!("Failed to cast slider value for parameter {name}")
+                    });
                     send.send(value).unwrap();
                 });
 
