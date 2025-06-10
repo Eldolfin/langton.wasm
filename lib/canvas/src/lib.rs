@@ -10,11 +10,11 @@
 //     let canvas = Canvas::get_element_by_id("canvas")
 //         .unwrap()
 //         .with_cell_size(10.);
-//     const N_FRAMES: u32 = 100;
+//     const N_FRAMES: usize = 100;
 
 //     // shared state across frames
 //     let mut frame_counter = 0;
-//     let animation = move |canvas: &Canvas| {
+//     let animation = move |canvas: &mut Canvas| {
 //         for x in 0..canvas.width() {
 //             for y in 0..canvas.height() {
 //                 let color = if (x + y) % 2 == (frame_counter / 60) % 2 {
@@ -50,7 +50,7 @@
 //     log!("avg fps: {:.2}", N_FRAMES as f64 / delta_secs);
 // }
 
-use std::f64;
+use std::{collections::HashMap, f64};
 use wasm_bindgen::prelude::*;
 
 const DEFAULT_CELL_SIZE: f64 = 40.;
@@ -58,32 +58,43 @@ const DEFAULT_CELL_SIZE: f64 = 40.;
 pub struct Canvas {
     context: web_sys::CanvasRenderingContext2d,
     cell_size: f64,
-    width: u32,
-    height: u32,
-    canvas_width: u32,
-    canvas_height: u32,
+    width: usize,
+    height: usize,
+    canvas_width: usize,
+    canvas_height: usize,
+    queue: Vec<DrawCall>,
+    last_frame: Vec<Vec<Option<Color>>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NamedColor {
     White,
     Black,
     // TODO: the rest
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Color {
     Rgb { r: u8, g: u8, b: u8 },
     Rgba { r: u8, g: u8, b: u8, a: u8 },
     Named(NamedColor),
 }
 impl Color {
-    fn to_css_color(&self) -> String {
+    fn to_css_color(self) -> String {
         match self {
             Color::Rgb { r, g, b } => format!("#{r:0>2X}{g:0>2X}{b:0>2X}"),
             Color::Rgba { r, g, b, a } => format!("#{r:0>2X}{g:0>2X}{b:0>2X}{a:0>2X}"),
             Color::Named(named_color) => format!("{named_color:?}").to_lowercase(),
         }
     }
+}
+
+/// queued rectangle draw call
+#[derive(Clone)]
+struct DrawCall {
+    x: usize,
+    y: usize,
+    color: Color,
 }
 
 impl Canvas {
@@ -104,8 +115,10 @@ impl Canvas {
             cell_size: DEFAULT_CELL_SIZE,
             width: 0,
             height: 0,
-            canvas_width: canvas.width(),
-            canvas_height: canvas.height(),
+            canvas_width: canvas.width() as usize,
+            canvas_height: canvas.height() as usize,
+            queue: vec![],
+            last_frame: vec![vec![]],
         };
         res.calculate_size();
         Some(res)
@@ -117,33 +130,72 @@ impl Canvas {
         self
     }
 
-    pub fn fill_rect(&self, x: u32, y: u32, color: Color) {
-        self.context.set_fill_style_str(&color.to_css_color());
-        self.context.fill_rect(
-            x as f64 * self.cell_size,
-            y as f64 * self.cell_size,
-            self.cell_size,
-            self.cell_size,
-        );
+    pub fn fill_rect(&mut self, x: usize, y: usize, color: Color) {
+        self.queue.push(DrawCall { x, y, color });
     }
 
-    pub fn width(&self) -> u32 {
+    pub fn width(&self) -> usize {
         self.width
     }
 
-    pub fn height(&self) -> u32 {
+    pub fn height(&self) -> usize {
         self.height
     }
 
     fn calculate_size(&mut self) {
-        self.width = (self.canvas_width as f64 / self.cell_size).ceil() as u32;
-        self.height = (self.canvas_height as f64 / self.cell_size).ceil() as u32;
+        self.width = (self.canvas_width as f64 / self.cell_size).ceil() as usize;
+        self.height = (self.canvas_height as f64 / self.cell_size).ceil() as usize;
+        self.last_frame = vec![vec![None; self.height]; self.width]
     }
 
     /// animation: function that renders a single frame and returns true if it is done
-    pub async fn play_animation(self, mut animation: impl FnMut(&Canvas) -> bool + 'static) {
-        let step = Closure::new(move || animation(&self));
+    pub async fn play_animation(
+        mut self,
+        mut animation: impl FnMut(&mut Canvas) -> bool + 'static,
+    ) {
+        let step = Closure::new(move || {
+            let res = animation(&mut self);
+            self.flush();
+            res
+        });
         start_animation(&step).await;
+    }
+
+    fn optimise_queue(&mut self) {
+        // 1. remove dupplicate draw calls to the same cell on the same frame
+        let mut map = HashMap::new();
+        for draw in &self.queue {
+            map.insert((draw.x, draw.y), draw.color);
+        }
+        self.queue.clear();
+        for ((x, y), color) in map {
+            self.queue.push(DrawCall { x, y, color });
+        }
+
+        // 2. remove calls for unchanged cells since last frame
+        self.queue
+            .retain(|draw| Some(draw.color) != self.last_frame[draw.x][draw.y]);
+        // 3. order calls by color to avoid changing the pen color each call
+        self.queue.sort_unstable_by_key(|draw| draw.color);
+    }
+
+    pub fn flush(&mut self) {
+        self.optimise_queue();
+        let mut last_color = None;
+        for draw_call in &self.queue {
+            let DrawCall { x, y, color } = draw_call;
+            if Some(color) != last_color {
+                self.context.set_fill_style_str(&color.to_css_color());
+                last_color = Some(color);
+            }
+            self.context.fill_rect(
+                *x as f64 * self.cell_size,
+                *y as f64 * self.cell_size,
+                self.cell_size,
+                self.cell_size,
+            );
+            self.last_frame[*x][*y] = Some(*color);
+        }
     }
 }
 
