@@ -1,9 +1,4 @@
 // // Example usage
-// macro_rules! log {
-//     ( $( $t:tt )* ) => {
-//         web_sys::console::log_1(&format!( $( $t )* ).into());
-//     }
-// }
 // #[wasm_bindgen(start)]
 // async fn start() {
 //     console_error_panic_hook::set_once();
@@ -55,6 +50,12 @@ use wasm_bindgen::prelude::*;
 
 const DEFAULT_CELL_SIZE: f64 = 40.;
 
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
+}
+
 pub struct Canvas {
     context: web_sys::CanvasRenderingContext2d,
     cell_size: f64,
@@ -63,16 +64,17 @@ pub struct Canvas {
     canvas_width: usize,
     canvas_height: usize,
     queue: Vec<DrawCall>,
+    last_frame: Vec<Vec<Option<Color>>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NamedColor {
     White,
     Black,
     // TODO: the rest
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Color {
     Rgb { r: u8, g: u8, b: u8 },
     Rgba { r: u8, g: u8, b: u8, a: u8 },
@@ -117,6 +119,7 @@ impl Canvas {
             canvas_width: canvas.width() as usize,
             canvas_height: canvas.height() as usize,
             queue: vec![],
+            last_frame: vec![vec![]],
         };
         res.calculate_size();
         Some(res)
@@ -143,6 +146,7 @@ impl Canvas {
     fn calculate_size(&mut self) {
         self.width = (self.canvas_width as f64 / self.cell_size).ceil() as usize;
         self.height = (self.canvas_height as f64 / self.cell_size).ceil() as usize;
+        self.last_frame = vec![vec![None; self.height]; self.width]
     }
 
     /// animation: function that renders a single frame and returns true if it is done
@@ -159,17 +163,32 @@ impl Canvas {
     }
 
     fn optimise_queue(&mut self) {
+        let size_initial = self.queue.len();
         let mut map = HashMap::new();
         for draw in &self.queue {
             map.insert((draw.x, draw.y), draw.color);
         }
-        // TODO: remove calls where color did not change from last frame
         // TODO: sort by color, then avoid changing it each time
-        self.queue.clear();
         self.queue.clear();
         for ((x, y), color) in map {
             self.queue.push(DrawCall { x, y, color });
         }
+        let size_no_dupp = self.queue.len();
+        self.queue
+            .retain(|draw| Some(draw.color) != self.last_frame[draw.x][draw.y]);
+        let size_no_change = self.queue.len();
+        log!(
+            "OPTIMISE/remove_dup: Removed {}/{} ({:.2}%)",
+            size_initial - size_no_dupp,
+            size_initial,
+            (size_initial - size_no_dupp) as f32 / size_initial as f32 * 100.
+        );
+        log!(
+            "OPTIMISE/remove_unchanged: Removed {}/{} ({:.2}%)",
+            size_no_dupp - size_no_change,
+            size_no_dupp,
+            (size_no_dupp - size_no_change) as f32 / size_no_dupp as f32 * 100.
+        );
     }
 
     pub fn flush(&mut self) {
@@ -183,6 +202,7 @@ impl Canvas {
                 self.cell_size,
                 self.cell_size,
             );
+            self.last_frame[*x][*y] = Some(*color);
         }
     }
 }
