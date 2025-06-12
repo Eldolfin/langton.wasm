@@ -37,8 +37,9 @@ jobs:
       - name: Copy artifacts to deploy dir
         run: |
           mkdir -p deploy
-          cp src/langton/index.html deploy
-          cp -r src/langton/pkg     deploy
+          cp src/langton/index.html  deploy
+          cp src/langton/favicon.png deploy
+          cp -r src/langton/pkg      deploy
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
