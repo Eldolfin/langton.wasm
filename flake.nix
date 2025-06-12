@@ -15,6 +15,7 @@
           buildInputs = with pkgs; [
             wasm-pack
             lld
+            bacon
           ];
         };
       }

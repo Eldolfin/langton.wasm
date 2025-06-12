@@ -12,3 +12,6 @@ web-sys = { version = "0.3.77", features = ["Document", "EventListener", "HtmlHe
 [features]
 default = ["auto-detect-path-params"]
 auto-detect-path-params = ["dep:url"]
+
+[dev-dependencies]
+rstest = "0.25.0"

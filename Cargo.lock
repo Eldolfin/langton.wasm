@@ -56,6 +56,7 @@ version = "0.1.0"
 dependencies = [
  "gloo",
  "num-traits",
+ "rstest",
  "url",
  "web-sys",
 ]
