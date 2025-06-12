@@ -1,10 +1,17 @@
 use canvas::{Canvas, Color, NamedColor};
+use debug_ui::{DebugUI, Param, ParamParam};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen(start)]
 async fn start() {
     console_error_panic_hook::set_once();
-    let steps_per_frame = 2;
+    let mut debug_ui = DebugUI::new("Langton's ant parameters");
+    let steps_per_frame = debug_ui.param(ParamParam {
+        name: "steps/frame",
+        default_value: 0.005,
+        range: 0.0..1000.0,
+        scale: debug_ui::Scale::Logarithmic,
+    });
     Game::new(steps_per_frame, 0.80, 0.75).run().await;
 }
 
@@ -13,7 +20,7 @@ struct Game {
     /// indexed by x, y
     board: Vec<Vec<BoardState>>,
     ant: Ant,
-    steps_per_frame: usize,
+    steps_per_frame: Param<f64>,
 }
 
 struct Ant {
@@ -39,7 +46,7 @@ enum BoardState {
 }
 
 impl Game {
-    fn new(steps_per_frame: usize, start_x_rel: f32, start_y_rel: f32) -> Self {
+    fn new(steps_per_frame: Param<f64>, start_x_rel: f32, start_y_rel: f32) -> Self {
         let canvas = Canvas::get_element_by_id("canvas")
             .unwrap()
             .with_cell_size(10.);
@@ -59,8 +66,11 @@ impl Game {
     }
 
     async fn run(mut self) {
+        let mut step_accumulator = 0.0;
         let animation = move |canvas: &mut Canvas| {
-            for _ in 0..self.steps_per_frame {
+            step_accumulator += self.steps_per_frame.get();
+            while step_accumulator >= 1.0 {
+                step_accumulator -= 1.0;
                 let at_ant = self.board[self.ant.x][self.ant.y];
                 match at_ant {
                     BoardState::White => {
