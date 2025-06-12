@@ -1,22 +1,51 @@
-name: Run tests & clippy
+name: Build & deploy static content to Pages
 
 on:
   push:
     branches: ["main"]
-  pull_request:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Run tests
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Setup wasm-pack
         run: |
-          cargo test --verbose
-      - name: Run clippy
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Build
         run: |
-          cargo clippy --verbose -- -Dwarnings
+          cd src/langton
+          wasm-pack build --target web
+      - name: Copy artifacts to deploy dir
+        run: |
+          mkdir -p deploy
+          cp src/langton/index.html  deploy
+          cp src/langton/favicon.png deploy
+          cp -r src/langton/pkg      deploy
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload entire repository
+          path: 'deploy'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
