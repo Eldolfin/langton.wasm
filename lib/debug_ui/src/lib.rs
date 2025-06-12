@@ -218,8 +218,8 @@ impl DebugUI {
                         });
                         send.send(value).unwrap();
                     })
+                    .forget();
                 }
-                .forget();
             }
             DebugUI::Disabled => (),
         }
