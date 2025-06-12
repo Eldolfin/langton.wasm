@@ -1,7 +1,7 @@
 use gloo::events::EventListener;
 use num_traits::{FromPrimitive, ToPrimitive};
 use std::{ops::Range, sync::mpsc};
-use web_sys::{wasm_bindgen::JsCast as _, Document, Element, HtmlInputElement};
+use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
 
 #[macro_export]
 macro_rules! log {
@@ -248,6 +248,7 @@ impl Scale {
     /// - input: a float in the range min..max
     /// - min: minimum output value
     /// - max: maximum output value
+    ///
     /// Result:
     /// a float in the range 0..1
     fn unscale<T1: ToPrimitive, T2: ToPrimitive>(self, input: T2, range: &Range<T1>) -> f64 {
