@@ -130,6 +130,10 @@ impl Game {
                 canvas.fill_rect(self.ant.x, self.ant.y, (!at_ant).to_canvas_color());
                 self.ant.move_forward(canvas.width(), canvas.height());
             }
+
+            // New call for color decay
+            canvas.fill_canvas(Color::Rgba { r: 0, g: 0, b: 0, a: 2 });
+
             false
         };
         self.canvas.play_animation(animation).await;
