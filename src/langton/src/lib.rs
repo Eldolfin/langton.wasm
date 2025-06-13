@@ -6,13 +6,46 @@ use wasm_bindgen::prelude::wasm_bindgen;
 async fn start() {
     console_error_panic_hook::set_once();
     let mut debug_ui = DebugUI::new("Langton's ant parameters");
-    let steps_per_frame = debug_ui.param(ParamParam {
-        name: "steps/frame",
-        default_value: 0.005,
+    let final_steps_per_frame = debug_ui.param(ParamParam {
+        name: "final speed",
+        default_value: 12.0,
         range: 0.0..1000.0,
         scale: debug_ui::Scale::Logarithmic,
+        ..Default::default()
     });
-    Game::new(steps_per_frame, 0.80, 0.75).run().await;
+    let speedup_frames = debug_ui.param(ParamParam {
+        name: "speedup frames",
+        default_value: 1300,
+        range: 0..1200,
+        ..Default::default()
+    });
+    let start_x_rel = debug_ui.param(ParamParam {
+        name: "start x",
+        default_value: 0.80,
+        step_size: 0.0,
+        ..Default::default()
+    });
+    let start_y_rel = debug_ui.param(ParamParam {
+        name: "start y",
+        default_value: 0.75,
+        ..Default::default()
+    });
+
+    Game::new(GameConfig {
+        final_steps_per_frame,
+        speedup_frames,
+        start_x_rel,
+        start_y_rel,
+    })
+    .run()
+    .await;
+}
+
+struct GameConfig {
+    final_steps_per_frame: Param<f64>,
+    speedup_frames: Param<usize>,
+    start_x_rel: Param<f32>,
+    start_y_rel: Param<f32>,
 }
 
 struct Game {
@@ -20,7 +53,7 @@ struct Game {
     /// indexed by x, y
     board: Vec<Vec<BoardState>>,
     ant: Ant,
-    steps_per_frame: Param<f64>,
+    config: GameConfig,
 }
 
 struct Ant {
@@ -46,13 +79,13 @@ enum BoardState {
 }
 
 impl Game {
-    fn new(steps_per_frame: Param<f64>, start_x_rel: f32, start_y_rel: f32) -> Self {
+    fn new(mut config: GameConfig) -> Self {
         let canvas = Canvas::get_element_by_id("canvas")
             .unwrap()
             .with_cell_size(10.);
         let ant = Ant {
-            x: (canvas.width() as f32 * start_x_rel) as usize,
-            y: (canvas.height() as f32 * start_y_rel) as usize,
+            x: (canvas.width() as f32 * config.start_x_rel.get()) as usize,
+            y: (canvas.height() as f32 * config.start_y_rel.get()) as usize,
             direction: Direction::default(),
         };
         let board = vec![vec![BoardState::default(); canvas.height()]; canvas.width()];
@@ -61,14 +94,26 @@ impl Game {
             board,
             canvas,
             ant,
-            steps_per_frame,
+            config,
         }
+    }
+
+    /// An ease-in I felt satisfying enough by trial and error
+    fn shit_ease_in(inp: f64) -> f64 {
+        let out = inp * inp * inp * inp;
+        (out + 0.005).clamp(0.0, 1.0)
     }
 
     async fn run(mut self) {
         let mut step_accumulator = 0.0;
+        let mut frame_counter = 0;
         let animation = move |canvas: &mut Canvas| {
-            step_accumulator += self.steps_per_frame.get();
+            frame_counter += 1;
+            let ratio =
+                (frame_counter as f64 / self.config.speedup_frames.get() as f64).clamp(0.0, 1.0);
+            let ratio = Self::shit_ease_in(ratio);
+            let step = self.config.final_steps_per_frame.get() * ratio;
+            step_accumulator += step;
             while step_accumulator >= 1.0 {
                 step_accumulator -= 1.0;
                 let at_ant = self.board[self.ant.x][self.ant.y];

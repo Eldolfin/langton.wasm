@@ -1,12 +1,20 @@
 use gloo::events::EventListener;
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, Num, ToPrimitive, Zero};
 use std::{ops::Range, sync::mpsc};
+pub use web_sys;
 use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
 
 #[macro_export]
 macro_rules! log {
     ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
+        debug_ui::web_sys::console::log_1(&format!( $( $t )* ).into())
+    }
+}
+
+#[macro_export]
+macro_rules! warn {
+    ( $( $t:tt )* ) => {
+        web_sys::console::warn_1(&format!( $( $t )* ).into())
     }
 }
 
@@ -26,15 +34,26 @@ pub struct Param<T> {
 
 /// options for the param function
 #[derive(Clone)]
-pub struct ParamParam<T, S>
-where
-    T: Clone,
-    S: Clone,
-{
+pub struct ParamParam<T, S> {
     pub name: S,
     pub default_value: T,
     pub range: Range<T>,
     pub scale: Scale,
+    pub step_size: f64,
+}
+
+impl<T: Num> Default for ParamParam<T, &str> {
+    fn default() -> Self {
+        let is_float = T::one() / (T::one() + T::one()) != T::zero();
+        let step_size = if is_float { 0.0 } else { 1.0 };
+        Self {
+            name: "UNDEFINED 🤡",
+            default_value: T::zero(),
+            range: T::zero()..T::one(),
+            scale: Scale::default(),
+            step_size,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Default, Debug)]
@@ -45,8 +64,8 @@ pub enum Scale {
 }
 
 impl<T: Copy> Param<T> {
-    fn new(value: T) -> (mpsc::SyncSender<T>, Self) {
-        let (send, recv) = mpsc::sync_channel(32);
+    fn new(value: T) -> (mpsc::Sender<T>, Self) {
+        let (send, recv) = mpsc::channel();
         (send, Self { recv, value })
     }
 
@@ -133,21 +152,25 @@ impl DebugUI {
                 label.set_text_content(Some(p.name.as_ref()));
                 label.set_attribute("for", &slider_id).unwrap();
                 value_input.set_value_as_number(p.default_value.to_f64().unwrap());
-                slider.set_value_as_number(p.scale.unscale(p.default_value, &p.range));
 
                 {
                     let (min, max, step) = match p.scale {
                         Scale::Linear => (
                             p.range.start.to_f64().unwrap(),
                             p.range.end.to_f64().unwrap(),
-                            "1", // TODO: add precision parameter
+                            if p.step_size == 0.0 {
+                                "any".to_string()
+                            } else {
+                                p.step_size.to_string()
+                            },
                         ),
-                        Scale::Logarithmic => (0.0, 1.0, "any"),
+                        Scale::Logarithmic => (0.0, 1.0, "any".to_string()),
                     };
                     slider.set_attribute("min", &min.to_string()).unwrap();
                     slider.set_attribute("max", &max.to_string()).unwrap();
-                    slider.set_attribute("step", step).unwrap();
+                    slider.set_attribute("step", &step).unwrap();
                 }
+                slider.set_value_as_number(p.scale.unscale(p.default_value, &p.range));
 
                 container.set_class_name("DebugUI-param-container");
                 label.set_class_name("DebugUI-param-label");
