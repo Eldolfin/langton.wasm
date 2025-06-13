@@ -36,16 +36,18 @@ jobs:
       - name: Prepare deploy directory
         id: prepare
         run: |
-          DEPLOY_DIR="deploy"
+          DEPLOY_DIR_ROOT="deploy"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PR_NUMBER=${{ github.event.pull_request.number }}
-            DEPLOY_DIR="$DEPLOY_DIR/previews/pr-$PR_NUMBER"
+            DEPLOY_DIR="$DEPLOY_DIR_ROOT/previews/pr-$PR_NUMBER"
+          else
+            DEPLOY_DIR="$DEPLOY_DIR_ROOT"
           fi
           mkdir -p "$DEPLOY_DIR"
           cp src/langton/index.html  "$DEPLOY_DIR"
           cp src/langton/favicon.png "$DEPLOY_DIR"
           cp -r src/langton/pkg      "$DEPLOY_DIR"
-          echo "deploy_path=$DEPLOY_DIR" >> "$GITHUB_OUTPUT"
+          echo "deploy_path=$DEPLOY_DIR_ROOT" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
