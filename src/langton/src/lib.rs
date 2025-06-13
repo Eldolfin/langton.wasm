@@ -31,11 +31,12 @@ async fn start() {
         step_size: 0.01,
         ..Default::default()
     });
-    let decay_alpha = debug_ui.param(ParamParam { // New parameter
-        name: "decay alpha",
-        default_value: 5.0, // Default to 5
-        range: 0.0..255.0,   // Range 0-255
-        step_size: 1.0,      // Step by 1
+    // Updated parameter
+    let alpha_retention_factor = debug_ui.param(ParamParam {
+        name: "alpha retention", // New name
+        default_value: 250.0,    // New default
+        range: 0.0..255.0,       // Range
+        step_size: 1.0,
         ..Default::default()
     });
 
@@ -44,7 +45,7 @@ async fn start() {
         speedup_frames,
         start_x_rel,
         start_y_rel,
-        decay_alpha, // Add new param here
+        alpha_retention_factor, // Use renamed field
     })
     .run()
     .await;
@@ -55,7 +56,7 @@ struct GameConfig {
     speedup_frames: Param<usize>,
     start_x_rel: Param<f32>,
     start_y_rel: Param<f32>,
-    decay_alpha: Param<f64>, // Or Param<usize> if preferred, f64 is common for debug_ui params
+    alpha_retention_factor: Param<f64>, // Renamed from decay_alpha
 }
 
 struct Game {
@@ -140,8 +141,8 @@ impl Game {
                 self.ant.move_forward(canvas.width(), canvas.height());
             }
 
-            // New call for color decay
-            canvas.fill_canvas(Color::Rgba { r: 0, g: 0, b: 0, a: self.config.decay_alpha.get() as u8 });
+            // Updated call to fill_canvas
+            canvas.fill_canvas(self.config.alpha_retention_factor.get() as u8);
 
             false
         };
