@@ -175,6 +175,16 @@ impl Canvas {
         start_animation(&step).await;
     }
 
+    pub fn fill_canvas(&mut self, color: Color) {
+        self.context.set_fill_style_str(&color.to_css_color());
+        self.context.fill_rect(
+            0.0,
+            0.0,
+            self.canvas_width as f64,
+            self.canvas_height as f64,
+        );
+    }
+
     fn optimise_queue(&mut self) {
         // 1. remove dupplicate draw calls to the same cell on the same frame
         let mut map = HashMap::new();
