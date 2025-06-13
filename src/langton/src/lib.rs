@@ -31,11 +31,10 @@ async fn start() {
         step_size: 0.01,
         ..Default::default()
     });
-    // Updated parameter
     let alpha_retention_factor = debug_ui.param(ParamParam {
         name: "alpha retention",
-        default_value: 250,     // usize value
-        range: 0..256,          // usize range 0-255
+        default_value: 250,
+        range: 0..255,
         ..Default::default()
     });
 
@@ -55,7 +54,7 @@ struct GameConfig {
     speedup_frames: Param<usize>,
     start_x_rel: Param<f32>,
     start_y_rel: Param<f32>,
-    alpha_retention_factor: Param<usize>, // Changed back to Param<usize>
+    alpha_retention_factor: Param<u8>,
 }
 
 struct Game {
@@ -140,8 +139,7 @@ impl Game {
                 self.ant.move_forward(canvas.width(), canvas.height());
             }
 
-            // Updated call to fill_canvas
-            canvas.fill_canvas(self.config.alpha_retention_factor.get() as u8); // Restored cast
+            canvas.fill_canvas(self.config.alpha_retention_factor.get());
 
             false
         };

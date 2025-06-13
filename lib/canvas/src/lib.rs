@@ -131,10 +131,17 @@ impl Canvas {
             .unwrap_or_else(|_err| "source-over".to_string());
 
         // 2. Set globalCompositeOperation to "destination-in".
-        let _ = self.context.set_global_composite_operation("destination-in");
+        let _ = self
+            .context
+            .set_global_composite_operation("destination-in");
 
         // 3. Construct the color for fading. This will make existing content fade to transparent black.
-        let color = Color::Rgba { r: 0, g: 0, b: 0, a: retention_factor };
+        let color = Color::Rgba {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: retention_factor,
+        };
 
         // 4. Set fill style and draw the rectangle.
         self.context.set_fill_style_str(&color.to_css_color());
