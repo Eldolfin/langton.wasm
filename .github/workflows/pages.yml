@@ -1,13 +1,9 @@
-name: Build & deploy static content to Pages
+name: Deploy to pages
 
 on:
   push:
     branches: ["main"]
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+  pull_request:
 
 concurrency:
   group: "pages"
@@ -17,34 +13,68 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      deploy-path: ${{ steps.prepare.outputs.deploy_path }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
       - name: Setup wasm-pack
         run: |
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
       - name: Build
         run: |
           cd src/langton
           wasm-pack build --target web
-      - name: Copy artifacts to deploy dir
+
+      - name: Prepare deploy directory
+        id: prepare
         run: |
-          mkdir -p deploy
-          cp src/langton/index.html  deploy
-          cp src/langton/favicon.png deploy
-          cp -r src/langton/pkg      deploy
+          DEPLOY_DIR_ROOT="deploy"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            DEPLOY_DIR="$DEPLOY_DIR_ROOT/previews/pr-$PR_NUMBER"
+          else
+            DEPLOY_DIR="$DEPLOY_DIR_ROOT"
+          fi
+          mkdir -p "$DEPLOY_DIR"
+          cp src/langton/index.html  "$DEPLOY_DIR"
+          cp src/langton/favicon.png "$DEPLOY_DIR"
+          cp -r src/langton/pkg      "$DEPLOY_DIR"
+          echo "deploy_path=$DEPLOY_DIR_ROOT" >> "$GITHUB_OUTPUT"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
-          path: 'deploy'
+          path: ${{ steps.prepare.outputs.deploy_path }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      pull-requests: write
+    environment:
+      name: github-pages
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          preview: ${{ github.event_name == 'pull_request' }}
+
+      - name: Comment PR with preview URL
+        if: github.event_name == 'pull_request'
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          message: |
+            🚀 Preview deployed at:
+            https://eldolfin.github.io/langton.wasm/previews/pr-${{ github.event.pull_request.number }}/
