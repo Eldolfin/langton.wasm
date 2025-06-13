@@ -16,7 +16,7 @@ async fn start() {
     let speedup_frames = debug_ui.param(ParamParam {
         name: "speedup frames",
         default_value: 1300,
-        range: 0..1200,
+        range: 0..1500,
         ..Default::default()
     });
     let start_x_rel = debug_ui.param(ParamParam {
