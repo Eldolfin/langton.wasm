@@ -34,8 +34,8 @@ async fn start() {
     // Updated parameter
     let alpha_retention_factor = debug_ui.param(ParamParam {
         name: "alpha retention",
-        default_value: 250,
-        range: 0u8..=255u8,       // u8 inclusive range for full 0-255 coverage
+        default_value: 250,     // usize value
+        range: 0..256,          // usize range 0-255
         ..Default::default()
     });
 
@@ -55,7 +55,7 @@ struct GameConfig {
     speedup_frames: Param<usize>,
     start_x_rel: Param<f32>,
     start_y_rel: Param<f32>,
-    alpha_retention_factor: Param<u8>,
+    alpha_retention_factor: Param<usize>, // Changed back to Param<usize>
 }
 
 struct Game {
@@ -89,7 +89,7 @@ enum BoardState {
 }
 
 impl Game {
-    fn new(config: GameConfig) -> Self {
+    fn new(mut config: GameConfig) -> Self {
         let canvas = Canvas::get_element_by_id("canvas")
             .unwrap()
             .with_cell_size(10.);
@@ -141,7 +141,7 @@ impl Game {
             }
 
             // Updated call to fill_canvas
-            canvas.fill_canvas(self.config.alpha_retention_factor.get());
+            canvas.fill_canvas(self.config.alpha_retention_factor.get() as u8); // Restored cast
 
             false
         };
