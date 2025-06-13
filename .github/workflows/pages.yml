@@ -59,7 +59,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
-      pull-requests: write  # Needed for commenting on PR
+      pull-requests: write
     environment:
       name: github-pages
     steps:
@@ -67,14 +67,12 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          # preview true for PRs to avoid overwriting main, false otherwise
           preview: ${{ github.event_name == 'pull_request' }}
 
       - name: Comment PR with preview URL
         if: github.event_name == 'pull_request'
-        uses: peter-evans/comment-pull-request@v2
+        uses: thollander/actions-comment-pull-request@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           message: |
             🚀 Preview deployed at:
             https://eldolfin.github.io/langton.wasm/previews/pr-${{ github.event.pull_request.number }}/
