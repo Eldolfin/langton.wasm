@@ -1,6 +1,6 @@
 use gloo::events::EventListener;
 use num_traits::{FromPrimitive, Num, ToPrimitive};
-use std::{ops::Range, sync::mpsc};
+use std::{collections::HashMap, ops::Range, str::FromStr, sync::mpsc};
 pub use web_sys;
 use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
 
@@ -77,17 +77,53 @@ impl<T: Copy> Param<T> {
     }
 }
 
+fn window() -> web_sys::Window {
+    web_sys::window().expect("no global `window` exists")
+}
+
+fn document() -> Document {
+    window()
+        .document()
+        .expect("should have a document on window")
+}
+
+#[cfg(any(feature = "auto-detect-path-params", feature = "save-params-in-url"))]
+fn url() -> url::Url {
+    document().url().unwrap().parse().unwrap()
+}
+
+#[cfg(feature = "save-params-in-url")]
+fn add_url_param<T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 'static>(
+    key: &str,
+    value: T,
+) {
+    use web_sys::wasm_bindgen::JsValue;
+
+    let mut new_url = url();
+    let mut params: HashMap<String, String> = new_url
+        .query_pairs()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    // remove old parameter
+    params.retain(|k, _| k != key);
+    params.insert(key.into(), value.to_string());
+    new_url.query_pairs_mut().clear();
+    let mut params: Vec<_> = params.into_iter().collect();
+    params.sort();
+    new_url.query_pairs_mut().extend_pairs(params);
+    window()
+        .history()
+        .unwrap()
+        .push_state_with_url(&JsValue::NULL, "", Some(new_url.as_str()))
+        .unwrap();
+}
+
 impl DebugUI {
     pub fn new(title: &str) -> Self {
-        let window = web_sys::window().expect("no global `window` exists");
-        let document = window.document().expect("should have a document on window");
+        let document = document();
         #[cfg(feature = "auto-detect-path-params")]
-        {
-            let url: url::Url = document.url().unwrap().parse().unwrap();
-            let debug_enabled = url.query_pairs().any(|param| param.0 == "debug");
-            if !debug_enabled {
-                return Self::Disabled;
-            }
+        if !url().query_pairs().any(|param| param.0 == "debug") {
+            return Self::Disabled;
         }
         let body = document.body().expect("document should have a body");
 
@@ -113,27 +149,40 @@ impl DebugUI {
     }
 
     pub fn param<
-        T: ToPrimitive + FromPrimitive + Copy + Default + 'static + ToString + Clone + std::fmt::Debug,
+        T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 'static,
         S: AsRef<str> + Clone,
     >(
         &mut self,
         p: ParamParam<T, S>,
     ) -> Param<T> {
-        let (send, param_value) = Param::new(p.default_value);
+        let key = p.name.as_ref().replace(" ", "_");
+        #[cfg(not(feature = "save-params-in-url"))]
+        let default_value = p.default_value;
+        #[cfg(feature = "save-params-in-url")]
+        let default_value = url()
+            .query_pairs()
+            .find(|(k, _)| k.as_ref() == key)
+            .map(|(_, v)| v.parse())
+            .into_iter()
+            .flatten()
+            .next()
+            .unwrap_or(p.default_value);
+
+        let (send, param_value) = Param::new(default_value);
         match self {
             DebugUI::Enabled {
                 root,
-                document,
+                document: doc,
                 next_uid,
             } => {
-                let container = document.create_element("div").unwrap();
-                let label = document.create_element("label").unwrap();
-                let slider = document
+                let container = doc.create_element("div").unwrap();
+                let label = doc.create_element("label").unwrap();
+                let slider = doc
                     .create_element("input")
                     .unwrap()
                     .dyn_into::<HtmlInputElement>()
                     .unwrap();
-                let value_input = document
+                let value_input = doc
                     .create_element("input")
                     .unwrap()
                     .dyn_into::<HtmlInputElement>()
@@ -151,7 +200,7 @@ impl DebugUI {
                 value_input.set_attribute("type", "number").unwrap();
                 label.set_text_content(Some(p.name.as_ref()));
                 label.set_attribute("for", &slider_id).unwrap();
-                value_input.set_value_as_number(p.default_value.to_f64().unwrap());
+                value_input.set_value_as_number(default_value.to_f64().unwrap());
 
                 {
                     let (min, max, step) = match p.scale {
@@ -170,7 +219,7 @@ impl DebugUI {
                     slider.set_attribute("max", &max.to_string()).unwrap();
                     slider.set_attribute("step", &step).unwrap();
                 }
-                slider.set_value_as_number(p.scale.unscale(p.default_value, &p.range));
+                slider.set_value_as_number(p.scale.unscale(default_value, &p.range));
 
                 container.set_class_name("DebugUI-param-container");
                 label.set_class_name("DebugUI-param-label");
@@ -183,12 +232,13 @@ impl DebugUI {
                 root.append_child(&container).unwrap();
 
                 {
-                    let document = document.clone();
+                    let document = doc.clone();
                     let name = p.name.as_ref().to_owned();
                     let value_id = value_id.clone();
                     let slider_id = slider_id.clone();
                     let send = send.clone();
                     let p = p.clone();
+                    let key = key.clone();
                     EventListener::new(&slider, "input", move |_event| {
                         let value = document
                             .get_element_by_id(&slider_id)
@@ -208,26 +258,31 @@ impl DebugUI {
                         let value = T::from_f64(scaled).unwrap_or_else(|| {
                             panic!("Failed to cast slider value for parameter {name}")
                         });
+
+                        #[cfg(feature = "save-params-in-url")]
+                        add_url_param(&key, value);
+
                         send.send(value).unwrap();
                     })
                     .forget();
                 }
                 {
-                    let document = document.clone();
+                    let doc = doc.clone();
                     let name = p.name.as_ref().to_owned();
                     let value_id = value_id.clone();
                     let slider_id = slider_id.clone();
                     let send = send.clone();
                     let p = p.clone();
+                    let key = key.clone();
                     EventListener::new(&value_input, "change", move |_event| {
-                        let value = document
+                        let value = doc
                             .get_element_by_id(&value_id)
                             .unwrap()
                             .dyn_into::<HtmlInputElement>()
                             .unwrap()
                             .value_as_number();
                         let unscaled = p.scale.unscale(value, &p.range);
-                        let slider_input = document
+                        let slider_input = doc
                             .get_element_by_id(&slider_id)
                             .unwrap()
                             .dyn_into::<HtmlInputElement>()
@@ -239,6 +294,10 @@ impl DebugUI {
                         let value = T::from_f64(value).unwrap_or_else(|| {
                             panic!("Failed to cast slider value for parameter {name}")
                         });
+
+                        #[cfg(feature = "save-params-in-url")]
+                        add_url_param(&key, value);
+
                         send.send(value).unwrap();
                     })
                     .forget();
