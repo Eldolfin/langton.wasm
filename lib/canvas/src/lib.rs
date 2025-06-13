@@ -87,6 +87,20 @@ impl Color {
             Color::Named(named_color) => format!("{named_color:?}").to_lowercase(),
         }
     }
+
+    fn invert(self) -> Self {
+        match self {
+            Color::Rgb { r: _, g: _, b: _ } => unimplemented!(),
+            Color::Rgba {
+                r: _,
+                g: _,
+                b: _,
+                a: _,
+            } => unimplemented!(),
+            Color::Named(NamedColor::White) => Color::Named(NamedColor::Black),
+            Color::Named(NamedColor::Black) => Color::Named(NamedColor::White),
+        }
+    }
 }
 
 /// queued rectangle draw call
@@ -181,13 +195,17 @@ impl Canvas {
 
     pub fn flush(&mut self) {
         self.optimise_queue();
-        let mut last_color = None;
         for draw_call in &self.queue {
             let DrawCall { x, y, color } = draw_call;
-            if Some(color) != last_color {
-                self.context.set_fill_style_str(&color.to_css_color());
-                last_color = Some(color);
-            }
+            self.context
+                .set_fill_style_str(&color.invert().to_css_color());
+            self.context.fill_rect(
+                *x as f64 * self.cell_size - 1.,
+                *y as f64 * self.cell_size - 1.,
+                self.cell_size + 2.,
+                self.cell_size + 2.,
+            );
+            self.context.set_fill_style_str(&color.to_css_color());
             self.context.fill_rect(
                 *x as f64 * self.cell_size,
                 *y as f64 * self.cell_size,
