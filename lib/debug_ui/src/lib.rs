@@ -1,5 +1,5 @@
 use gloo::events::EventListener;
-use num_traits::{FromPrimitive, Num, ToPrimitive, Zero};
+use num_traits::{FromPrimitive, Num, ToPrimitive};
 use std::{ops::Range, sync::mpsc};
 pub use web_sys;
 use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
