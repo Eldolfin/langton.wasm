@@ -93,8 +93,8 @@ impl Game {
             .unwrap()
             .with_cell_size(10.);
         let ant = Ant {
-            x: (canvas.width() as f32 * config.start_x_rel.get()) as usize,
-            y: (canvas.height() as f32 * config.start_y_rel.get()) as usize,
+            x: ((canvas.width() - 1) as f32 * config.start_x_rel.get()) as usize,
+            y: ((canvas.height() - 1) as f32 * config.start_y_rel.get()) as usize,
             direction: Direction::default(),
         };
         let board = vec![vec![BoardState::default(); canvas.height()]; canvas.width()];
