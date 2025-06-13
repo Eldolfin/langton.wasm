@@ -16,7 +16,6 @@ env:
 jobs:
   deploy:
     permissions:
-      actions: read
       contents: read
       pages: write
       id-token: write
@@ -52,4 +51,3 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           preview: ${{ github.event_name == 'pull_request' }}
-          token: ${{ github.token }}
