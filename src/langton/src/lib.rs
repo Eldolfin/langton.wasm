@@ -22,12 +22,13 @@ async fn start() {
     let start_x_rel = debug_ui.param(ParamParam {
         name: "start x",
         default_value: 0.80,
-        step_size: 0.0,
+        step_size: 0.01,
         ..Default::default()
     });
     let start_y_rel = debug_ui.param(ParamParam {
         name: "start y",
         default_value: 0.75,
+        step_size: 0.01,
         ..Default::default()
     });
 
