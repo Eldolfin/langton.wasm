@@ -33,10 +33,10 @@ async fn start() {
     });
     // Updated parameter
     let alpha_retention_factor = debug_ui.param(ParamParam {
-        name: "alpha retention", // New name
-        default_value: 250.0,    // New default
-        range: 0.0..255.0,       // Range
-        step_size: 1.0,
+        name: "alpha retention",
+        default_value: 250, // Changed from 250.0 (usize)
+        range: 0..255,      // usize range
+        // step_size: 1.0, // Removed or ensured not present
         ..Default::default()
     });
 
@@ -56,7 +56,7 @@ struct GameConfig {
     speedup_frames: Param<usize>,
     start_x_rel: Param<f32>,
     start_y_rel: Param<f32>,
-    alpha_retention_factor: Param<f64>, // Renamed from decay_alpha
+    alpha_retention_factor: Param<usize>, // Changed from Param<f64>
 }
 
 struct Game {
