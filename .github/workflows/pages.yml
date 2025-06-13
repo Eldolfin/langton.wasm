@@ -1,4 +1,4 @@
-name: Build & deploy static content to Pages
+name: Deploy to pages
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      artifact-path: ${{ steps.prepare.outputs.path }}
+      deploy-path: ${{ steps.prepare.outputs.deploy_path }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,31 +36,45 @@ jobs:
       - name: Prepare deploy directory
         id: prepare
         run: |
-          mkdir -p deploy
-          cp src/langton/index.html  deploy
-          cp src/langton/favicon.png deploy
-          cp -r src/langton/pkg      deploy
-          echo "path=deploy" >> "$GITHUB_OUTPUT"
+          DEPLOY_DIR="deploy"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            DEPLOY_DIR="$DEPLOY_DIR/previews/pr-$PR_NUMBER"
+          fi
+          mkdir -p "$DEPLOY_DIR"
+          cp src/langton/index.html  "$DEPLOY_DIR"
+          cp src/langton/favicon.png "$DEPLOY_DIR"
+          cp -r src/langton/pkg      "$DEPLOY_DIR"
+          echo "deploy_path=$DEPLOY_DIR" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: deploy
+          path: ${{ steps.prepare.outputs.deploy_path }}
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
     permissions:
       contents: read
       pages: write
       id-token: write
+      pull-requests: write  # Needed for commenting on PR
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
         with:
+          # preview true for PRs to avoid overwriting main, false otherwise
           preview: ${{ github.event_name == 'pull_request' }}
+
+      - name: Comment PR with preview URL
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/comment-pull-request@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          message: |
+            🚀 Preview deployed at:
+            https://eldolfin.github.io/langton.wasm/previews/pr-${{ github.event.pull_request.number }}/
