@@ -1,15 +1,26 @@
 use std::{collections::HashMap, f64};
 use wasm_bindgen::prelude::*;
+use web_sys::window;
 
 const DEFAULT_CELL_SIZE: f64 = 40.;
 
 pub struct Canvas {
     context: web_sys::CanvasRenderingContext2d,
+    /// in pixels
     cell_size: f64,
+    /// in cells
     width: usize,
+    /// in cells
     height: usize,
+    /// in cells
+    screen_height: usize,
+    /// in pixels
+    base_screen_height: usize,
+    /// in pixels
     canvas_width: usize,
+    /// in pixels
     canvas_height: usize,
+    /// render calls queue
     queue: Vec<DrawCall>,
     last_frame: Vec<Vec<Option<Color>>>,
 }
@@ -72,15 +83,22 @@ impl Canvas {
             .dyn_into::<web_sys::CanvasRenderingContext2d>()
             .ok()?;
 
+        let base_screen_height =
+            window().unwrap().inner_height().unwrap().as_f64().unwrap() as usize;
+
+        let base_screen_height = std::cmp::min(canvas.height() as usize, base_screen_height);
+
         let mut res = Self {
             context,
             cell_size: DEFAULT_CELL_SIZE,
             width: 0,
             height: 0,
+            screen_height: 0,
             canvas_width: canvas.width() as usize,
             canvas_height: canvas.height() as usize,
             queue: vec![],
             last_frame: vec![vec![]],
+            base_screen_height,
         };
         res.calculate_size();
         Some(res)
@@ -104,9 +122,14 @@ impl Canvas {
         self.height
     }
 
+    pub fn screen_height(&self) -> usize {
+        self.screen_height
+    }
+
     fn calculate_size(&mut self) {
         self.width = (self.canvas_width as f64 / self.cell_size).ceil() as usize;
         self.height = (self.canvas_height as f64 / self.cell_size).ceil() as usize;
+        self.screen_height = (self.base_screen_height as f64 / self.cell_size).ceil() as usize;
         self.last_frame = vec![vec![None; self.height]; self.width]
     }
 
