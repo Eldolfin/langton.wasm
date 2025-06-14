@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+debug_ui_derive = { path = "../debug_ui_derive" }
 gloo = { version = "0.11.0", default-features = false, features = ["events"] }
 num-traits = "0.2.19"
 url = { version = "2.5.4", optional = true }

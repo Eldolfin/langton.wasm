@@ -3,5 +3,6 @@ resolver = "3"
 members = [
   "lib/canvas",
   "lib/debug_ui",
+  "lib/debug_ui_derive",
   "src/langton",
 ]

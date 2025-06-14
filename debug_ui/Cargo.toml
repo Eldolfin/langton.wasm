@@ -1,0 +1,2 @@
+[dependencies]
+debug_ui_derive = { path = "../debug_ui_derive" }

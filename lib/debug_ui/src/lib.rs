@@ -3,6 +3,7 @@ use num_traits::{FromPrimitive, Num, ToPrimitive};
 use std::{collections::HashMap, ops::Range, str::FromStr, sync::mpsc};
 pub use web_sys;
 use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
+pub use debug_ui_derive::Config;
 
 #[macro_export]
 macro_rules! log {

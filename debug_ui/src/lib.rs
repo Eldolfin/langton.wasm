@@ -1,0 +1,1 @@
+pub use debug_ui_derive::Config;

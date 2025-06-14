@@ -54,11 +54,21 @@ dependencies = [
 name = "debug_ui"
 version = "0.1.0"
 dependencies = [
+ "debug_ui_derive",
  "gloo",
  "num-traits",
  "rstest",
  "url",
  "web-sys",
+]
+
+[[package]]
+name = "debug_ui_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
