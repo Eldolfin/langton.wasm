@@ -220,17 +220,17 @@ fn hue_to_rgb(hue: f32) -> Color {
     let x = c * (1.0 - (h_prime % 2.0 - 1.0).abs());
     let m = l - c / 2.0;
 
-    let (r_temp, g_temp, b_temp) = if h_prime >= 0.0 && h_prime < 1.0 {
+    let (r_temp, g_temp, b_temp) = if (0.0..1.0).contains(&h_prime) {
         (c, x, 0.0)
-    } else if h_prime >= 1.0 && h_prime < 2.0 {
+    } else if (1.0..2.0).contains(&h_prime) {
         (x, c, 0.0)
-    } else if h_prime >= 2.0 && h_prime < 3.0 {
+    } else if (2.0..3.0).contains(&h_prime) {
         (0.0, c, x)
-    } else if h_prime >= 3.0 && h_prime < 4.0 {
+    } else if (3.0..4.0).contains(&h_prime) {
         (0.0, x, c)
-    } else if h_prime >= 4.0 && h_prime < 5.0 {
+    } else if (4.0..5.0).contains(&h_prime) {
         (x, 0.0, c)
-    } else if h_prime >= 5.0 && h_prime <= 6.0 {
+    } else if (5.0..=6.0).contains(&h_prime) {
         (c, 0.0, x)
     } else {
         (0.0, 0.0, 0.0) // Should not happen with hue in 0-360
