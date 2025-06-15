@@ -1,4 +1,4 @@
-use canvas::{Canvas, Color, NamedColor};
+use canvas::{Canvas, Color};
 use debug_ui::{DebugUI, Param, ParamParam};
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -49,6 +49,63 @@ async fn start() {
         scale: debug_ui::Scale::Logarithmic,
         ..Default::default()
     });
+    let ant_color_saturation = debug_ui.param(ParamParam {
+        name: "ant color saturation",
+        default_value: 1.0,
+        range: 0.0..1.0,
+        step_size: 0.01,
+        ..Default::default()
+    });
+    let ant_color_brightness = debug_ui.param(ParamParam {
+        name: "ant color brightness",
+        default_value: 0.5,
+        range: 0.0..1.0,
+        step_size: 0.01,
+        ..Default::default()
+    });
+
+    debug_ui.start_section("Visual");
+    let cell_size = debug_ui.param(ParamParam {
+        name: "cell size",
+        default_value: 10.0,
+        range: 1.0..50.0,
+        step_size: 0.5,
+        ..Default::default()
+    });
+    let cell_border_size = debug_ui.param(ParamParam {
+        name: "cell border size",
+        default_value: 1.0,
+        range: 0.0..5.0,
+        step_size: 0.1,
+        ..Default::default()
+    });
+    let white_color_r = debug_ui.param(ParamParam {
+        name: "white color red",
+        default_value: 255,
+        range: 0..255,
+        ..Default::default()
+    });
+    let white_color_g = debug_ui.param(ParamParam {
+        name: "white color green",
+        default_value: 255,
+        range: 0..255,
+        ..Default::default()
+    });
+    let white_color_b = debug_ui.param(ParamParam {
+        name: "white color blue",
+        default_value: 255,
+        range: 0..255,
+        ..Default::default()
+    });
+
+    debug_ui.start_section("Advanced");
+    let speed_ease_in_power = debug_ui.param(ParamParam {
+        name: "speed ease-in power",
+        default_value: 4.0,
+        range: 1.0..10.0,
+        step_size: 0.1,
+        ..Default::default()
+    });
 
     Game::new(GameConfig {
         final_steps_per_frame,
@@ -57,6 +114,14 @@ async fn start() {
         start_y_rel,
         alpha_retention_factor,
         num_ants,
+        ant_color_saturation,
+        ant_color_brightness,
+        cell_size,
+        cell_border_size,
+        white_color_r,
+        white_color_g,
+        white_color_b,
+        speed_ease_in_power,
     })
     .run()
     .await;
@@ -69,6 +134,14 @@ struct GameConfig {
     start_x_rel: Param<f32>,
     start_y_rel: Param<f32>,
     alpha_retention_factor: Param<u8>,
+    ant_color_saturation: Param<f32>,
+    ant_color_brightness: Param<f32>,
+    cell_size: Param<f64>,
+    cell_border_size: Param<f64>,
+    white_color_r: Param<u8>,
+    white_color_g: Param<u8>,
+    white_color_b: Param<u8>,
+    speed_ease_in_power: Param<f64>,
 }
 
 struct Game {
@@ -98,7 +171,9 @@ enum Direction {
 
 impl Game {
     fn new(mut config: GameConfig) -> Self {
-        let canvas = Canvas::create_bg().unwrap().with_cell_size(10.);
+        let canvas = Canvas::create_bg().unwrap()
+            .with_cell_size(config.cell_size.get())
+            .with_cell_border_size(config.cell_border_size.get());
         let mut ants = Vec::new();
         let num_ants_val = config.num_ants.get();
         for i in 0..num_ants_val {
@@ -108,7 +183,7 @@ impl Game {
             } else {
                 0.0
             };
-            let color = hue_to_rgb(hue);
+            let color = hue_to_rgb(hue, config.ant_color_saturation.get(), config.ant_color_brightness.get());
 
             let ant = Ant {
                 x: ((canvas.width() - 1) as f32 * config.start_x_rel.get()) as usize,
@@ -130,8 +205,8 @@ impl Game {
     }
 
     /// An ease-in I felt satisfying enough by trial and error
-    fn shit_ease_in(inp: f64) -> f64 {
-        let out = inp * inp * inp * inp;
+    fn shit_ease_in(inp: f64, power: f64) -> f64 {
+        let out = inp.powf(power);
         (out + 0.005).clamp(0.0, 1.0)
     }
 
@@ -142,7 +217,7 @@ impl Game {
             frame_counter += 1;
             let ratio =
                 (frame_counter as f64 / self.config.speedup_frames.get() as f64).clamp(0.0, 1.0);
-            let ratio = Self::shit_ease_in(ratio);
+            let ratio = Self::shit_ease_in(ratio, self.config.speed_ease_in_power.get());
             let step = self.config.final_steps_per_frame.get() * ratio;
             step_accumulator += step;
             while step_accumulator >= 1.0 {
@@ -162,7 +237,11 @@ impl Game {
                             // Was black/colored by an ant
                             ant.direction = ant.direction.left();
                             self.board[ant.x][ant.y] = None;
-                            new_cell_color = Color::Named(NamedColor::White);
+                            new_cell_color = Color::Rgb {
+                                r: self.config.white_color_r.get(),
+                                g: self.config.white_color_g.get(),
+                                b: self.config.white_color_b.get(),
+                            };
                         }
                     }
                     canvas.fill_rect(ant.x, ant.y, new_cell_color);
@@ -213,9 +292,9 @@ impl Ant {
     }
 }
 
-fn hue_to_rgb(hue: f32) -> Color {
-    let s = 1.0; // Saturation
-    let l = 0.5; // Lightness
+fn hue_to_rgb(hue: f32, saturation: f32, lightness: f32) -> Color {
+    let s = saturation; // Saturation
+    let l = lightness; // Lightness
 
     let c = (1.0 - (2.0f32 * l - 1.0).abs()) * s;
     let h_prime = hue / 60.0;
