@@ -1,5 +1,6 @@
-use std::{collections::HashMap, f64};
+use std::{cell::RefCell, collections::HashMap, f64, rc::Rc};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::JsFuture;
 use web_sys::window;
 
 const DEFAULT_CELL_SIZE: f64 = 40.;
@@ -154,12 +155,12 @@ impl Canvas {
         mut self,
         mut animation: impl FnMut(&mut Canvas) -> bool + 'static,
     ) {
-        let step = Closure::new(move || {
+        let step = move || {
             let res = animation(&mut self);
             self.flush();
             res
-        });
-        start_animation(&step).await;
+        };
+        start_animation(step).await;
     }
 
     pub fn fill_canvas(&mut self, retention_factor: u8) {
@@ -240,9 +241,31 @@ impl Canvas {
     }
 }
 
-#[wasm_bindgen(module = "/lib.js")]
-extern "C" {
-    async fn start_animation(animation_step: &Closure<dyn FnMut() -> bool>);
+fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+    window()
+        .unwrap()
+        .request_animation_frame(f.as_ref().unchecked_ref())
+        .expect("should register `requestAnimationFrame` OK");
+}
+
+async fn start_animation(animation_step: impl FnMut() -> bool + 'static) {
+    let animation_step = Rc::new(RefCell::new(animation_step));
+    let promise = web_sys::js_sys::Promise::new(&mut |resolve, reject| {
+        let update = Rc::new(RefCell::new(None));
+        let f = update.clone();
+        let value = animation_step.clone();
+        *f.borrow_mut() = Some(Closure::new(move || {
+            if !value.borrow_mut()() {
+                request_animation_frame(update.borrow_mut().as_ref().unwrap());
+            } else {
+                // free closure
+                let _ = update.borrow_mut().take();
+                resolve.call0(&JsValue::NULL);
+            }
+        }));
+        request_animation_frame(f.borrow_mut().as_ref().unwrap());
+    });
+    JsFuture::from(promise).await.unwrap();
 }
 
 #[cfg(test)]
