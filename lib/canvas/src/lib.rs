@@ -228,14 +228,17 @@ impl Canvas {
             let DrawCall { x, y, color } = draw_call;
             self.context
                 .set_fill_style_str(&color.invert().to_css_color());
-            // borders
-            self.context.fill_rect(
-                *x as f64 * self.cell_size,
-                *y as f64 * self.cell_size,
-                self.cell_size,
-                self.cell_size,
-            );
-            self.context.set_fill_style_str(&color.to_css_color());
+            // avoid calling the "expensive" fill_rect if there is no border
+            if self.cell_size != 0.0 {
+                // borders
+                self.context.fill_rect(
+                    *x as f64 * self.cell_size,
+                    *y as f64 * self.cell_size,
+                    self.cell_size,
+                    self.cell_size,
+                );
+                self.context.set_fill_style_str(&color.to_css_color());
+            }
             // center
             self.context.fill_rect(
                 *x as f64 * self.cell_size + self.cell_border_size,
