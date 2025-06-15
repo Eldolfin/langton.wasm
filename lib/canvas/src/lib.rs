@@ -6,6 +6,9 @@ const DEFAULT_CELL_SIZE: f64 = 40.;
 
 pub struct Canvas {
     context: web_sys::CanvasRenderingContext2d,
+    /// render calls queue
+    queue: Vec<DrawCall>,
+    last_frame: Vec<Vec<Option<Color>>>,
     /// in pixels
     cell_size: f64,
     /// in cells
@@ -20,9 +23,6 @@ pub struct Canvas {
     canvas_width: usize,
     /// in pixels
     canvas_height: usize,
-    /// render calls queue
-    queue: Vec<DrawCall>,
-    last_frame: Vec<Vec<Option<Color>>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -207,18 +207,21 @@ impl Canvas {
             let DrawCall { x, y, color } = draw_call;
             self.context
                 .set_fill_style_str(&color.invert().to_css_color());
-            self.context.fill_rect(
-                *x as f64 * self.cell_size - 1.,
-                *y as f64 * self.cell_size - 1.,
-                self.cell_size + 2.,
-                self.cell_size + 2.,
-            );
-            self.context.set_fill_style_str(&color.to_css_color());
+            // borders
             self.context.fill_rect(
                 *x as f64 * self.cell_size,
                 *y as f64 * self.cell_size,
                 self.cell_size,
                 self.cell_size,
+            );
+            self.context.set_fill_style_str(&color.to_css_color());
+            // center
+            const CELL_BORDER_SIZE: f64 = 1.0;
+            self.context.fill_rect(
+                *x as f64 * self.cell_size + CELL_BORDER_SIZE,
+                *y as f64 * self.cell_size + CELL_BORDER_SIZE,
+                self.cell_size - 2.0 * CELL_BORDER_SIZE,
+                self.cell_size - 2.0 * CELL_BORDER_SIZE,
             );
             self.last_frame[*x][*y] = Some(*color);
         }
