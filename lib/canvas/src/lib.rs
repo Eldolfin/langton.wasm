@@ -49,13 +49,17 @@ impl Color {
 
     fn invert(self) -> Self {
         match self {
-            Color::Rgb { r: _, g: _, b: _ } => unimplemented!(),
-            Color::Rgba {
-                r: _,
-                g: _,
-                b: _,
-                a: _,
-            } => unimplemented!(),
+            Color::Rgb { r, g, b } => Color::Rgb {
+                r: 255 - r,
+                g: 255 - g,
+                b: 255 - b,
+            },
+            Color::Rgba { r, g, b, a } => Color::Rgba {
+                r: 255 - r,
+                g: 255 - g,
+                b: 255 - b,
+                a, // Preserve alpha
+            },
             Color::Named(NamedColor::White) => Color::Named(NamedColor::Black),
             Color::Named(NamedColor::Black) => Color::Named(NamedColor::White),
         }
@@ -240,5 +244,18 @@ mod tests {
     #[case(Color::Rgba{r: 1, g: 2, b: 3, a: 4}, "#01020304")]
     pub fn test_color_to_css_string(#[case] color: Color, #[case] expected_str: &str) {
         assert_eq!(color.to_css_color(), expected_str);
+    }
+
+    #[rstest]
+    #[case(Color::Rgb { r: 0, g: 0, b: 0 }, Color::Rgb { r: 255, g: 255, b: 255 })]
+    #[case(Color::Rgb { r: 255, g: 255, b: 255 }, Color::Rgb { r: 0, g: 0, b: 0 })]
+    #[case(Color::Rgb { r: 10, g: 20, b: 30 }, Color::Rgb { r: 245, g: 235, b: 225 })]
+    #[case(Color::Rgba { r: 0, g: 0, b: 0, a: 100 }, Color::Rgba { r: 255, g: 255, b: 255, a: 100 })]
+    #[case(Color::Rgba { r: 255, g: 255, b: 255, a: 50 }, Color::Rgba { r: 0, g: 0, b: 0, a: 50 })]
+    #[case(Color::Rgba { r: 10, g: 20, b: 30, a: 0 }, Color::Rgba { r: 245, g: 235, b: 225, a: 0 })]
+    #[case(Color::Named(NamedColor::White), Color::Named(NamedColor::Black))]
+    #[case(Color::Named(NamedColor::Black), Color::Named(NamedColor::White))]
+    fn test_color_invert(#[case] original: Color, #[case] expected_inverted: Color) {
+        assert_eq!(original.invert(), expected_inverted);
     }
 }

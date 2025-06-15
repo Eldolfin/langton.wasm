@@ -70,7 +70,7 @@ struct GameConfig {
 struct Game {
     canvas: Canvas,
     /// indexed by x, y
-    board: Vec<Vec<BoardState>>,
+    board: Vec<Vec<Option<usize>>>,
     ants: Vec<Ant>,
     config: GameConfig,
 }
@@ -79,6 +79,8 @@ struct Ant {
     x: usize,
     y: usize,
     direction: Direction,
+    id: usize,
+    color: Color,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -90,28 +92,32 @@ enum Direction {
     West,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-enum BoardState {
-    #[default]
-    White,
-    Black,
-}
-
 impl Game {
     fn new(mut config: GameConfig) -> Self {
         let canvas = Canvas::get_element_by_id("canvas")
             .unwrap()
             .with_cell_size(10.);
         let mut ants = Vec::new();
-        for _ in 0..config.num_ants.get() {
+        let num_ants_val = config.num_ants.get();
+        for i in 0..num_ants_val {
+            let id = i;
+            let hue = if num_ants_val > 0 {
+                (id as f64 * 360.0) / num_ants_val as f64
+            } else {
+                0.0
+            };
+            let color = hue_to_rgb(hue);
+
             let ant = Ant {
                 x: ((canvas.width() - 1) as f32 * config.start_x_rel.get()) as usize,
                 y: ((canvas.screen_height() - 1) as f32 * config.start_y_rel.get()) as usize,
                 direction: Direction::default(),
+                id,
+                color,
             };
             ants.push(ant);
         }
-        let board = vec![vec![BoardState::default(); canvas.height()]; canvas.width()];
+        let board = vec![vec![None; canvas.height()]; canvas.width()];
 
         Self {
             board,
@@ -141,17 +147,21 @@ impl Game {
                 step_accumulator -= 1.0;
 
                 for ant in &mut self.ants {
-                    let at_ant = self.board[ant.x][ant.y];
-                    match at_ant {
-                        BoardState::White => {
+                    let current_cell_state = self.board[ant.x][ant.y];
+                    let new_cell_color;
+                    match current_cell_state {
+                        None => { // Was white
                             ant.direction = ant.direction.right();
+                            self.board[ant.x][ant.y] = Some(ant.id);
+                            new_cell_color = ant.color;
                         }
-                        BoardState::Black => {
+                        Some(_) => { // Was black/colored by an ant
                             ant.direction = ant.direction.left();
+                            self.board[ant.x][ant.y] = None;
+                            new_cell_color = Color::Named(NamedColor::White);
                         }
                     }
-                    self.board[ant.x][ant.y] = !at_ant;
-                    canvas.fill_rect(ant.x, ant.y, (!at_ant).to_canvas_color());
+                    canvas.fill_rect(ant.x, ant.y, new_cell_color);
                     ant.move_forward(canvas.width(), canvas.height());
                 }
             }
@@ -199,6 +209,40 @@ impl Ant {
     }
 }
 
+fn hue_to_rgb(hue: f64) -> Color {
+    let s = 1.0; // Saturation
+    let l = 0.5; // Lightness
+
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let h_prime = hue / 60.0;
+    let x = c * (1.0 - (h_prime % 2.0 - 1.0).abs());
+    let m = l - c / 2.0;
+
+    let (r_temp, g_temp, b_temp) = if h_prime >= 0.0 && h_prime < 1.0 {
+        (c, x, 0.0)
+    } else if h_prime >= 1.0 && h_prime < 2.0 {
+        (x, c, 0.0)
+    } else if h_prime >= 2.0 && h_prime < 3.0 {
+        (0.0, c, x)
+    } else if h_prime >= 3.0 && h_prime < 4.0 {
+        (0.0, x, c)
+    } else if h_prime >= 4.0 && h_prime < 5.0 {
+        (x, 0.0, c)
+    } else if h_prime >= 5.0 && h_prime <= 6.0 {
+        (c, 0.0, x)
+    } else {
+        (0.0, 0.0, 0.0) // Should not happen with hue in 0-360
+    };
+
+    let r = ((r_temp + m) * 255.0).round() as u8;
+    let g = ((g_temp + m) * 255.0).round() as u8;
+    let b = ((b_temp + m) * 255.0).round() as u8;
+
+    Color::Rgb { r, g, b }
+}
+
+// Removed BoardState enum and its impl blocks
+
 impl Direction {
     fn left(self) -> Self {
         match self {
@@ -215,25 +259,6 @@ impl Direction {
             Direction::Est => Direction::South,
             Direction::South => Direction::West,
             Direction::West => Direction::North,
-        }
-    }
-}
-
-impl BoardState {
-    fn to_canvas_color(self) -> Color {
-        match self {
-            BoardState::White => Color::Named(NamedColor::White),
-            BoardState::Black => Color::Named(NamedColor::Black),
-        }
-    }
-}
-
-impl std::ops::Not for BoardState {
-    type Output = Self;
-    fn not(self) -> Self::Output {
-        match self {
-            BoardState::White => Self::Black,
-            BoardState::Black => Self::White,
         }
     }
 }
