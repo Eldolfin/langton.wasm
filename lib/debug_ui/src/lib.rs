@@ -148,6 +148,20 @@ impl DebugUI {
         }
     }
 
+    pub fn start_section<S: AsRef<str>>(&mut self, title: S) {
+        let Self::Enabled { root, .. } = self else {
+            return;
+        };
+
+        let document = document();
+        let el = document.create_element("h3").unwrap();
+
+        el.set_text_content(Some(title.as_ref()));
+        el.set_class_name("DebugUI-section-title");
+
+        root.append_child(&el).unwrap();
+    }
+
     pub fn param<
         T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 'static,
         S: AsRef<str> + Clone,

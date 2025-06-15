@@ -6,19 +6,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 async fn start() {
     console_error_panic_hook::set_once();
     let mut debug_ui = DebugUI::new("Langton's ant parameters");
-    let final_steps_per_frame = debug_ui.param(ParamParam {
-        name: "final speed",
-        default_value: 12.0,
-        range: 0.0..1000.0,
-        scale: debug_ui::Scale::Logarithmic,
-        ..Default::default()
-    });
-    let speedup_frames = debug_ui.param(ParamParam {
-        name: "speedup frames",
-        default_value: 1300,
-        range: 0..1500,
-        ..Default::default()
-    });
+    debug_ui.start_section("Canvas");
     let start_x_rel = debug_ui.param(ParamParam {
         name: "start x",
         default_value: 0.80,
@@ -38,6 +26,22 @@ async fn start() {
         ..Default::default()
     });
 
+    debug_ui.start_section("Animation Speed");
+    let final_steps_per_frame = debug_ui.param(ParamParam {
+        name: "final speed",
+        default_value: 12.0,
+        range: 0.0..1000.0,
+        scale: debug_ui::Scale::Logarithmic,
+        ..Default::default()
+    });
+    let speedup_frames = debug_ui.param(ParamParam {
+        name: "speedup frames",
+        default_value: 1300,
+        range: 0..1500,
+        ..Default::default()
+    });
+
+    debug_ui.start_section("Ants");
     let num_ants = debug_ui.param(ParamParam {
         name: "number of ants",
         default_value: 2,

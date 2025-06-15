@@ -17,6 +17,14 @@
   color: #333;
 }
 
+.DebugUI-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 10px;
+  margin-bottom: 2px;
+  color: #333;
+}
+
 .DebugUI-param-container {
   display: flex;
   align-items: center;
