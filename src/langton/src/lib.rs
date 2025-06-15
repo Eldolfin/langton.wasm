@@ -21,7 +21,7 @@ async fn start() {
     });
     let alpha_retention_factor = debug_ui.param(ParamParam {
         name: "alpha retention",
-        default_value: 254,
+        default_value: 250,
         range: 0..255,
         ..Default::default()
     });
