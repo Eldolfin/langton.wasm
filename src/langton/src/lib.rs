@@ -21,7 +21,7 @@ async fn start() {
     });
     let alpha_retention_factor = debug_ui.param(ParamParam {
         name: "alpha retention",
-        default_value: 250,
+        default_value: 254,
         range: 0..255,
         ..Default::default()
     });
@@ -58,7 +58,7 @@ async fn start() {
     });
     let ant_color_brightness = debug_ui.param(ParamParam {
         name: "ant color brightness",
-        default_value: 0.5,
+        default_value: 0.7,
         range: 0.0..1.0,
         step_size: 0.01,
         ..Default::default()
@@ -67,14 +67,14 @@ async fn start() {
     debug_ui.start_section("Visual");
     let cell_size = debug_ui.param(ParamParam {
         name: "cell size",
-        default_value: 10.0,
+        default_value: 15.0,
         range: 1.0..50.0,
         step_size: 0.5,
         ..Default::default()
     });
     let cell_border_size = debug_ui.param(ParamParam {
         name: "cell border size",
-        default_value: 1.0,
+        default_value: 0.0,
         range: 0.0..5.0,
         step_size: 0.1,
         ..Default::default()
@@ -101,7 +101,7 @@ async fn start() {
     debug_ui.start_section("Advanced");
     let speed_ease_in_power = debug_ui.param(ParamParam {
         name: "speed ease-in power",
-        default_value: 4.0,
+        default_value: 8.0,
         range: 1.0..10.0,
         step_size: 0.1,
         ..Default::default()
@@ -171,7 +171,8 @@ enum Direction {
 
 impl Game {
     fn new(mut config: GameConfig) -> Self {
-        let canvas = Canvas::create_bg().unwrap()
+        let canvas = Canvas::create_bg()
+            .unwrap()
             .with_cell_size(config.cell_size.get())
             .with_cell_border_size(config.cell_border_size.get());
         let mut ants = Vec::new();
@@ -183,7 +184,11 @@ impl Game {
             } else {
                 0.0
             };
-            let color = hue_to_rgb(hue, config.ant_color_saturation.get(), config.ant_color_brightness.get());
+            let color = hue_to_rgb(
+                hue,
+                config.ant_color_saturation.get(),
+                config.ant_color_brightness.get(),
+            );
 
             let ant = Ant {
                 x: ((canvas.width() - 1) as f32 * config.start_x_rel.get()) as usize,
