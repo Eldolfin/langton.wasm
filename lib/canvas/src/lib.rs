@@ -226,18 +226,18 @@ impl Canvas {
         self.optimise_queue();
         for draw_call in &self.queue {
             let DrawCall { x, y, color } = draw_call;
-            self.context
-                .set_fill_style_str(&color.invert().to_css_color());
             // avoid calling the "expensive" fill_rect if there is no border
             if self.cell_border_size != 0.0 {
+                self.context
+                    .set_fill_style_str(&color.invert().to_css_color());
                 self.context.fill_rect(
                     *x as f64 * self.cell_size,
                     *y as f64 * self.cell_size,
                     self.cell_size,
                     self.cell_size,
                 );
-                self.context.set_fill_style_str(&color.to_css_color());
             }
+            self.context.set_fill_style_str(&color.to_css_color());
             // center
             self.context.fill_rect(
                 *x as f64 * self.cell_size + self.cell_border_size,
