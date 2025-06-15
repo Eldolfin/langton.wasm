@@ -229,8 +229,7 @@ impl Canvas {
             self.context
                 .set_fill_style_str(&color.invert().to_css_color());
             // avoid calling the "expensive" fill_rect if there is no border
-            if self.cell_size != 0.0 {
-                // borders
+            if self.cell_border_size != 0.0 {
                 self.context.fill_rect(
                     *x as f64 * self.cell_size,
                     *y as f64 * self.cell_size,
