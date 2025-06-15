@@ -250,7 +250,7 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
 
 async fn start_animation(animation_step: impl FnMut() -> bool + 'static) {
     let animation_step = Rc::new(RefCell::new(animation_step));
-    let promise = web_sys::js_sys::Promise::new(&mut |resolve, reject| {
+    let promise = web_sys::js_sys::Promise::new(&mut |resolve, _reject| {
         let update = Rc::new(RefCell::new(None));
         let f = update.clone();
         let value = animation_step.clone();
@@ -260,7 +260,7 @@ async fn start_animation(animation_step: impl FnMut() -> bool + 'static) {
             } else {
                 // free closure
                 let _ = update.borrow_mut().take();
-                resolve.call0(&JsValue::NULL);
+                resolve.call0(&JsValue::NULL).unwrap();
             }
         }));
         request_animation_frame(f.borrow_mut().as_ref().unwrap());
