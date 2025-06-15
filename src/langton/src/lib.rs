@@ -40,7 +40,7 @@ async fn start() {
 
     let num_ants = debug_ui.param(ParamParam {
         name: "number of ants",
-        default_value: 1,
+        default_value: 2,
         range: 1..1000,
         scale: debug_ui::Scale::Logarithmic,
         ..Default::default()
