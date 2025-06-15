@@ -12,6 +12,8 @@ pub struct Canvas {
     last_frame: Vec<Vec<Option<Color>>>,
     /// in pixels
     cell_size: f64,
+    /// in pixels
+    cell_border_size: f64,
     /// in cells
     width: usize,
     /// in cells
@@ -108,6 +110,7 @@ impl Canvas {
         let mut res = Self {
             context,
             cell_size: DEFAULT_CELL_SIZE,
+            cell_border_size: 1.0,
             width: 0,
             height: 0,
             screen_height: 0,
@@ -124,6 +127,11 @@ impl Canvas {
     pub fn with_cell_size(mut self, cell_size: f64) -> Self {
         self.cell_size = cell_size;
         self.calculate_size();
+        self
+    }
+
+    pub fn with_cell_border_size(mut self, cell_border_size: f64) -> Self {
+        self.cell_border_size = cell_border_size;
         self
     }
 
@@ -229,12 +237,11 @@ impl Canvas {
             );
             self.context.set_fill_style_str(&color.to_css_color());
             // center
-            const CELL_BORDER_SIZE: f64 = 1.0;
             self.context.fill_rect(
-                *x as f64 * self.cell_size + CELL_BORDER_SIZE,
-                *y as f64 * self.cell_size + CELL_BORDER_SIZE,
-                self.cell_size - 2.0 * CELL_BORDER_SIZE,
-                self.cell_size - 2.0 * CELL_BORDER_SIZE,
+                *x as f64 * self.cell_size + self.cell_border_size,
+                *y as f64 * self.cell_size + self.cell_border_size,
+                self.cell_size - 2.0 * self.cell_border_size,
+                self.cell_size - 2.0 * self.cell_border_size,
             );
             self.last_frame[*x][*y] = Some(*color);
         }
