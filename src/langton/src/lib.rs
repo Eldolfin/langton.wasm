@@ -38,18 +38,28 @@ async fn start() {
         ..Default::default()
     });
 
+    let num_ants = debug_ui.param(ParamParam {
+        name: "number of ants",
+        default_value: 1,
+        range: 1..1000,
+        scale: debug_ui::Scale::Logarithmic,
+        ..Default::default()
+    });
+
     Game::new(GameConfig {
         final_steps_per_frame,
         speedup_frames,
         start_x_rel,
         start_y_rel,
         alpha_retention_factor,
+        num_ants,
     })
     .run()
     .await;
 }
 
 struct GameConfig {
+    num_ants: Param<usize>,
     final_steps_per_frame: Param<f64>,
     speedup_frames: Param<usize>,
     start_x_rel: Param<f32>,
@@ -61,7 +71,7 @@ struct Game {
     canvas: Canvas,
     /// indexed by x, y
     board: Vec<Vec<BoardState>>,
-    ant: Ant,
+    ants: Vec<Ant>,
     config: GameConfig,
 }
 
@@ -92,17 +102,21 @@ impl Game {
         let canvas = Canvas::get_element_by_id("canvas")
             .unwrap()
             .with_cell_size(10.);
-        let ant = Ant {
-            x: ((canvas.width() - 1) as f32 * config.start_x_rel.get()) as usize,
-            y: ((canvas.screen_height() - 1) as f32 * config.start_y_rel.get()) as usize,
-            direction: Direction::default(),
-        };
+        let mut ants = Vec::new();
+        for _ in 0..config.num_ants.get() {
+            let ant = Ant {
+                x: ((canvas.width() - 1) as f32 * config.start_x_rel.get()) as usize,
+                y: ((canvas.screen_height() - 1) as f32 * config.start_y_rel.get()) as usize,
+                direction: Direction::default(),
+            };
+            ants.push(ant);
+        }
         let board = vec![vec![BoardState::default(); canvas.height()]; canvas.width()];
 
         Self {
             board,
             canvas,
-            ant,
+            ants,
             config,
         }
     }
@@ -125,18 +139,21 @@ impl Game {
             step_accumulator += step;
             while step_accumulator >= 1.0 {
                 step_accumulator -= 1.0;
-                let at_ant = self.board[self.ant.x][self.ant.y];
-                match at_ant {
-                    BoardState::White => {
-                        self.ant.direction = self.ant.direction.right();
+
+                for ant in &mut self.ants {
+                    let at_ant = self.board[ant.x][ant.y];
+                    match at_ant {
+                        BoardState::White => {
+                            ant.direction = ant.direction.right();
+                        }
+                        BoardState::Black => {
+                            ant.direction = ant.direction.left();
+                        }
                     }
-                    BoardState::Black => {
-                        self.ant.direction = self.ant.direction.left();
-                    }
+                    self.board[ant.x][ant.y] = !at_ant;
+                    canvas.fill_rect(ant.x, ant.y, (!at_ant).to_canvas_color());
+                    ant.move_forward(canvas.width(), canvas.height());
                 }
-                self.board[self.ant.x][self.ant.y] = !at_ant;
-                canvas.fill_rect(self.ant.x, self.ant.y, (!at_ant).to_canvas_color());
-                self.ant.move_forward(canvas.width(), canvas.height());
             }
 
             canvas.fill_canvas(self.config.alpha_retention_factor.get());
