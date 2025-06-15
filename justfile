@@ -1,4 +1,4 @@
-set DEV_PARAMS := "/?debug&alpha_retention=255&final_speed=5&number_of_ants=1&speedup_frames=0&start_x=0.5&start_y=0.5"
+export DEV_PARAMS := "/?debug&alpha_retention=255&final_speed=5&number_of_ants=1&speedup_frames=0&start_x=0.5&start_y=0.5"
 
 # Build langton-ant with wasm-pack
 build:
