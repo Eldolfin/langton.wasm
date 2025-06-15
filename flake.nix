@@ -37,11 +37,13 @@
               check-merge-conflicts.enable = true;
               check-yaml.enable = true;
               markdownlint.enable = true;
-              clippy = {
+              cargo-clippy = {
                 enable = true;
-                settings = {
-                  allFeatures = true;
-                };
+                name = "cargo-clippy";
+                description = "Check the cargo package for errors with clippy";
+                entry = "${pkgs.cargo}/bin/cargo clippy -- -Dwarnings";
+                files = "\\.rs$";
+                pass_filenames = false;
               };
             };
           };
