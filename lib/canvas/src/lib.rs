@@ -32,7 +32,7 @@ pub enum NamedColor {
     // TODO: the rest
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Color {
     Rgb { r: u8, g: u8, b: u8 },
     Rgba { r: u8, g: u8, b: u8, a: u8 },
