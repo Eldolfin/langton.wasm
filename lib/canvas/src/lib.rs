@@ -84,7 +84,7 @@ impl Canvas {
             .dyn_into::<web_sys::HtmlCanvasElement>()
             .ok()?;
 
-        body.append_child(&canvas).unwrap();
+        body.prepend_with_node_1(&canvas).unwrap();
 
         let style = document.create_element("style").unwrap();
         style.set_text_content(Some(include_str!("./style.css")));
