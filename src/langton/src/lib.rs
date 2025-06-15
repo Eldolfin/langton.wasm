@@ -102,7 +102,7 @@ impl Game {
         for i in 0..num_ants_val {
             let id = i;
             let hue = if num_ants_val > 0 {
-                (id as f64 * 360.0) / num_ants_val as f64
+                (id as f32 * 360.0) / num_ants_val as f32
             } else {
                 0.0
             };
@@ -150,12 +150,14 @@ impl Game {
                     let current_cell_state = self.board[ant.x][ant.y];
                     let new_cell_color;
                     match current_cell_state {
-                        None => { // Was white
+                        None => {
+                            // Was white
                             ant.direction = ant.direction.right();
                             self.board[ant.x][ant.y] = Some(ant.id);
                             new_cell_color = ant.color;
                         }
-                        Some(_) => { // Was black/colored by an ant
+                        Some(_) => {
+                            // Was black/colored by an ant
                             ant.direction = ant.direction.left();
                             self.board[ant.x][ant.y] = None;
                             new_cell_color = Color::Named(NamedColor::White);
@@ -209,11 +211,11 @@ impl Ant {
     }
 }
 
-fn hue_to_rgb(hue: f64) -> Color {
+fn hue_to_rgb(hue: f32) -> Color {
     let s = 1.0; // Saturation
     let l = 0.5; // Lightness
 
-    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let c = (1.0 - (2.0f32 * l - 1.0).abs()) * s;
     let h_prime = hue / 60.0;
     let x = c * (1.0 - (h_prime % 2.0 - 1.0).abs());
     let m = l - c / 2.0;
