@@ -94,9 +94,7 @@ enum Direction {
 
 impl Game {
     fn new(mut config: GameConfig) -> Self {
-        let canvas = Canvas::get_element_by_id("canvas")
-            .unwrap()
-            .with_cell_size(10.);
+        let canvas = Canvas::create_bg().unwrap().with_cell_size(10.);
         let mut ants = Vec::new();
         let num_ants_val = config.num_ants.get();
         for i in 0..num_ants_val {

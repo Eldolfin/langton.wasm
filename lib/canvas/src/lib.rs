@@ -75,11 +75,23 @@ struct DrawCall {
 }
 
 impl Canvas {
-    pub fn get_element_by_id(id: &str) -> Option<Self> {
+    pub fn create_bg() -> Option<Self> {
         let document = web_sys::window()?.document()?;
-        let canvas = document.get_element_by_id(id)?;
-        let canvas: web_sys::HtmlCanvasElement =
-            canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()?;
+        let body = document.body().unwrap();
+        let canvas = document
+            .create_element("canvas")
+            .unwrap()
+            .dyn_into::<web_sys::HtmlCanvasElement>()
+            .ok()?;
+
+        body.append_child(&canvas).unwrap();
+
+        let style = document.create_element("style").unwrap();
+        style.set_text_content(Some(include_str!("./style.css")));
+        document.head().unwrap().append_child(&style).unwrap();
+
+        canvas.set_width(window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32);
+        canvas.set_height(body.scroll_height() as u32);
 
         let context = canvas
             .get_context("2d")
