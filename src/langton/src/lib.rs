@@ -21,7 +21,7 @@ async fn start() {
     });
     let alpha_retention_factor = debug_ui.param(ParamParam {
         name: "alpha retention",
-        default_value: 250,
+        default_value: 253,
         range: 0..255,
         ..Default::default()
     });
@@ -29,7 +29,7 @@ async fn start() {
     debug_ui.start_section("Animation Speed");
     let final_steps_per_frame = debug_ui.param(ParamParam {
         name: "final speed",
-        default_value: 12.0,
+        default_value: 0.2,
         range: 0.0..1000.0,
         scale: debug_ui::Scale::Logarithmic,
         ..Default::default()
@@ -51,7 +51,7 @@ async fn start() {
     });
     let ant_color_saturation = debug_ui.param(ParamParam {
         name: "ant color saturation",
-        default_value: 1.0,
+        default_value: 0.3,
         range: 0.0..1.0,
         step_size: 0.01,
         ..Default::default()
@@ -67,33 +67,33 @@ async fn start() {
     debug_ui.start_section("Visual");
     let cell_size = debug_ui.param(ParamParam {
         name: "cell size",
-        default_value: 15.0,
+        default_value: 10.0,
         range: 1.0..50.0,
         step_size: 0.5,
         ..Default::default()
     });
     let cell_border_size = debug_ui.param(ParamParam {
         name: "cell border size",
-        default_value: 0.0,
+        default_value: 1.0,
         range: 0.0..5.0,
         step_size: 0.1,
         ..Default::default()
     });
     let white_color_r = debug_ui.param(ParamParam {
         name: "white color red",
-        default_value: 255,
+        default_value: 30,
         range: 0..255,
         ..Default::default()
     });
     let white_color_g = debug_ui.param(ParamParam {
         name: "white color green",
-        default_value: 255,
+        default_value: 30,
         range: 0..255,
         ..Default::default()
     });
     let white_color_b = debug_ui.param(ParamParam {
         name: "white color blue",
-        default_value: 255,
+        default_value: 30,
         range: 0..255,
         ..Default::default()
     });
@@ -101,7 +101,7 @@ async fn start() {
     debug_ui.start_section("Advanced");
     let speed_ease_in_power = debug_ui.param(ParamParam {
         name: "speed ease-in power",
-        default_value: 8.0,
+        default_value: 2.5,
         range: 1.0..10.0,
         step_size: 0.1,
         ..Default::default()
