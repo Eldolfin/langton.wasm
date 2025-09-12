@@ -16,6 +16,7 @@ deploy:# build
     deploy_msg="$(date --iso-8601=seconds)"
     git commit -am "$deploy_msg"
 
+    rm src/langton/pkg/.gitignore
     mkdir -p {{DEPLOY_DIR}}
     cp src/langton/index.html  {{DEPLOY_DIR}}
     cp src/langton/favicon.png {{DEPLOY_DIR}}
