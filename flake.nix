@@ -52,6 +52,8 @@
         devShell = pkgs.mkShell {
           inherit (self.checks.${system}.pre-commit-check) shellHook;
           buildInputs = with pkgs; [
+            rustc
+            cargo
             wasm-pack
             lld
             bacon
