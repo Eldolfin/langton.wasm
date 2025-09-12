@@ -25,15 +25,10 @@
             hooks = {
               # formatters
               alejandra.enable = true; # nix
-              denofmt.enable = true; # markdown
               end-of-file-fixer.enable = true;
               rustfmt.enable = true;
               trim-trailing-whitespace.enable = true;
-
-              # linters
-              actionlint.enable = true;
               statix.enable = true;
-              check-added-large-files.enable = true;
               check-merge-conflicts.enable = true;
               check-yaml.enable = true;
               markdownlint.enable = true;
