@@ -22,7 +22,7 @@ deploy:# build
     cp -r src/langton/pkg      {{DEPLOY_DIR}}
     git switch pages
     git ls-files ':!/.gitignore' -z | xargs -0 rm -f
-    mv -fT deploy .
+    mv deploy/* .
 
     git add .
     git commit -m "$deploy_msg"
