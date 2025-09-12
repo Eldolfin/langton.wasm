@@ -14,7 +14,7 @@ deploy:# build
     #!/bin/sh
     set -xe
     deploy_msg="$(date --iso-8601=seconds)"
-    git commit -am "$deploy_msg"
+    git commit -am "$deploy_msg" || true
 
     rm src/langton/pkg/.gitignore
     mkdir -p {{DEPLOY_DIR}}
