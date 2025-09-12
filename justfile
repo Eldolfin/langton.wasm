@@ -21,7 +21,8 @@ deploy:# build
     cp src/langton/favicon.png {{DEPLOY_DIR}}
     cp -r src/langton/pkg      {{DEPLOY_DIR}}
     git switch pages
-    mv -fT deploy/* .
+    git ls-files ':!/.gitignore' -z | xargs -0 rm -f
+    mv -fT deploy .
 
     git add .
     git commit -m "$deploy_msg"
