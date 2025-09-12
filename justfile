@@ -13,8 +13,8 @@ dev:
 deploy:# build
     #!/bin/sh
     set -xe
-    deploy_id="$(git commit -a --amend --no-edit)"
-    git commit -am "$deploy_id"
+    deploy_msg="$(date --iso-8601=seconds)"
+    git commit -am "$deploy_msg"
 
     mkdir -p {{DEPLOY_DIR}}
     cp src/langton/index.html  {{DEPLOY_DIR}}
@@ -24,6 +24,6 @@ deploy:# build
     mv -fT deploy/* .
 
     git add .
-    git commit -m "$deploy_id"
+    git commit -m "$deploy_msg"
     git push
     git switch -
