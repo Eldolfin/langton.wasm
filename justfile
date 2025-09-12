@@ -21,11 +21,11 @@ deploy: build
     deploy_msg="$(date --iso-8601=seconds)"
     git commit -am "$deploy_msg" || true
 
-    rm src/langton/pkg/.gitignore
     mkdir -p {{DEPLOY_DIR}}
     cp src/langton/index.html  {{DEPLOY_DIR}}
     cp src/langton/favicon.png {{DEPLOY_DIR}}
     cp -r src/langton/pkg      {{DEPLOY_DIR}}
+    rm deploy/pkg/.gitignore
     git switch pages
     git ls-files ':!/.gitignore' -z | xargs -0 rm -f
     mv deploy/* .
