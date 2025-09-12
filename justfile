@@ -31,6 +31,6 @@ deploy: build
     mv deploy/* .
 
     git add .
-    git commit -m "$deploy_msg"
+    git commit --no-verify -m "$deploy_msg"
     git push
     git switch -
