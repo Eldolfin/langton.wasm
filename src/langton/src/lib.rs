@@ -67,7 +67,7 @@ async fn start() {
     debug_ui.start_section("Visual");
     let cell_size = debug_ui.param(ParamParam {
         name: "cell size",
-        default_value: 10,
+        default_value: 20,
         range: 1..50,
         ..Default::default()
     });
