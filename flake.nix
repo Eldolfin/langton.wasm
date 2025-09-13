@@ -48,10 +48,13 @@
           inherit (self.checks.${system}.pre-commit-check) shellHook;
           buildInputs = with pkgs; [
             rustc
+            rust-analyzer
+            clippy
             cargo
             wasm-pack
             lld
             bacon
+            live-server
           ];
         };
       }

@@ -3,7 +3,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::window;
 
-const DEFAULT_CELL_SIZE: f64 = 40.;
+const DEFAULT_CELL_SIZE: usize = 40;
 
 pub struct Canvas {
     context: web_sys::CanvasRenderingContext2d,
@@ -11,9 +11,9 @@ pub struct Canvas {
     queue: Vec<DrawCall>,
     last_frame: Vec<Vec<Option<Color>>>,
     /// in pixels
-    cell_size: f64,
+    cell_size: usize,
     /// in pixels
-    cell_border_size: f64,
+    cell_border_size: usize,
     /// in cells
     width: usize,
     /// in cells
@@ -110,7 +110,7 @@ impl Canvas {
         let mut res = Self {
             context,
             cell_size: DEFAULT_CELL_SIZE,
-            cell_border_size: 1.0,
+            cell_border_size: 1,
             width: 0,
             height: 0,
             screen_height: 0,
@@ -124,13 +124,13 @@ impl Canvas {
         Some(res)
     }
 
-    pub fn with_cell_size(mut self, cell_size: f64) -> Self {
+    pub fn with_cell_size(mut self, cell_size: usize) -> Self {
         self.cell_size = cell_size;
         self.calculate_size();
         self
     }
 
-    pub fn with_cell_border_size(mut self, cell_border_size: f64) -> Self {
+    pub fn with_cell_border_size(mut self, cell_border_size: usize) -> Self {
         self.cell_border_size = cell_border_size;
         self
     }
@@ -152,9 +152,10 @@ impl Canvas {
     }
 
     fn calculate_size(&mut self) {
-        self.width = (self.canvas_width as f64 / self.cell_size).ceil() as usize;
-        self.height = (self.canvas_height as f64 / self.cell_size).ceil() as usize;
-        self.screen_height = (self.base_screen_height as f64 / self.cell_size).ceil() as usize;
+        self.width = (self.canvas_width as f64 / self.cell_size as f64).ceil() as usize;
+        self.height = (self.canvas_height as f64 / self.cell_size as f64).ceil() as usize;
+        self.screen_height =
+            (self.base_screen_height as f64 / self.cell_size as f64).ceil() as usize;
         self.last_frame = vec![vec![None; self.height]; self.width]
     }
 
@@ -227,23 +228,23 @@ impl Canvas {
         for draw_call in &self.queue {
             let DrawCall { x, y, color } = draw_call;
             // avoid calling the "expensive" fill_rect if there is no border
-            if self.cell_border_size != 0.0 {
+            if self.cell_border_size != 0 {
                 self.context
                     .set_fill_style_str(&color.invert().to_css_color());
                 self.context.fill_rect(
-                    *x as f64 * self.cell_size,
-                    *y as f64 * self.cell_size,
-                    self.cell_size,
-                    self.cell_size,
+                    (*x * self.cell_size) as f64,
+                    (*y * self.cell_size) as f64,
+                    (self.cell_size) as f64,
+                    (self.cell_size) as f64,
                 );
             }
             self.context.set_fill_style_str(&color.to_css_color());
             // center
             self.context.fill_rect(
-                *x as f64 * self.cell_size + self.cell_border_size,
-                *y as f64 * self.cell_size + self.cell_border_size,
-                self.cell_size - 2.0 * self.cell_border_size,
-                self.cell_size - 2.0 * self.cell_border_size,
+                (*x * self.cell_size + self.cell_border_size) as f64,
+                (*y * self.cell_size + self.cell_border_size) as f64,
+                (self.cell_size - 2 * self.cell_border_size) as f64,
+                (self.cell_size - 2 * self.cell_border_size) as f64,
             );
             self.last_frame[*x][*y] = Some(*color);
         }

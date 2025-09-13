@@ -67,16 +67,14 @@ async fn start() {
     debug_ui.start_section("Visual");
     let cell_size = debug_ui.param(ParamParam {
         name: "cell size",
-        default_value: 10.0,
-        range: 1.0..50.0,
-        step_size: 0.5,
+        default_value: 10,
+        range: 1..50,
         ..Default::default()
     });
     let cell_border_size = debug_ui.param(ParamParam {
         name: "cell border size",
-        default_value: 1.0,
-        range: 0.0..5.0,
-        step_size: 0.1,
+        default_value: 1,
+        range: 0..5,
         ..Default::default()
     });
     let white_color_r = debug_ui.param(ParamParam {
@@ -136,8 +134,8 @@ struct GameConfig {
     alpha_retention_factor: Param<u8>,
     ant_color_saturation: Param<f32>,
     ant_color_brightness: Param<f32>,
-    cell_size: Param<f64>,
-    cell_border_size: Param<f64>,
+    cell_size: Param<usize>,
+    cell_border_size: Param<usize>,
     white_color_r: Param<u8>,
     white_color_g: Param<u8>,
     white_color_b: Param<u8>,
