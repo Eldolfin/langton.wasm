@@ -1,9 +1,11 @@
 # Langton's ant
+> [!WARNING]
+This project has been transferred to [codeberg](https://codeberg.org/eldolfin/langton.wasm/). 
 
 A parametrized langton's ant simulator written in rust for the browser.
 
 I use this as part of my personal website which you can find at
-[eldolfin.github.io](https://eldolfin.github.io)
+[eldolfin.github.io](https://cv.eldolfin.top)
 
 ## Try it
 
