@@ -22,7 +22,7 @@ dev:
     #!/bin/sh
     killall live-server entr
     git ls-files | entr -c just build-web --dev &
-    live-server --open='{{DEV_PARAMS}}' src/langton &
+    live-server --hard --open='{{DEV_PARAMS}}' src/langton &
 
 # deploy build-web to `pages` branch
 deploy: build-web

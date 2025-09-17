@@ -266,12 +266,11 @@ impl DebugUI {
                             .unwrap()
                             .dyn_into::<HtmlInputElement>()
                             .unwrap();
-
-                        value_input.set_value_as_number(scaled);
-
                         let value = T::from_f64(scaled).unwrap_or_else(|| {
                             panic!("Failed to cast slider value for parameter {name}")
                         });
+
+                        value_input.set_value_as_number(value.to_f64().unwrap());
 
                         #[cfg(feature = "save-params-in-url")]
                         add_url_param(&key, value);
