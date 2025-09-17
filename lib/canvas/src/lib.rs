@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, f64, rc::Rc};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::window;
+use web_sys::{console::warn_1, window};
 
 const DEFAULT_CELL_SIZE: usize = 40;
 
@@ -93,8 +93,18 @@ impl Canvas {
         style.set_text_content(Some(include_str!("./style.css")));
         document.head().unwrap().append_child(&style).unwrap();
 
+        let scroll_height = body.scroll_height() as u32;
+        let canvas_height = if scroll_height > 0 {
+            scroll_height
+        } else {
+            warn_1(
+                &"[LANGTON][CANVAS] body.scroll_height is 0, make sure to fully initialize the page before calling start_langton_ant otherwise the canvas might get cut off at the bottom".into()
+            );
+            window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32
+        };
+
         canvas.set_width(window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32);
-        canvas.set_height(body.scroll_height() as u32);
+        canvas.set_height(canvas_height);
 
         let context = canvas
             .get_context("2d")
