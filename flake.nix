@@ -55,6 +55,7 @@
             lld
             bacon
             live-server
+            nodejs
           ];
         };
       }
