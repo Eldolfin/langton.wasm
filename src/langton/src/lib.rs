@@ -21,7 +21,7 @@ pub async fn start_langton_ant() {
     });
     let alpha_retention_factor = debug_ui.param(ParamParam {
         name: "alpha retention",
-        default_value: 253,
+        default_value: 251,
         range: 0..255,
         ..Default::default()
     });
