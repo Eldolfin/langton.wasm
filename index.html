@@ -13,8 +13,11 @@
 
 <body>
   <script type="module" defer>
-    import init from './pkg/langton.js';
-    init();
+    import init, { start_langton_ant } from './pkg/langton.js';
+    (async () => {
+      await init();
+      start_langton_ant()
+    })()
   </script>
 </body>
 

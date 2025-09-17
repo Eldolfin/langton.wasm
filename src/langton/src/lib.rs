@@ -2,8 +2,8 @@ use canvas::{Canvas, Color};
 use debug_ui::{DebugUI, Param, ParamParam};
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[wasm_bindgen(start)]
-async fn start() {
+#[wasm_bindgen]
+pub async fn start_langton_ant() {
     console_error_panic_hook::set_once();
     let mut debug_ui = DebugUI::new("Langton's ant parameters");
     debug_ui.start_section("Canvas");
