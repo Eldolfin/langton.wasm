@@ -15,4 +15,4 @@ auto-detect-path-params = ["dep:url"]
 save-params-in-url = ["dep:url"]
 
 [dev-dependencies]
-rstest = "0.25.0"
+rstest = "0.26.1"
