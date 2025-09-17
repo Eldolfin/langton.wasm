@@ -320,6 +320,20 @@ impl DebugUI {
         }
         param_value
     }
+
+    pub fn link(&mut self, text: &str, href: &str) {
+        match self {
+            DebugUI::Enabled { root, document, .. } => {
+                let a = document.create_element("a").unwrap();
+                a.set_text_content(Some(text));
+                a.set_attribute("href", href).unwrap();
+                a.set_attribute("target", "_blank").unwrap();
+                a.set_class_name("DebugUI-link");
+                root.append_child(&a).unwrap();
+            }
+            DebugUI::Disabled => (),
+        }
+    }
 }
 
 impl Scale {

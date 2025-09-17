@@ -105,6 +105,11 @@ async fn start() {
         ..Default::default()
     });
 
+    debug_ui.link(
+        "About this animation",
+        "https://codeberg.org/eldolfin/langton.wasm",
+    );
+
     Game::new(GameConfig {
         final_steps_per_frame,
         speedup_frames,
