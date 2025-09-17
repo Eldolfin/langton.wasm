@@ -32,13 +32,12 @@
               check-merge-conflicts.enable = true;
               check-yaml.enable = true;
               markdownlint.enable = true;
-              cargo-clippy = {
+              clippy = {
                 enable = true;
-                name = "cargo-clippy";
-                description = "Check the cargo package for errors with clippy";
-                entry = "${pkgs.cargo}/bin/cargo clippy -- -Dwarnings";
-                files = "\\.rs$";
-                pass_filenames = false;
+                settings = {
+                  allFeatures = true;
+                  denyWarnings = true;
+                };
               };
             };
           };
@@ -46,17 +45,17 @@
 
         devShell = pkgs.mkShell {
           inherit (self.checks.${system}.pre-commit-check) shellHook;
-          buildInputs = with pkgs; [
-            rustc
-            rust-analyzer
-            clippy
-            cargo
-            wasm-pack
-            lld
-            bacon
-            live-server
-            nodejs
-          ];
+          buildInputs = with pkgs;
+            [
+              rustc
+              rust-analyzer
+              cargo
+              wasm-pack
+              lld
+              live-server
+              nodejs
+            ]
+            ++ self.checks.${system}.pre-commit-check.enabledPackages;
         };
       }
     );
