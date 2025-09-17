@@ -1,7 +1,7 @@
 [package]
 name = "langton"
 description = "A langton's ant simulation for the web"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MIT"
 repository = "https://codeberg.org/eldolfin/langton.wasm"
