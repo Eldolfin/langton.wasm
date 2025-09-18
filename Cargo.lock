@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "langton"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "canvas",
  "console_error_panic_hook",
