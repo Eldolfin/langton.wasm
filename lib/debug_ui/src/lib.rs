@@ -137,6 +137,27 @@ fn remove_url_param(key: &str) {
         .unwrap();
 }
 
+fn remove_all_url_params_except(key: &str) {
+    use web_sys::wasm_bindgen::JsValue;
+
+    let mut new_url = url();
+    let mut params: HashMap<String, String> = new_url
+        .query_pairs()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    // remove old parameters
+    params.retain(|k, _| k == key);
+    new_url.query_pairs_mut().clear();
+    let mut params: Vec<_> = params.into_iter().collect();
+    params.sort();
+    new_url.query_pairs_mut().extend_pairs(params);
+    window()
+        .history()
+        .unwrap()
+        .push_state_with_url(&JsValue::NULL, "", Some(new_url.as_str()))
+        .unwrap();
+}
+
 impl DebugUI {
     pub fn new(title: &str) -> Self {
         let document = document();
@@ -148,19 +169,23 @@ impl DebugUI {
         let root = document.create_element("div").unwrap();
         let title_line = document.create_element("div").unwrap();
         let title_elt = document.create_element("h2").unwrap();
-        let close_btn = document.create_element("btn").unwrap();
+        let close_btn = document.create_element("button").unwrap();
+        let reset_btn = document.create_element("button").unwrap();
 
         title_elt.set_text_content(Some(title));
         close_btn.set_text_content(Some("🗙"));
+        reset_btn.set_text_content(Some("Reset params"));
 
         root.set_class_name("DebugUI-root-box");
         title_elt.set_class_name("DebugUI-title");
         title_line.set_class_name("DebugUI-title-line");
         close_btn.set_class_name("DebugUI-close-btn");
+        reset_btn.set_class_name("DebugUI-reset-btn");
 
         title_line.append_child(&title_elt).unwrap();
         title_line.append_child(&close_btn).unwrap();
         root.append_child(&title_line).unwrap();
+        root.append_child(&reset_btn).unwrap();
         body.append_child(&root).unwrap();
 
         let style = document.create_element("style").unwrap();
@@ -172,6 +197,13 @@ impl DebugUI {
             EventListener::new(&close_btn, "click", move |_event| {
                 remove_url_param("debug");
                 root.remove();
+            })
+            .forget();
+        }
+        {
+            EventListener::new(&reset_btn, "click", move |_event| {
+                remove_all_url_params_except("debug");
+                window().location().reload().unwrap();
             })
             .forget();
         }

@@ -27,8 +27,34 @@
   font-size: 22px;
   color: #f00;
   cursor: pointer;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  border: none;
 }
 
+.DebugUI-reset-btn {
+  display: inline-block;
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.DebugUI-reset-btn:hover {
+  background-color: #f0c0c0;
+  border-color: #999;
+}
+
+.DebugUI-reset-btn:active {
+  background-color: #d6d6d6;
+  border-color: #777;
+}
 .DebugUI-section-title {
   font-size: 16px;
   font-weight: 600;
