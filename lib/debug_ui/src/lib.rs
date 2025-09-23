@@ -87,12 +87,10 @@ fn document() -> Document {
         .expect("should have a document on window")
 }
 
-#[cfg(any(feature = "auto-detect-path-params", feature = "save-params-in-url"))]
 fn url() -> url::Url {
     document().url().unwrap().parse().unwrap()
 }
 
-#[cfg(feature = "save-params-in-url")]
 fn add_url_param<T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 'static>(
     key: &str,
     value: T,
@@ -118,28 +116,65 @@ fn add_url_param<T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 's
         .unwrap();
 }
 
+fn remove_url_param(key: &str) {
+    use web_sys::wasm_bindgen::JsValue;
+
+    let mut new_url = url();
+    let mut params: HashMap<String, String> = new_url
+        .query_pairs()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    // remove old parameter
+    params.retain(|k, _| k != key);
+    new_url.query_pairs_mut().clear();
+    let mut params: Vec<_> = params.into_iter().collect();
+    params.sort();
+    new_url.query_pairs_mut().extend_pairs(params);
+    window()
+        .history()
+        .unwrap()
+        .push_state_with_url(&JsValue::NULL, "", Some(new_url.as_str()))
+        .unwrap();
+}
+
 impl DebugUI {
     pub fn new(title: &str) -> Self {
         let document = document();
-        #[cfg(feature = "auto-detect-path-params")]
         if !url().query_pairs().any(|param| param.0 == "debug") {
             return Self::Disabled;
         }
         let body = document.body().expect("document should have a body");
 
         let root = document.create_element("div").unwrap();
-        let title_btn = document.create_element("h2").unwrap();
+        let title_line = document.create_element("div").unwrap();
+        let title_elt = document.create_element("h2").unwrap();
+        let close_btn = document.create_element("btn").unwrap();
 
-        title_btn.set_text_content(Some(title));
+        title_elt.set_text_content(Some(title));
+        close_btn.set_text_content(Some("🗙"));
+
         root.set_class_name("DebugUI-root-box");
-        title_btn.set_class_name("DebugUI-title-btn");
+        title_elt.set_class_name("DebugUI-title");
+        title_line.set_class_name("DebugUI-title-line");
+        close_btn.set_class_name("DebugUI-close-btn");
 
-        root.append_child(&title_btn).unwrap();
+        title_line.append_child(&title_elt).unwrap();
+        title_line.append_child(&close_btn).unwrap();
+        root.append_child(&title_line).unwrap();
         body.append_child(&root).unwrap();
 
         let style = document.create_element("style").unwrap();
         style.set_text_content(Some(include_str!("./style.css")));
         document.head().unwrap().append_child(&style).unwrap();
+
+        {
+            let root = root.clone();
+            EventListener::new(&close_btn, "click", move |_event| {
+                remove_url_param("debug");
+                root.remove();
+            })
+            .forget();
+        }
 
         Self::Enabled {
             root,
@@ -170,9 +205,6 @@ impl DebugUI {
         p: ParamParam<T, S>,
     ) -> Param<T> {
         let key = p.name.as_ref().replace(" ", "_");
-        #[cfg(not(feature = "save-params-in-url"))]
-        let default_value = p.default_value;
-        #[cfg(feature = "save-params-in-url")]
         let default_value = url()
             .query_pairs()
             .find(|(k, _)| k.as_ref() == key)
@@ -272,7 +304,6 @@ impl DebugUI {
 
                         value_input.set_value_as_number(value.to_f64().unwrap());
 
-                        #[cfg(feature = "save-params-in-url")]
                         add_url_param(&key, value);
 
                         send.send(value).unwrap();
@@ -308,7 +339,6 @@ impl DebugUI {
                             panic!("Failed to cast slider value for parameter {name}")
                         });
 
-                        #[cfg(feature = "save-params-in-url")]
                         add_url_param(&key, value);
 
                         send.send(value).unwrap();

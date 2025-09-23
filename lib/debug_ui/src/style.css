@@ -10,11 +10,23 @@
   max-width: 500px;
 }
 
-.DebugUI-title-btn {
+.DebugUI-title-line {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.DebugUI-title {
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 12px;
   color: #333;
+}
+
+.DebugUI-close-btn {
+  font-size: 22px;
+  color: #f00;
+  cursor: pointer;
 }
 
 .DebugUI-section-title {
