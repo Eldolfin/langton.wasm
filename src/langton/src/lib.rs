@@ -65,13 +65,13 @@ pub async fn start_langton_ant() {
     });
 
     debug_ui.start_section("Visual");
-    let cell_size = debug_ui.param(ParamParam {
+    let mut cell_size = debug_ui.param(ParamParam {
         name: "cell size",
         default_value: 20,
         range: 1..50,
         ..Default::default()
     });
-    let cell_border_size = debug_ui.param(ParamParam {
+    let mut cell_border_size = debug_ui.param(ParamParam {
         name: "cell border size",
         default_value: 1,
         range: 0..5,
@@ -110,23 +110,32 @@ pub async fn start_langton_ant() {
         "https://codeberg.org/eldolfin/langton.wasm",
     );
 
-    Game::new(GameConfig {
-        final_steps_per_frame,
-        speedup_frames,
-        start_x_rel,
-        start_y_rel,
-        alpha_retention_factor,
-        num_ants,
-        ant_color_saturation,
-        ant_color_brightness,
-        cell_size,
-        cell_border_size,
-        white_color_r,
-        white_color_g,
-        white_color_b,
-        speed_ease_in_power,
-    })
-    .run()
+    let canvas = Canvas::create_bg()
+        .unwrap()
+        .with_cell_size(cell_size.get())
+        .with_cell_border_size(cell_border_size.get());
+
+    Game::new(
+        GameConfig {
+            num_ants,
+            final_steps_per_frame,
+            speedup_frames,
+            start_x_rel,
+            start_y_rel,
+            alpha_retention_factor,
+            ant_color_saturation,
+            ant_color_brightness,
+            white_color_r,
+            white_color_g,
+            white_color_b,
+            speed_ease_in_power,
+            width: canvas.width(),
+            screen_height: canvas.screen_height(),
+        },
+        canvas.width(),
+        canvas.height(),
+    )
+    .run(canvas)
     .await;
 }
 
@@ -139,16 +148,15 @@ struct GameConfig {
     alpha_retention_factor: Param<u8>,
     ant_color_saturation: Param<f32>,
     ant_color_brightness: Param<f32>,
-    cell_size: Param<usize>,
-    cell_border_size: Param<usize>,
     white_color_r: Param<u8>,
     white_color_g: Param<u8>,
     white_color_b: Param<u8>,
     speed_ease_in_power: Param<f64>,
+    width: usize,
+    screen_height: usize,
 }
 
 struct Game {
-    canvas: Canvas,
     /// indexed by x, y
     board: Vec<Vec<Option<usize>>>,
     ants: Vec<Ant>,
@@ -173,43 +181,22 @@ enum Direction {
 }
 
 impl Game {
-    fn new(mut config: GameConfig) -> Self {
-        let canvas = Canvas::create_bg()
-            .unwrap()
-            .with_cell_size(config.cell_size.get())
-            .with_cell_border_size(config.cell_border_size.get());
-        let mut ants = Vec::new();
-        let num_ants_val = config.num_ants.get();
-        for i in 0..num_ants_val {
-            let id = i;
-            let hue = if num_ants_val > 0 {
-                (id as f32 * 360.0) / num_ants_val as f32
-            } else {
-                0.0
-            };
-            let color = hue_to_rgb(
-                hue,
-                config.ant_color_saturation.get(),
-                config.ant_color_brightness.get(),
-            );
+    fn new(config: GameConfig, width: usize, height: usize) -> Self {
+        let ants = Vec::new();
+        let board = vec![vec![None; height]; width];
 
-            let ant = Ant {
-                x: ((canvas.width() - 1) as f32 * config.start_x_rel.get()) as usize,
-                y: ((canvas.screen_height() - 1) as f32 * config.start_y_rel.get()) as usize,
-                direction: Direction::default(),
-                id,
-                color,
-            };
-            ants.push(ant);
-        }
-        let board = vec![vec![None; canvas.height()]; canvas.width()];
-
-        Self {
+        let mut game = Self {
             board,
-            canvas,
             ants,
             config,
+        };
+
+        for i in 0..game.config.num_ants.get() {
+            let id = i;
+            game.add_ant(id);
         }
+
+        game
     }
 
     /// An ease-in I felt satisfying enough by trial and error
@@ -218,10 +205,19 @@ impl Game {
         (out + 0.005).clamp(0.0, 1.0)
     }
 
-    async fn run(mut self) {
+    async fn run(mut self, canvas: Canvas) {
         let mut step_accumulator = 0.0;
         let mut frame_counter = 0;
         let animation = move |canvas: &mut Canvas| {
+            match self.config.num_ants.get().cmp(&self.ants.len()) {
+                std::cmp::Ordering::Less => self.ants.truncate(self.config.num_ants.get()),
+                std::cmp::Ordering::Greater => {
+                    for i in self.ants.len()..self.config.num_ants.get() {
+                        self.add_ant(i);
+                    }
+                }
+                std::cmp::Ordering::Equal => (),
+            }
             frame_counter += 1;
             let ratio =
                 (frame_counter as f64 / self.config.speedup_frames.get() as f64).clamp(0.0, 1.0);
@@ -261,7 +257,29 @@ impl Game {
 
             false
         };
-        self.canvas.play_animation(animation).await;
+        canvas.play_animation(animation).await;
+    }
+
+    fn add_ant(&mut self, id: usize) {
+        let hue = if self.config.num_ants.get() > 0 {
+            (id as f32 * 360.0) / self.config.num_ants.get() as f32
+        } else {
+            0.0
+        };
+        let color = hue_to_rgb(
+            hue,
+            self.config.ant_color_saturation.get(),
+            self.config.ant_color_brightness.get(),
+        );
+
+        let ant = Ant {
+            x: ((self.config.width - 1) as f32 * self.config.start_x_rel.get()) as usize,
+            y: ((self.config.screen_height - 1) as f32 * self.config.start_y_rel.get()) as usize,
+            direction: Direction::default(),
+            id,
+            color,
+        };
+        self.ants.push(ant);
     }
 }
 
