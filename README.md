@@ -7,7 +7,7 @@ I use this as part of my personal website which you can find at
 
 ## Try it
 
-[![Demo](https://github.com/user-attachments/assets/69129da3-f31c-46ad-8c18-863c19a08726)](https://eldolfin.codeberg.page/langton.wasm/?debug=&start_x=0.5&start_y=0.5)
+[![Demo](https://github.com/user-attachments/assets/69129da3-f31c-46ad-8c18-863c19a08726)](https://eldolfin.codeberg.page/langton.wasm/?alpha_retention=255&ant_color_brightness=1&ant_color_saturation=0&cell_border_size=1&cell_size=10&debug=&number_of_ants=1&start_x=0.5&start_y=0.5)
 
 ## Cool parameters examples
 
