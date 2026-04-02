@@ -23,6 +23,7 @@
           pre-commit-check = pre-commit-hooks.lib.${system}.run {
             src = ./.;
             hooks = {
+              git-hooks.package = pkgs.prek;
               # formatters
               alejandra.enable = true; # nix
               end-of-file-fixer.enable = true;
@@ -45,15 +46,19 @@
 
         devShell = pkgs.mkShell {
           inherit (self.checks.${system}.pre-commit-check) shellHook;
+          RUSTC = "${pkgs.rustc}/bin/rustc";
           buildInputs = with pkgs;
             [
-              rustc
-              rust-analyzer
               cargo
-              wasm-pack
-              lld
+              entr
+              just
               live-server
+              lld
               nodejs
+              prek
+              rust-analyzer
+              rustc
+              wasm-pack
             ]
             ++ self.checks.${system}.pre-commit-check.enabledPackages;
         };

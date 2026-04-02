@@ -8,14 +8,14 @@ help:
 
 # Build langton-ant with wasm-pack for the web
 build-web *args:
-    cd src/langton && rm -rf pkg && wasm-pack build --target web --no-typescript {{args}}
+    cd crates/langton && rm -rf pkg && wasm-pack build --target web --no-typescript {{args}}
 
 # Build langton-ant with wasm-pack for the bundlers
 build-pkg *args:
-    cd src/langton && rm -rf pkg && wasm-pack build --target bundler --scope codeberg {{args}}
+    cd crates/langton && rm -rf pkg && wasm-pack build --target bundler --scope codeberg {{args}}
 
 publish-pkg: build-pkg
-    cd src/langton/pkg && npm publish --userconfig=../.npmrc
+    cd crates/langton/pkg && npm publish --userconfig=../.npmrc
 
 # Run langton-ant and watch for changes
 dev:

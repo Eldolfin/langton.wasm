@@ -1,7 +1,27 @@
 [workspace]
 resolver = "3"
-members = [
-  "lib/canvas",
-  "lib/debug_ui",
-  "src/langton",
+members = ["crates/*"]
+
+[workspace.dependencies]
+canvas = { version = "0.1.0", path = "./crates/canvas" }
+debug_ui = { version = "0.1.0", path = "./crates/debug_ui" }
+console_error_panic_hook = "0.1.7"
+wasm-bindgen = "0.2.103"
+wasm-bindgen-futures = "0.4.50"
+
+[workspace.dependencies.web-sys]
+features = [
+  "CanvasRenderingContext2d",
+  "Document",
+  "Element",
+  "HtmlCanvasElement",
+  "Performance",
+  "Window",
+  "EventListener",
+  "History",
+  "HtmlHeadElement",
+  "HtmlInputElement",
+  "Location",
+  "console",
 ]
+version = "0.3.77"

@@ -7,7 +7,7 @@ edition = "2024"
 gloo = { version = "0.11.0", default-features = false, features = ["events"] }
 num-traits = "0.2.19"
 url = { version = "2.5.4" }
-web-sys = { version = "0.3.77", features = ["Document", "EventListener", "History", "HtmlHeadElement", "HtmlInputElement", "Location", "console"] }
+web-sys.workspace = true
 
 [dev-dependencies]
 rstest = "0.26.1"
