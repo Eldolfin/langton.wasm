@@ -48,6 +48,7 @@
           RUSTC = "${pkgs.rustc}/bin/rustc";
           buildInputs = with pkgs;
             [
+              act
               cargo
               entr
               just
