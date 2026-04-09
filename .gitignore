@@ -3,3 +3,4 @@
 .pre-commit-config.yaml
 .env
 deploy
+/tests/__pycache__

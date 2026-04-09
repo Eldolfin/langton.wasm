@@ -1,5 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
 use canvas::{Canvas, Color};
-use debug_ui::{DebugUI, Param, ParamParam};
+use debug_ui::{DebugUI, Param, ParamParam, log};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
@@ -11,12 +13,14 @@ pub async fn start_langton_ant() {
         name: "start x",
         default_value: 0.80,
         step_size: 0.01,
+        needs_restart: true,
         ..Default::default()
     });
     let start_y_rel = debug_ui.param(ParamParam {
         name: "start y",
         default_value: 0.75,
         step_size: 0.01,
+        needs_restart: true,
         ..Default::default()
     });
     let alpha_retention_factor = debug_ui.param(ParamParam {
@@ -65,13 +69,14 @@ pub async fn start_langton_ant() {
     });
 
     debug_ui.start_section("Visual");
-    let mut cell_size = debug_ui.param(ParamParam {
+    let cell_size = debug_ui.param(ParamParam {
         name: "cell size",
         default_value: 20,
         range: 1..50,
+        needs_restart: true,
         ..Default::default()
     });
-    let mut cell_border_size = debug_ui.param(ParamParam {
+    let cell_border_size = debug_ui.param(ParamParam {
         name: "cell border size",
         default_value: 1,
         range: 0..5,
@@ -110,33 +115,34 @@ pub async fn start_langton_ant() {
         "https://codeberg.org/eldolfin/langton.wasm",
     );
 
-    let canvas = Canvas::create_bg()
-        .unwrap()
-        .with_cell_size(cell_size.get())
-        .with_cell_border_size(cell_border_size.get());
-
-    Game::new(
-        GameConfig {
-            num_ants,
-            final_steps_per_frame,
-            speedup_frames,
-            start_x_rel,
-            start_y_rel,
-            alpha_retention_factor,
-            ant_color_saturation,
-            ant_color_brightness,
-            white_color_r,
-            white_color_g,
-            white_color_b,
-            speed_ease_in_power,
-            width: canvas.width(),
-            screen_height: canvas.screen_height(),
-        },
-        canvas.width(),
-        canvas.height(),
-    )
-    .run(canvas)
-    .await;
+    let game_config = GameConfig {
+        num_ants,
+        final_steps_per_frame,
+        speedup_frames,
+        start_x_rel,
+        start_y_rel,
+        alpha_retention_factor,
+        ant_color_saturation,
+        ant_color_brightness,
+        white_color_r,
+        white_color_g,
+        white_color_b,
+        speed_ease_in_power,
+    };
+    let cell_border_size = Rc::new(RefCell::new(cell_border_size));
+    let cell_size = Rc::new(RefCell::new(cell_size));
+    let config = Rc::new(RefCell::new(game_config));
+    let needs_restart = match debug_ui {
+        DebugUI::Enabled { needs_restart, .. } => needs_restart,
+        DebugUI::Disabled => Rc::new(RefCell::new(false)),
+    };
+    loop {
+        let canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+        Game::new(config.clone())
+            .run(canvas, needs_restart.clone())
+            .await;
+        *needs_restart.borrow_mut() = false;
+    }
 }
 
 struct GameConfig {
@@ -152,15 +158,11 @@ struct GameConfig {
     white_color_g: Param<u8>,
     white_color_b: Param<u8>,
     speed_ease_in_power: Param<f64>,
-    width: usize,
-    screen_height: usize,
 }
 
 struct Game {
-    /// indexed by x, y
-    board: Vec<Vec<Option<usize>>>,
     ants: Vec<Ant>,
-    config: GameConfig,
+    config: Rc<RefCell<GameConfig>>,
 }
 
 struct Ant {
@@ -181,22 +183,11 @@ enum Direction {
 }
 
 impl Game {
-    fn new(config: GameConfig, width: usize, height: usize) -> Self {
-        let ants = Vec::new();
-        let board = vec![vec![None; height]; width];
-
-        let mut game = Self {
-            board,
-            ants,
+    fn new(config: Rc<RefCell<GameConfig>>) -> Self {
+        Self {
+            ants: vec![],
             config,
-        };
-
-        for i in 0..game.config.num_ants.get() {
-            let id = i;
-            game.add_ant(id);
         }
-
-        game
     }
 
     /// An ease-in I felt satisfying enough by trial and error
@@ -205,76 +196,104 @@ impl Game {
         (out + 0.005).clamp(0.0, 1.0)
     }
 
-    async fn run(mut self, canvas: Canvas) {
+    async fn run(mut self, canvas: Canvas, should_stop: Rc<RefCell<bool>>) {
+        log!(
+            "Creating board of size {}x{}",
+            canvas.height(),
+            canvas.width()
+        );
+        let mut prev_canvas_size = (canvas.height(), canvas.width());
+        let mut board = vec![vec![None; prev_canvas_size.0]; prev_canvas_size.1];
         let mut step_accumulator = 0.0;
         let mut frame_counter = 0;
         let animation = move |canvas: &mut Canvas| {
-            match self.config.num_ants.get().cmp(&self.ants.len()) {
-                std::cmp::Ordering::Less => self.ants.truncate(self.config.num_ants.get()),
-                std::cmp::Ordering::Greater => {
-                    for i in self.ants.len()..self.config.num_ants.get() {
-                        self.add_ant(i);
-                    }
-                }
-                std::cmp::Ordering::Equal => (),
-            }
+            self.balance_ants(canvas);
+            let mut config = self.config.borrow_mut();
             frame_counter += 1;
-            let ratio =
-                (frame_counter as f64 / self.config.speedup_frames.get() as f64).clamp(0.0, 1.0);
-            let ratio = Self::shit_ease_in(ratio, self.config.speed_ease_in_power.get());
-            let step = self.config.final_steps_per_frame.get() * ratio;
+            let ratio = (frame_counter as f64 / config.speedup_frames.get() as f64).clamp(0.0, 1.0);
+            let ratio = Self::shit_ease_in(ratio, config.speed_ease_in_power.get());
+            let step = config.final_steps_per_frame.get() * ratio;
             step_accumulator += step;
             while step_accumulator >= 1.0 {
                 step_accumulator -= 1.0;
 
                 for ant in &mut self.ants {
-                    let current_cell_state = self.board[ant.x][ant.y];
+                    let canvas_size = (canvas.height(), canvas.width());
+                    assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");
+                    assert!(canvas_size.1 > 0, "Can't draw on a canvas of width 0 !");
+                    if canvas_size != prev_canvas_size {
+                        prev_canvas_size = canvas_size;
+                        board = vec![
+                            vec![None; canvas_size.0 + canvas_size.1];
+                            canvas_size.1 + canvas_size.0
+                        ];
+                    }
+                    let current_cell_state = board[ant.x][ant.y];
                     let new_cell_color;
                     match current_cell_state {
                         None => {
                             // Was white
                             ant.direction = ant.direction.right();
-                            self.board[ant.x][ant.y] = Some(ant.id);
+                            board[ant.x][ant.y] = Some(ant.id);
                             new_cell_color = ant.color;
                         }
                         Some(_) => {
                             // Was black/colored by an ant
                             ant.direction = ant.direction.left();
-                            self.board[ant.x][ant.y] = None;
+                            board[ant.x][ant.y] = None;
                             new_cell_color = Color::Rgb {
-                                r: self.config.white_color_r.get(),
-                                g: self.config.white_color_g.get(),
-                                b: self.config.white_color_b.get(),
+                                r: config.white_color_r.get(),
+                                g: config.white_color_g.get(),
+                                b: config.white_color_b.get(),
                             };
                         }
                     }
                     canvas.fill_rect(ant.x, ant.y, new_cell_color);
-                    ant.move_forward(canvas.width(), canvas.height());
+                    ant.move_forward(canvas_size.1, canvas_size.0);
                 }
             }
 
-            canvas.fill_canvas(self.config.alpha_retention_factor.get());
+            canvas.fill_canvas(config.alpha_retention_factor.get());
 
-            false
+            let should_stop = *should_stop.borrow();
+            log!("borrow={should_stop:?}");
+            should_stop
         };
-        canvas.play_animation(animation).await;
+        let canvas = Rc::new(RefCell::new(canvas));
+        Canvas::play_animation(canvas, animation).await;
     }
 
-    fn add_ant(&mut self, id: usize) {
-        let hue = if self.config.num_ants.get() > 0 {
-            (id as f32 * 360.0) / self.config.num_ants.get() as f32
+    fn balance_ants(&mut self, canvas: &mut Canvas) {
+        let num_ants = self.config.borrow_mut().num_ants.get();
+        match num_ants.cmp(&self.ants.len()) {
+            std::cmp::Ordering::Less => self.ants.truncate(num_ants),
+            std::cmp::Ordering::Greater => {
+                for i in self.ants.len()..num_ants {
+                    self.add_ant(i, canvas);
+                }
+            }
+            std::cmp::Ordering::Equal => (),
+        }
+    }
+
+    fn add_ant(&mut self, id: usize, canvas: &mut Canvas) {
+        let mut config = self.config.borrow_mut();
+        let num_ants = config.num_ants.get();
+        let hue = if num_ants > 0 {
+            (id as f32 * 360.0) / num_ants as f32
         } else {
             0.0
         };
         let color = hue_to_rgb(
             hue,
-            self.config.ant_color_saturation.get(),
-            self.config.ant_color_brightness.get(),
+            config.ant_color_saturation.get(),
+            config.ant_color_brightness.get(),
         );
-
+        let width = canvas.width();
+        let screen_height = canvas.screen_height();
         let ant = Ant {
-            x: ((self.config.width - 1) as f32 * self.config.start_x_rel.get()) as usize,
-            y: ((self.config.screen_height - 1) as f32 * self.config.start_y_rel.get()) as usize,
+            x: ((width - 1) as f32 * config.start_x_rel.get()) as usize,
+            y: ((screen_height - 1) as f32 * config.start_y_rel.get()) as usize,
             direction: Direction::default(),
             id,
             color,

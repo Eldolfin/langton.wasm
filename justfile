@@ -22,7 +22,11 @@ dev:
     #!/bin/sh
     killall live-server entr
     git ls-files | entr -c just build-web --dev &
-    live-server --hard --open='{{DEV_PARAMS}}' src/langton &
+    live-server --hard --open='{{DEV_PARAMS}}' crates/langton &
+
+# Run end-to-end Playwright tests (Python)
+test-e2e:
+    tests/.venv/bin/pytest tests/ -v
 
 # deploy build-web to `pages` branch
 deploy: build-web

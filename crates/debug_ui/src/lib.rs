@@ -1,6 +1,6 @@
 use gloo::events::EventListener;
 use num_traits::{FromPrimitive, Num, ToPrimitive};
-use std::{collections::HashMap, ops::Range, str::FromStr, sync::mpsc};
+use std::{cell::RefCell, collections::HashMap, ops::Range, rc::Rc, str::FromStr, sync::mpsc};
 pub use web_sys;
 use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
 
@@ -23,6 +23,7 @@ pub enum DebugUI {
         root: Element,
         document: Document,
         next_uid: u32,
+        needs_restart: Rc<RefCell<bool>>,
     },
     Disabled,
 }
@@ -35,11 +36,27 @@ pub struct Param<T> {
 /// options for the param function
 #[derive(Clone)]
 pub struct ParamParam<T, S> {
+    /// Display name in the panel
     pub name: S,
+    /// Starting value, used when values are reset
     pub default_value: T,
+    /// Allowed range of the values
     pub range: Range<T>,
+    /// Optional Logarithmic scale for more freedom of range/precision
     pub scale: Scale,
+    /// Allowed precision for sliders
     pub step_size: f64,
+    /// When changed, the animation should be restarted for it to take effect
+    pub needs_restart: bool,
+}
+
+#[derive(Clone, Copy, Default, Debug)]
+pub enum Scale {
+    #[default]
+    /// Steps are all of equal value
+    Linear,
+    /// Steps are much smaller near 0
+    Logarithmic,
 }
 
 impl<T: Num> Default for ParamParam<T, &str> {
@@ -52,15 +69,9 @@ impl<T: Num> Default for ParamParam<T, &str> {
             range: T::zero()..T::one(),
             scale: Scale::default(),
             step_size,
+            needs_restart: false,
         }
     }
-}
-
-#[derive(Clone, Copy, Default, Debug)]
-pub enum Scale {
-    #[default]
-    Linear,
-    Logarithmic,
 }
 
 impl<T: Copy> Param<T> {
@@ -212,6 +223,7 @@ impl DebugUI {
             root,
             document,
             next_uid: 0,
+            needs_restart: Rc::new(RefCell::new(false)),
         }
     }
 
@@ -252,6 +264,7 @@ impl DebugUI {
                 root,
                 document: doc,
                 next_uid,
+                needs_restart,
             } => {
                 let container = doc.create_element("div").unwrap();
                 let label = doc.create_element("label").unwrap();
@@ -350,6 +363,7 @@ impl DebugUI {
                     let send = send.clone();
                     let p = p.clone();
                     let key = key.clone();
+                    let needs_restart = needs_restart.clone();
                     EventListener::new(&value_input, "change", move |_event| {
                         let value = doc
                             .get_element_by_id(&value_id)
@@ -374,6 +388,9 @@ impl DebugUI {
                         add_url_param(&key, value);
 
                         send.send(value).unwrap();
+                        if p.needs_restart {
+                            *needs_restart.borrow_mut() = true;
+                        }
                     })
                     .forget();
                 }
@@ -394,6 +411,12 @@ impl DebugUI {
                 root.append_child(&a).unwrap();
             }
             DebugUI::Disabled => (),
+        }
+    }
+    pub fn should_restart(&mut self) -> bool {
+        match self {
+            DebugUI::Enabled { needs_restart, .. } => *needs_restart.borrow(),
+            DebugUI::Disabled => false,
         }
     }
 }

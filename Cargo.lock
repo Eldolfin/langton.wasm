@@ -28,6 +28,7 @@ name = "canvas"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "debug_ui",
  "rstest",
  "wasm-bindgen",
  "wasm-bindgen-futures",

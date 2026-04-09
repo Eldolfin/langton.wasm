@@ -32,7 +32,6 @@
               statix.enable = true;
               check-merge-conflicts.enable = true;
               check-yaml.enable = true;
-              markdownlint.enable = true;
               clippy = {
                 enable = true;
                 settings = {

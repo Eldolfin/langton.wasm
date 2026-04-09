@@ -1,19 +1,19 @@
+use debug_ui::{Param, log};
 use std::{cell::RefCell, collections::HashMap, f64, rc::Rc};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{console::warn_1, window};
 
-const DEFAULT_CELL_SIZE: usize = 40;
-
 pub struct Canvas {
+    element: web_sys::HtmlCanvasElement,
     context: web_sys::CanvasRenderingContext2d,
     /// render calls queue
     queue: Vec<DrawCall>,
     last_frame: Vec<Vec<Option<Color>>>,
     /// in pixels
-    cell_size: usize,
+    cell_size: Rc<RefCell<debug_ui::Param<usize>>>,
     /// in pixels
-    cell_border_size: usize,
+    cell_border_size: Rc<RefCell<debug_ui::Param<usize>>>,
     /// in cells
     width: usize,
     /// in cells
@@ -26,6 +26,13 @@ pub struct Canvas {
     canvas_width: usize,
     /// in pixels
     canvas_height: usize,
+    last_cell_size: usize,
+}
+
+impl Drop for Canvas {
+    fn drop(&mut self) {
+        self.element.remove();
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -78,71 +85,36 @@ struct DrawCall {
 }
 
 impl Canvas {
-    pub fn create_bg() -> Option<Self> {
-        let document = web_sys::window()?.document()?;
-        let body = document.body().unwrap();
-        let canvas = document
-            .create_element("canvas")
-            .unwrap()
-            .dyn_into::<web_sys::HtmlCanvasElement>()
-            .ok()?;
-
-        body.prepend_with_node_1(&canvas).unwrap();
-
-        let style = document.create_element("style").unwrap();
-        style.set_text_content(Some(include_str!("./style.css")));
-        document.head().unwrap().append_child(&style).unwrap();
-
-        let scroll_height = body.scroll_height() as u32;
-        let canvas_height = if scroll_height > 0 {
-            scroll_height
-        } else {
-            warn_1(
-                &"[LANGTON][CANVAS] body.scroll_height is 0, make sure to fully initialize the page before calling start_langton_ant otherwise the canvas might get cut off at the bottom".into()
-            );
-            window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32
+    pub fn new(
+        cell_border_size: Rc<RefCell<Param<usize>>>,
+        cell_size: Rc<RefCell<Param<usize>>>,
+    ) -> Self {
+        let Some(canvas) = Self::create_canvas() else {
+            panic!("Failed to get canvas!")
         };
-
-        canvas.set_width(window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32);
-        canvas.set_height(canvas_height);
-
-        let context = canvas
-            .get_context("2d")
-            .ok()??
-            .dyn_into::<web_sys::CanvasRenderingContext2d>()
-            .ok()?;
+        let Some(context) = Self::get_context(&canvas) else {
+            panic!("Failed to get context 2d out of canvas!")
+        };
 
         let base_screen_height =
             window().unwrap().inner_height().unwrap().as_f64().unwrap() as usize;
-
         let base_screen_height = std::cmp::min(canvas.height() as usize, base_screen_height);
 
-        let mut res = Self {
+        Self {
+            element: canvas.clone(),
             context,
-            cell_size: DEFAULT_CELL_SIZE,
-            cell_border_size: 1,
+            cell_size,
+            canvas_width: canvas.width() as usize,
+            canvas_height: canvas.height() as usize,
+            base_screen_height,
+            queue: vec![],
+            last_frame: vec![],
+            cell_border_size,
             width: 0,
             height: 0,
             screen_height: 0,
-            canvas_width: canvas.width() as usize,
-            canvas_height: canvas.height() as usize,
-            queue: vec![],
-            last_frame: vec![vec![]],
-            base_screen_height,
-        };
-        res.calculate_size();
-        Some(res)
-    }
-
-    pub fn with_cell_size(mut self, cell_size: usize) -> Self {
-        self.cell_size = cell_size;
-        self.calculate_size();
-        self
-    }
-
-    pub fn with_cell_border_size(mut self, cell_border_size: usize) -> Self {
-        self.cell_border_size = cell_border_size;
-        self
+            last_cell_size: 0,
+        }
     }
 
     pub fn fill_rect(&mut self, x: usize, y: usize, color: Color) {
@@ -162,23 +134,35 @@ impl Canvas {
     }
 
     fn calculate_size(&mut self) {
-        self.width = (self.canvas_width as f64 / self.cell_size as f64).ceil() as usize;
-        self.height = (self.canvas_height as f64 / self.cell_size as f64).ceil() as usize;
-        self.screen_height =
-            (self.base_screen_height as f64 / self.cell_size as f64).ceil() as usize;
+        let cell_size = self.cell_size.borrow_mut().get();
+        self.last_cell_size = cell_size;
+        self.width = (self.canvas_width as f64 / cell_size as f64).ceil() as usize;
+        self.height = (self.canvas_height as f64 / cell_size as f64).ceil() as usize;
+        self.screen_height = (self.base_screen_height as f64 / cell_size as f64).ceil() as usize;
         self.last_frame = vec![vec![None; self.height]; self.width]
+    }
+
+    fn calculate_size_if_needed(&mut self) {
+        if self.cell_size.borrow_mut().get() != self.last_cell_size {
+            self.calculate_size();
+            assert!(self.width > 0);
+            assert!(self.height > 0);
+        }
     }
 
     /// animation: function that renders a single frame and returns true if it is done
     pub async fn play_animation(
-        mut self,
+        selff: Rc<RefCell<Self>>,
         mut animation: impl FnMut(&mut Canvas) -> bool + 'static,
     ) {
         let step = move || {
-            let res = animation(&mut self);
-            self.flush();
+            let mut selff = selff.borrow_mut();
+            selff.calculate_size_if_needed();
+            let res = animation(&mut selff);
+            selff.flush();
             res
         };
+        let step = Rc::new(RefCell::new(step));
         start_animation(step).await;
     }
 
@@ -238,26 +222,68 @@ impl Canvas {
         for draw_call in &self.queue {
             let DrawCall { x, y, color } = draw_call;
             // avoid calling the "expensive" fill_rect if there is no border
-            if self.cell_border_size != 0 {
+            let cell_size = self.cell_size.borrow_mut().get();
+            let border_size = self.cell_border_size.borrow_mut().get();
+            let border_size = if cell_size <= 2 * border_size {
+                0
+            } else {
+                border_size
+            };
+            if self.cell_border_size.borrow_mut().get() != 0 {
                 self.context
                     .set_fill_style_str(&color.invert().to_css_color());
                 self.context.fill_rect(
-                    (*x * self.cell_size) as f64,
-                    (*y * self.cell_size) as f64,
-                    (self.cell_size) as f64,
-                    (self.cell_size) as f64,
+                    (*x * cell_size) as f64,
+                    (*y * cell_size) as f64,
+                    (cell_size) as f64,
+                    (cell_size) as f64,
                 );
             }
             self.context.set_fill_style_str(&color.to_css_color());
             // center
             self.context.fill_rect(
-                (*x * self.cell_size + self.cell_border_size) as f64,
-                (*y * self.cell_size + self.cell_border_size) as f64,
-                (self.cell_size - 2 * self.cell_border_size) as f64,
-                (self.cell_size - 2 * self.cell_border_size) as f64,
+                (*x * cell_size + border_size) as f64,
+                (*y * cell_size + border_size) as f64,
+                (cell_size - 2 * border_size) as f64,
+                (cell_size - 2 * border_size) as f64,
             );
             self.last_frame[*x][*y] = Some(*color);
         }
+    }
+    fn create_canvas() -> Option<web_sys::HtmlCanvasElement> {
+        let document = web_sys::window()?.document()?;
+        let body = document.body().unwrap();
+        let canvas = document
+            .create_element("canvas")
+            .unwrap()
+            .dyn_into::<web_sys::HtmlCanvasElement>()
+            .ok()?;
+        body.prepend_with_node_1(&canvas).unwrap();
+        let style = document.create_element("style").unwrap();
+        style.set_text_content(Some(include_str!("./style.css")));
+        document.head().unwrap().append_child(&style).unwrap();
+        let scroll_height = body.scroll_height() as u32;
+        let canvas_height = if scroll_height > 0 {
+            scroll_height
+        } else {
+            warn_1(
+            &"[LANGTON][CANVAS] body.scroll_height is 0, make sure to fully initialize the page before calling start_langton_ant otherwise the canvas might get cut off at the bottom".into()
+        );
+            window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32
+        };
+        canvas.set_width(window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32);
+        canvas.set_height(canvas_height);
+        Some(canvas)
+    }
+
+    fn get_context(
+        canvas: &web_sys::HtmlCanvasElement,
+    ) -> Option<web_sys::CanvasRenderingContext2d> {
+        canvas
+            .get_context("2d")
+            .ok()??
+            .dyn_into::<web_sys::CanvasRenderingContext2d>()
+            .ok()
     }
 }
 
@@ -268,14 +294,15 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
         .expect("should register `requestAnimationFrame` OK");
 }
 
-async fn start_animation(animation_step: impl FnMut() -> bool + 'static) {
-    let animation_step = Rc::new(RefCell::new(animation_step));
+async fn start_animation(animation_step: Rc<RefCell<impl FnMut() -> bool + 'static>>) {
     let promise = web_sys::js_sys::Promise::new(&mut |resolve, _reject| {
         let update = Rc::new(RefCell::new(None));
         let f = update.clone();
         let value = animation_step.clone();
         *f.borrow_mut() = Some(Closure::new(move || {
-            if !value.borrow_mut()() {
+            let res = value.borrow_mut()();
+            log!("{res:?}");
+            if !res {
                 request_animation_frame(update.borrow_mut().as_ref().unwrap());
             } else {
                 // free closure
