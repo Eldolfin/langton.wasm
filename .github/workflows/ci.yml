@@ -10,7 +10,6 @@ env:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,7 +21,6 @@ jobs:
           cargo clippy --verbose -- -Dwarnings
 
   e2e:
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
