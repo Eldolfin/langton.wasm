@@ -9,18 +9,33 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  fmt:
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run tests
+        run: |
+          cargo fmt --check
+
   check:
+    runs-on: codeberg-medium
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
         run: |
           cargo test --verbose
+
+  clippy:
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Run clippy
         run: |
           cargo clippy --verbose -- -Dwarnings
 
   e2e:
+    runs-on: codeberg-medium
     steps:
       - name: Checkout
         uses: actions/checkout@v4
