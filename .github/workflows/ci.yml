@@ -10,7 +10,8 @@ env:
 
 jobs:
   fmt:
-    runs-on: [codeberg-medium, docker]
+    runs-on:
+      group: [codeberg-medium, docker]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,7 +31,8 @@ jobs:
         run: cargo fmt --check
 
   check:
-    runs-on: [codeberg-medium, docker]
+    runs-on:
+      group: [codeberg-medium, docker]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,7 +61,8 @@ jobs:
         run: cargo test --verbose
 
   clippy:
-    runs-on: [codeberg-medium, docker]
+    runs-on:
+      group: [codeberg-medium, docker]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,7 +91,8 @@ jobs:
         run: cargo clippy --verbose -- -Dwarnings
 
   e2e:
-    runs-on: [codeberg-medium, docker]
+    runs-on:
+      group: [codeberg-medium, docker]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
