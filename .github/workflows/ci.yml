@@ -130,3 +130,10 @@ jobs:
 
       - name: Run e2e tests
         run: tests/.venv/bin/pytest tests/ -n auto --junit-xml=test-results/junit.xml -v
+
+      - name: Comment PR with results and screenshots
+        if: github.event_name == 'pull_request'
+        env:
+          FORGEJO_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python tests/ci_comment.py
