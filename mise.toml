@@ -1,6 +1,9 @@
 [tools]
 python = "3.12"
 
+[settings]
+python.github_attestations = false
+
 [tasks.install-e2e-deps]
 description = "Create venv and install e2e test dependencies"
 run = [
