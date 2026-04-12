@@ -46,6 +46,11 @@ sleep 10 && fj actions tasks      # if not visible yet, wait and retry
 curl -s "https://codeberg.org/eldolfin/langton.wasm/actions/runs/34/jobs/3/attempt/1/logs" | tail -40
 ```
 
+Poll until all jobs finish (silent while running, prints when done):
+```bash
+for i in $(seq 20); do sleep 30; result=$(fj actions tasks 2>&1 | head -6); echo "$result" | grep -q "running" || { echo "$result"; break; }; done
+```
+
 ## CI
 
 GitHub Actions runs `cargo test` and `cargo clippy -- -Dwarnings` on push to main and PRs.
