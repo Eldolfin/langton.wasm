@@ -1,11 +1,15 @@
 [tools]
 python = "3.12"
+uv = "latest"
+rust = {version = "stable", targets = "wasm32-unknown-unknown"}
+"github:rustwasm/wasm-pack" = "latest"
+"cargo:live-server" = "latest"
 
 [tasks.install-e2e-deps]
 description = "Create venv and install e2e test dependencies"
 run = [
-  "python -m venv --clear tests/.venv",
-  "tests/.venv/bin/pip install -r tests/requirements.txt -q",
+  "uv venv --python python --clear tests/.venv",
+  "uv pip install --python tests/.venv -r tests/requirements.txt",
   "tests/.venv/bin/playwright install chromium",
 ]
 
