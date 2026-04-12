@@ -108,6 +108,12 @@ jobs:
           key: ${{ runner.os }}-e2e-${{ hashFiles('mise.toml', 'tests/requirements.txt', '**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-e2e-
 
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh && echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
       - name: Install tools
         env:
           MISE_PYTHON_GITHUB_ATTESTATIONS: "false"
