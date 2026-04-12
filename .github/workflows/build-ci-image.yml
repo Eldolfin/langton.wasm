@@ -13,18 +13,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install buildah
-        run: apt-get install -y buildah
+      - name: Install podman
+        run: apt-get update && apt-get install -y podman
 
       - name: Login to Codeberg registry
-        run: echo "${{ github.token }}" | buildah login --username=${{ github.actor }} --password-stdin codeberg.org
+        run: echo "${{ github.token }}" | podman login --username=${{ github.actor }} --password-stdin codeberg.org
 
-      - name: Build and push with buildah
+      - name: Build and push with podman
         run: |
-          BUILDAH_ISOLATION=chroot buildah bud \
+          podman build \
             --storage-driver vfs \
+            --isolation chroot \
             --no-cache \
             -t codeberg.org/eldolfin/langton-ci:latest \
             -f .github/Dockerfile.ci \
             .
-          buildah --storage-driver vfs push codeberg.org/eldolfin/langton-ci:latest
+          podman push \
+            --storage-driver vfs \
+            codeberg.org/eldolfin/langton-ci:latest
