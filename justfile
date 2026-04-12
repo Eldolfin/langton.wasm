@@ -26,7 +26,7 @@ dev:
 
 # Run end-to-end Playwright tests (Python)
 test-e2e:
-    tests/.venv/bin/pytest tests/ -v
+    tests/.venv/bin/pytest tests/ -n auto -v
 
 # deploy build-web to `pages` branch
 deploy: build-web

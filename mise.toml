@@ -1,0 +1,16 @@
+[tools]
+python = "3.12"
+rust = {version = "stable", targets = "wasm32-unknown-unknown"}
+"cargo:live-server" = "latest"
+
+[tasks.install-e2e-deps]
+description = "Create venv and install e2e test dependencies"
+run = [
+  "uv venv --python python --clear tests/.venv",
+  "uv pip install --python tests/.venv -r tests/requirements.txt",
+  "tests/.venv/bin/playwright install chromium",
+]
+
+[tasks.test-e2e]
+description = "Run end-to-end Playwright tests"
+run = "tests/.venv/bin/pytest tests/ -n auto -v"

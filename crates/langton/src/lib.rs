@@ -73,7 +73,6 @@ pub async fn start_langton_ant() {
         name: "cell size",
         default_value: 20,
         range: 1..50,
-        needs_restart: true,
         ..Default::default()
     });
     let cell_border_size = debug_ui.param(ParamParam {

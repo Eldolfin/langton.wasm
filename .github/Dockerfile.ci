@@ -1,0 +1,22 @@
+FROM ghcr.io/catthehacker/ubuntu:act-latest
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/root/.cargo/bin:/root/.local/bin:${PATH}"
+
+# Rust stable + wasm32 target + fmt + clippy
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && rustup target add wasm32-unknown-unknown \
+    && rustup component add rustfmt clippy
+
+# wasm-pack (pre-built binary via official installer)
+RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+# uv (Python toolchain manager — handles Python 3.12 download + venv)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Playwright system apt deps only (no browser — version-agnostic so CI can
+# install any playwright version and just download the browser binary, which
+# is fast and can be cached separately)
+RUN pip3 install playwright \
+    && playwright install-deps chromium \
+    && pip3 uninstall -y playwright

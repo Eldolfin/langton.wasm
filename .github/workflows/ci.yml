@@ -10,29 +10,81 @@ env:
 
 jobs:
   fmt:
+    runs-on: codeberg-medium
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Run tests
+      - name: Install mise
         run: |
-          cargo fmt --check
+          curl https://mise.run | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/mise/installs
+            ~/.rustup
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-fmt-${{ hashFiles('mise.toml', '**/Cargo.lock') }}
+      - name: Install tools
+        run: mise install rust
+      - name: fmt
+        run: cargo fmt --check
 
   check:
     runs-on: codeberg-medium
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Run tests
+      - name: Install mise
         run: |
-          cargo test --verbose
+          curl https://mise.run | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/mise/installs
+            ~/.rustup
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-check-${{ hashFiles('mise.toml', '**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-check-
+      - name: Install tools
+        run: mise install rust
+      - name: Run tests
+        run: cargo test --verbose
 
   clippy:
+    runs-on: codeberg-medium
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Run clippy
+      - name: Install mise
         run: |
-          cargo clippy --verbose -- -Dwarnings
+          curl https://mise.run | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/mise/installs
+            ~/.rustup
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-clippy-${{ hashFiles('mise.toml', '**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-clippy-
+      - name: Install tools
+        run: mise install rust
+      - name: Run clippy
+        run: cargo clippy --verbose -- -Dwarnings
 
   e2e:
     runs-on: codeberg-medium
@@ -40,23 +92,54 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install mise
+        run: |
+          curl https://mise.run | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/mise/installs
+            ~/.rustup
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+            ~/.cache/ms-playwright
+            ~/.cache/uv
+          key: ${{ runner.os }}-e2e-${{ hashFiles('mise.toml', '**/Cargo.lock', 'tests/requirements.txt') }}
+          restore-keys: ${{ runner.os }}-e2e-
+
+      - name: Install tools
+        env:
+          MISE_PYTHON_GITHUB_ATTESTATIONS: "false"
+        run: mise install
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh && echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install e2e dependencies
+        run: |
+          uv venv --python 3.12 --clear tests/.venv
+          uv pip install --python tests/.venv -r tests/requirements.txt
+
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Install Playwright system deps + browser
+        run: tests/.venv/bin/playwright install chromium --with-deps
 
       - name: Build WASM
         run: cd crates/langton && wasm-pack build --target web --no-typescript
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Set up Python venv
-        run: uv venv tests/.venv
-
-      - name: Install Python dependencies
-        run: uv pip install --python tests/.venv playwright pytest pytest-playwright
-
-      - name: Install Playwright browsers
-        run: tests/.venv/bin/playwright install chromium --with-deps
-
       - name: Run e2e tests
-        run: tests/.venv/bin/pytest tests/ -v
+        run: tests/.venv/bin/pytest tests/ -n auto --junit-xml=test-results/junit.xml -v
+
+      - name: Comment PR with results and screenshots
+        if: github.event_name == 'pull_request'
+        env:
+          FORGEJO_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python tests/ci_comment.py

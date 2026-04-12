@@ -3,7 +3,6 @@ name: Deploy to pages
 on:
   push:
     branches: ["main"]
-  pull_request:
 
 concurrency:
   group: "pages"
