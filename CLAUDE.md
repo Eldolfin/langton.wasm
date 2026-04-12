@@ -28,6 +28,15 @@ Cargo workspace with three crates:
 
 Data flow: DebugUI params → Game reads each frame → queues Canvas draw calls → Canvas flushes optimized batch.
 
+## Debugging CI Failures
+
+To check CI job logs on Codeberg:
+1. List runs: `fj actions tasks`
+2. Get logs: `curl -s "https://codeberg.org/eldolfin/langton.wasm/actions/runs/{run_index}/jobs/{job_index}/attempt/1/logs"`
+   - Job indices are 0-based, ordered as jobs appear in the workflow file
+   - `run_index` is the `#N` from `fj actions tasks` output
+   - `job_index` 0 = first job, 1 = second job, etc.
+
 ## CI
 
 GitHub Actions runs `cargo test` and `cargo clippy -- -Dwarnings` on push to main and PRs.
