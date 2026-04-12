@@ -23,6 +23,16 @@ def set_param_value(page: Page, label_text: str, value: float | int) -> None:
     number_input.dispatch_event("change")
 
 
+def mark_canvas(page: Page) -> None:
+    """Tag the current canvas element so we can detect if it gets replaced."""
+    page.evaluate("document.querySelector('canvas')._test_marker = true")
+
+
+def canvas_is_fresh(page: Page) -> bool:
+    """Return True if the current canvas has no test marker (i.e. it is a new element)."""
+    return not page.evaluate("!!(document.querySelector('canvas') || {})._test_marker")
+
+
 # ---------------------------------------------------------------------------
 # Basic smoke tests
 # ---------------------------------------------------------------------------
@@ -84,7 +94,7 @@ def test_url_updated_on_param_change(page: Page):
 
 
 # ---------------------------------------------------------------------------
-# Restart-param tests — the last one is EXPECTED TO FAIL
+# Restart-param tests
 # ---------------------------------------------------------------------------
 
 
@@ -103,31 +113,57 @@ def test_start_position_params_trigger_restart(page: Page):
     )
 
 
-def test_cell_size_change_restarts_with_clean_canvas(page: Page):
+def test_start_x_restarts_fresh(page: Page):
+    """Changing start_x replaces the canvas element with a new one."""
+    load_and_wait(page)
+    mark_canvas(page)
+    set_param_value(page, "start x", 0.3)
+    page.wait_for_timeout(500)
+    expect(page.locator("canvas")).to_have_count(1)
+    assert canvas_is_fresh(page), "Canvas element should be a new element after restart"
+
+
+def test_start_y_restarts_fresh(page: Page):
+    """Changing start_y replaces the canvas element with a new one."""
+    load_and_wait(page)
+    mark_canvas(page)
+    set_param_value(page, "start y", 0.4)
+    page.wait_for_timeout(500)
+    expect(page.locator("canvas")).to_have_count(1)
+    assert canvas_is_fresh(page), "Canvas element should be a new element after restart"
+
+
+# ---------------------------------------------------------------------------
+# cell_size tests — EXPECTED TO FAIL (known crash bug)
+# ---------------------------------------------------------------------------
+
+
+def test_cell_size_does_not_crash(page: Page):
     """
-    EXPECTED TO FAIL: cell_size has needs_restart=true but changing it does
-    not result in a fresh single-canvas state.
+    cell_size is a live param (no restart). Changing it should update new cells
+    without restarting or crashing the animation loop.
+    """
+    load_and_wait(page)
+    assert canvas_count(page) == 1, "Precondition: exactly one canvas on load"
+    mark_canvas(page)
+    set_param_value(page, "cell size", 10)
+    page.wait_for_timeout(500)
+    expect(page.locator("canvas")).to_have_count(1)
+    assert not canvas_is_fresh(page), "cell_size is a live param — canvas should not be replaced"
+    # console error check happens automatically via autouse fixture
 
-    After changing cell_size the simulation should:
-      1. Stop the current animation.
-      2. Discard the old canvas.
-      3. Create a new canvas sized according to the new cell_size.
 
-    What actually happens: the old canvas element is never removed from the
-    DOM, so after the restart there are 2 (or more) <canvas> elements instead
-    of exactly 1.
+def test_cell_size_slider_back_and_forth(page: Page):
+    """
+    Incrementally changing cell_size up and down should not crash the loop.
+    The animation must survive repeated live updates and keep exactly one canvas.
     """
     load_and_wait(page)
     assert canvas_count(page) == 1, "Precondition: exactly one canvas on load"
 
-    set_param_value(page, "cell size", 10)
-    page.wait_for_timeout(600)
-
-    count = canvas_count(page)
-    # This assertion SHOULD pass (1 clean canvas), but FAILS because the old
-    # canvas is leaked and count == 2.
-    assert count == 1, (
-        f"Expected exactly 1 canvas after cell_size restart, got {count}. "
-        "The old canvas element is not removed when the game restarts — "
-        "needs_restart params do not produce a clean canvas state."
-    )
+    steps = [25, 30, 35, 30, 25, 20, 15, 10, 15, 20]
+    for value in steps:
+        set_param_value(page, "cell size", value)
+        page.wait_for_timeout(300)
+        expect(page.locator("canvas")).to_have_count(1)
+        # console errors caught by autouse fixture after the test

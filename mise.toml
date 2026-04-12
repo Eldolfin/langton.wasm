@@ -1,0 +1,14 @@
+[tools]
+python = "3.12"
+
+[tasks.install-e2e-deps]
+description = "Create venv and install e2e test dependencies"
+run = [
+  "python -m venv tests/.venv",
+  "tests/.venv/bin/pip install -r tests/requirements.txt -q",
+  "tests/.venv/bin/playwright install chromium",
+]
+
+[tasks.test-e2e]
+description = "Run end-to-end Playwright tests"
+run = "tests/.venv/bin/pytest tests/ -n auto -v"
