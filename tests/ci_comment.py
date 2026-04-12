@@ -25,7 +25,8 @@ def api(method: str, path: str, body: dict | None = None) -> dict:
     req = request.Request(f"{API}{path}", data=data, headers=HEADERS, method=method)
     try:
         with request.urlopen(req) as r:
-            return json.load(r)
+            body = r.read()
+            return json.loads(body) if body else {}
     except HTTPError as e:
         print(f"API error {e.code}: {e.read().decode()}", file=sys.stderr)
         raise
