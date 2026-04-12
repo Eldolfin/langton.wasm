@@ -1,9 +1,16 @@
 name: Build CI Docker image
 
+# NOTE: Building container images requires user namespace support which is
+# not available in Codeberg's CI runners (unprivileged containers). This
+# workflow is provided for use with a self-hosted runner that has Docker
+# socket access, or for manual local builds.
+#
+# To build and push manually:
+#   docker buildx build --platform linux/arm64 \
+#     -t codeberg.org/eldolfin/langton-ci:latest \
+#     -f .github/Dockerfile.ci --push .
+
 on:
-  push:
-    branches: [main]
-    paths: [.github/Dockerfile.ci]
   workflow_dispatch:
 
 jobs:
@@ -13,21 +20,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install podman
-        run: apt-get update && apt-get install -y podman
-
       - name: Login to Codeberg registry
-        run: echo "${{ github.token }}" | podman login --username=${{ github.actor }} --password-stdin codeberg.org
+        run: echo "${{ github.token }}" | docker login codeberg.org -u ${{ github.actor }} --password-stdin
 
-      - name: Build and push with podman
+      - name: Build and push
         run: |
-          podman build \
-            --storage-driver vfs \
-            --isolation chroot \
-            --no-cache \
+          docker build \
             -t codeberg.org/eldolfin/langton-ci:latest \
             -f .github/Dockerfile.ci \
             .
-          podman push \
-            --storage-driver vfs \
-            codeberg.org/eldolfin/langton-ci:latest
+          docker push codeberg.org/eldolfin/langton-ci:latest
