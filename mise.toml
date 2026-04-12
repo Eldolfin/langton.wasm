@@ -1,13 +1,10 @@
 [tools]
 python = "3.12"
 
-[settings]
-python.github_attestations = false
-
 [tasks.install-e2e-deps]
 description = "Create venv and install e2e test dependencies"
 run = [
-  "python -m venv tests/.venv",
+  "python -m venv --clear tests/.venv",
   "tests/.venv/bin/pip install -r tests/requirements.txt -q",
   "tests/.venv/bin/playwright install chromium",
 ]

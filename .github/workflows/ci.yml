@@ -44,12 +44,17 @@ jobs:
         run: curl https://mise.run | sh && echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install Python and e2e dependencies
+        env:
+          MISE_PYTHON_GITHUB_ATTESTATIONS: "false"
         run: |
           mise install
           mise run install-e2e-deps
 
       - name: Install Playwright system deps
         run: tests/.venv/bin/playwright install chromium --with-deps
+
+      - name: Install Rust
+        run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh

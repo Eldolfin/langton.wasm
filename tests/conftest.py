@@ -47,9 +47,8 @@ def http_server():
         raise RuntimeError("HTTP server did not start in time")
 
     yield BASE_URL
-
-    proc.terminate()
-    proc.wait()
+    # Don't terminate: with xdist parallel workers, other sessions may still
+    # be using the server. The child process dies when pytest exits anyway.
 
 
 @pytest.fixture(scope="session")
