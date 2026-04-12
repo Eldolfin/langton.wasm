@@ -140,14 +140,14 @@ jobs:
 
       - name: Upload JUnit report
         if: always()
-        uses: code.forgejo.org/actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: junit-report
           path: test-results/junit.xml
 
       - name: Upload screenshots
         if: always()
-        uses: code.forgejo.org/actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: screenshots
           path: tests/screenshots/
