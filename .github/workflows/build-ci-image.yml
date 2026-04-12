@@ -13,18 +13,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Login to Codeberg registry
-        run: echo "${{ github.token }}" | docker login codeberg.org -u ${{ github.actor }} --password-stdin
+      - name: Install buildah
+        run: sudo apt-get install -y buildah
 
-      - name: Build and push with kaniko
+      - name: Login to Codeberg registry
+        run: echo "${{ github.token }}" | buildah login --username=${{ github.actor }} --password-stdin codeberg.org
+
+      - name: Build and push with buildah
         run: |
-          ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-          curl -sL "https://github.com/GoogleContainerTools/kaniko/releases/download/v1.23.2/executor-linux-${ARCH}" \
-            -o /usr/local/bin/kaniko
-          chmod +x /usr/local/bin/kaniko
-          kaniko \
-            --dockerfile=.github/Dockerfile.ci \
-            --destination=codeberg.org/eldolfin/langton-ci:latest \
-            --context=dir://$(pwd) \
-            --cache=false \
-            --compressed-caching=false
+          BUILDAH_ISOLATION=chroot buildah bud \
+            --storage-driver vfs \
+            --no-cache \
+            -t codeberg.org/eldolfin/langton-ci:latest \
+            -f .github/Dockerfile.ci \
+            .
+          buildah --storage-driver vfs push codeberg.org/eldolfin/langton-ci:latest
