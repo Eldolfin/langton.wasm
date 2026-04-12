@@ -41,12 +41,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install mise
-        uses: jdx/mise-action@v2
-        with:
-          cache: true
+        run: curl https://mise.run | sh && echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Install e2e dependencies
-        run: mise run install-e2e-deps
+      - name: Install Python and e2e dependencies
+        run: |
+          mise install
+          mise run install-e2e-deps
 
       - name: Install Playwright system deps
         run: tests/.venv/bin/playwright install chromium --with-deps
@@ -59,18 +59,3 @@ jobs:
 
       - name: Run e2e tests
         run: tests/.venv/bin/pytest tests/ -n auto --junit-xml=test-results/junit.xml -v
-
-      - name: Upload JUnit results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-results
-          path: test-results/junit.xml
-
-      - name: Upload screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots
-          path: tests/screenshots/
-          if-no-files-found: ignore
