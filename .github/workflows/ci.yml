@@ -19,6 +19,11 @@ jobs:
           curl https://mise.run | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+      - name: Cache mise tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/mise/installs
+          key: ${{ runner.os }}-mise-rust-${{ hashFiles('mise.toml') }}
       - name: Install tools
         run: mise install rust
       - name: fmt
@@ -34,8 +39,11 @@ jobs:
           curl https://mise.run | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
-      - name: Install tools
-        run: mise install rust
+      - name: Cache mise tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/mise/installs
+          key: ${{ runner.os }}-mise-rust-${{ hashFiles('mise.toml') }}
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -45,6 +53,8 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-check-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-check-
+      - name: Install tools
+        run: mise install rust
       - name: Run tests
         run: cargo test --verbose
 
@@ -58,8 +68,11 @@ jobs:
           curl https://mise.run | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
-      - name: Install tools
-        run: mise install rust
+      - name: Cache mise tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/mise/installs
+          key: ${{ runner.os }}-mise-rust-${{ hashFiles('mise.toml') }}
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -69,6 +82,8 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-clippy-
+      - name: Install tools
+        run: mise install rust
       - name: Run clippy
         run: cargo clippy --verbose -- -Dwarnings
 
@@ -84,10 +99,17 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
 
-      - name: Install tools
-        env:
-          MISE_PYTHON_GITHUB_ATTESTATIONS: "false"
-        run: mise install
+      - name: Cache mise tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/mise/installs
+          key: ${{ runner.os }}-mise-all-${{ hashFiles('mise.toml') }}
+
+      - name: Cache uv packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('tests/requirements.txt') }}
 
       - name: Cache cargo (wasm build)
         uses: actions/cache@v4
@@ -98,6 +120,11 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-wasm-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-wasm-
+
+      - name: Install tools
+        env:
+          MISE_PYTHON_GITHUB_ATTESTATIONS: "false"
+        run: mise install
 
       - name: Install e2e dependencies
         run: mise run install-e2e-deps
