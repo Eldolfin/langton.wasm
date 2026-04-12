@@ -1,5 +1,6 @@
 """End-to-end tests for the Langton's Ant WASM application."""
 
+import pytest
 from playwright.sync_api import Page, expect
 from conftest import load_and_wait
 
@@ -11,6 +12,14 @@ from conftest import load_and_wait
 
 def canvas_count(page: Page) -> int:
     return page.locator("canvas").count()
+
+
+def canvas_is_animating(page: Page, wait_ms: int = 400) -> bool:
+    """Return True if the canvas pixel content changes over time (loop is alive)."""
+    before = page.evaluate("document.querySelector('canvas').toDataURL()")
+    page.wait_for_timeout(wait_ms)
+    after = page.evaluate("document.querySelector('canvas').toDataURL()")
+    return before != after
 
 
 def set_param_value(page: Page, label_text: str, value: float | int) -> None:
@@ -34,14 +43,38 @@ def canvas_is_fresh(page: Page) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Infrastructure self-test
+# ---------------------------------------------------------------------------
+
+
+def test_console_error_detection(page: Page):
+    """Verify the console error listener actually captures errors.
+
+    Injects a console.error via page.evaluate, then asserts it was captured
+    in page._console_errors. Clears the list afterwards so the autouse
+    fixture does not double-fire on the same sentinel.
+    """
+    load_and_wait(page)
+    page.evaluate("console.error('sentinel error from test infrastructure check')")
+    page.wait_for_timeout(100)
+    captured = list(page._console_errors)
+    page._console_errors.clear()
+    assert captured, (
+        "Console error detection is broken: injected console.error was not captured. "
+        "Check that page.on('console', ...) is wired up in the page fixture."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Basic smoke tests
 # ---------------------------------------------------------------------------
 
 
 def test_page_loads(page: Page):
-    """The app serves a page with at least one canvas element."""
+    """The app serves a page with a canvas that is actively animating."""
     load_and_wait(page)
     assert canvas_count(page) >= 1, "Expected at least one <canvas> in the DOM"
+    assert canvas_is_animating(page), "Canvas must be producing new frames (animation loop running)"
 
 
 def test_debug_ui_visible(page: Page):
@@ -145,14 +178,16 @@ def test_cell_size_does_not_crash(page: Page):
     """
     load_and_wait(page)
     assert canvas_count(page) == 1, "Precondition: exactly one canvas on load"
+    assert canvas_is_animating(page), "Precondition: animation must be running before test"
     mark_canvas(page)
     set_param_value(page, "cell size", 10)
     page.wait_for_timeout(500)
     expect(page.locator("canvas")).to_have_count(1)
     assert not canvas_is_fresh(page), "cell_size is a live param — canvas should not be replaced"
-    # console error check happens automatically via autouse fixture
+    assert canvas_is_animating(page), "Animation loop must still be running after cell_size change"
 
 
+@pytest.mark.xfail(strict=True, reason="animation freezes after repeated cell_size changes — known bug")
 def test_cell_size_slider_back_and_forth(page: Page):
     """
     Incrementally changing cell_size up and down should not crash the loop.
@@ -160,10 +195,12 @@ def test_cell_size_slider_back_and_forth(page: Page):
     """
     load_and_wait(page)
     assert canvas_count(page) == 1, "Precondition: exactly one canvas on load"
+    assert canvas_is_animating(page), "Precondition: animation must be running before test"
 
     steps = [25, 30, 35, 30, 25, 20, 15, 10, 15, 20]
     for value in steps:
         set_param_value(page, "cell size", value)
         page.wait_for_timeout(300)
         expect(page.locator("canvas")).to_have_count(1)
-        # console errors caught by autouse fixture after the test
+
+    assert canvas_is_animating(page), "Animation loop must still be running after all cell_size changes"

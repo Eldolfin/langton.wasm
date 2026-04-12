@@ -85,8 +85,14 @@ def check_no_console_errors(page):
 
 
 def load_and_wait(page: Page, extra_params: str = "") -> None:
-    """Navigate to the app and wait for the canvas to appear."""
-    params = f"?debug{extra_params}"
+    """Navigate to the app and wait for the canvas to appear.
+
+    speedup_frames=0 and final_speed=50 are forced so the simulation produces
+    frames immediately — without this the default 1300-frame ramp-up means
+    near-zero steps in the first few hundred milliseconds, making liveness
+    checks unreliable.
+    """
+    params = f"?debug&speedup_frames=0&final_speed=50{extra_params}"
     page.goto(f"{BASE_URL}/{params}")
     # Wait for the canvas element to be added to the DOM
     page.wait_for_selector("canvas", timeout=10_000)
