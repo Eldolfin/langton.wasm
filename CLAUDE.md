@@ -32,10 +32,19 @@ Data flow: DebugUI params → Game reads each frame → queues Canvas draw calls
 
 To check CI job logs on Codeberg:
 1. List runs: `fj actions tasks`
+   - After pushing, wait ~10s before running this — commit takes time to appear
+   - Wait longer (minutes) for jobs to finish; poll until status changes from `waiting`/`running`
 2. Get logs: `curl -s "https://codeberg.org/eldolfin/langton.wasm/actions/runs/{run_index}/jobs/{job_index}/attempt/1/logs"`
-   - Job indices are 0-based, ordered as jobs appear in the workflow file
    - `run_index` is the `#N` from `fj actions tasks` output
+   - `job_index` is 0-based, ordered as jobs appear in the workflow file
    - `job_index` 0 = first job, 1 = second job, etc.
+
+Example workflow (ci.yml has fmt=0, check=1, clippy=2, e2e=3):
+```bash
+fj actions tasks                  # find run #N for your commit
+sleep 10 && fj actions tasks      # if not visible yet, wait and retry
+curl -s "https://codeberg.org/eldolfin/langton.wasm/actions/runs/34/jobs/3/attempt/1/logs" | tail -40
+```
 
 ## CI
 
