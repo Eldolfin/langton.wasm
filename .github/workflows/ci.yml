@@ -22,7 +22,9 @@ jobs:
       - name: Cache mise tools
         uses: actions/cache@v4
         with:
-          path: ~/.local/share/mise/installs
+          path: |
+            ~/.local/share/mise/installs
+            ~/.rustup
           key: ${{ runner.os }}-mise-rust-${{ hashFiles('mise.toml') }}
       - name: Install tools
         run: mise install rust
@@ -42,7 +44,9 @@ jobs:
       - name: Cache mise tools
         uses: actions/cache@v4
         with:
-          path: ~/.local/share/mise/installs
+          path: |
+            ~/.local/share/mise/installs
+            ~/.rustup
           key: ${{ runner.os }}-mise-rust-${{ hashFiles('mise.toml') }}
       - name: Cache cargo
         uses: actions/cache@v4
@@ -71,7 +75,9 @@ jobs:
       - name: Cache mise tools
         uses: actions/cache@v4
         with:
-          path: ~/.local/share/mise/installs
+          path: |
+            ~/.local/share/mise/installs
+            ~/.rustup
           key: ${{ runner.os }}-mise-rust-${{ hashFiles('mise.toml') }}
       - name: Cache cargo
         uses: actions/cache@v4
@@ -102,7 +108,9 @@ jobs:
       - name: Cache mise tools
         uses: actions/cache@v4
         with:
-          path: ~/.local/share/mise/installs
+          path: |
+            ~/.local/share/mise/installs
+            ~/.rustup
           key: ${{ runner.os }}-mise-all-${{ hashFiles('mise.toml') }}
 
       - name: Cache uv packages

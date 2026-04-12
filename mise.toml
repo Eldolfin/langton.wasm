@@ -2,7 +2,7 @@
 python = "3.12"
 uv = "latest"
 rust = {version = "stable", targets = "wasm32-unknown-unknown"}
-"github:rustwasm/wasm-pack" = "latest"
+"github:rustwasm/wasm-pack" = "0.14.0"
 "cargo:live-server" = "latest"
 
 [tasks.install-e2e-deps]
