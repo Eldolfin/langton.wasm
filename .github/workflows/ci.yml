@@ -10,6 +10,7 @@ env:
 
 jobs:
   build-image:
+    runs-on: codeberg-medium
     uses: ./.github/workflows/build-image.yml
     secrets: inherit
 
