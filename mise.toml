@@ -5,13 +5,12 @@ rust = {version = "1.94.0", targets = "wasm32-unknown-unknown"}
 node = "latest"
 
 [tasks.install-e2e-deps]
-description = "Create venv and install e2e test dependencies"
+description = "Install e2e test dependencies and Playwright browser"
 run = [
-  "uv venv --python python --clear tests/.venv",
-  "uv pip install --python tests/.venv -r tests/requirements.txt",
-  "tests/.venv/bin/playwright install chromium",
+  "uv sync --project tests",
+  "uv run --project tests playwright install chromium",
 ]
 
 [tasks.test-e2e]
 description = "Run end-to-end Playwright tests"
-run = "tests/.venv/bin/pytest tests/ -n auto -v"
+run = "uv run --project tests pytest tests/ -n auto -v"
