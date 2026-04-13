@@ -26,7 +26,7 @@ dev:
     live-server --hard --open='{{ DEV_PARAMS }}' crates/langton &
 
 # Run end-to-end Playwright tests (Python)
-test-e2e *args:
+test-e2e *args: build-pkg
     uv run --project tests pytest tests/ -n auto -v {{ args }}
 
 # deploy build-web to `pages` branch

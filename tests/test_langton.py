@@ -2,8 +2,8 @@
 
 import pytest
 from playwright.sync_api import Page, expect
-from conftest import load_and_wait
 
+from conftest import load_and_wait
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -25,7 +25,9 @@ def canvas_is_animating(page: Page, wait_ms: int = 400) -> bool:
 def set_param_value(page: Page, label_text: str, value: float | int) -> None:
     """Change a parameter by typing into its number input next to its label."""
     # Each param row is: label > slider > number-input, all inside .DebugUI-param-container
-    container = page.locator(".DebugUI-param-container", has=page.locator(f"text={label_text}"))
+    container = page.locator(
+        ".DebugUI-param-container", has=page.locator(f"text={label_text}")
+    )
     number_input = container.locator("input[type=number]")
     number_input.click(click_count=3)
     number_input.fill(str(value))
@@ -57,8 +59,8 @@ def test_console_error_detection(page: Page):
     load_and_wait(page)
     page.evaluate("console.error('sentinel error from test infrastructure check')")
     page.wait_for_timeout(100)
-    captured = list(page._console_errors)
-    page._console_errors.clear()
+    captured = list(page._console_msgs)  # type: ignore
+    page._console_msgs.clear()  # type: ignore
     assert captured, (
         "Console error detection is broken: injected console.error was not captured. "
         "Check that page.on('console', ...) is wired up in the page fixture."
@@ -74,7 +76,9 @@ def test_page_loads(page: Page):
     """The app serves a page with a canvas that is actively animating."""
     load_and_wait(page)
     assert canvas_count(page) >= 1, "Expected at least one <canvas> in the DOM"
-    assert canvas_is_animating(page), "Canvas must be producing new frames (animation loop running)"
+    assert canvas_is_animating(page), (
+        "Canvas must be producing new frames (animation loop running)"
+    )
 
 
 def test_debug_ui_visible(page: Page):
@@ -207,13 +211,19 @@ def test_cell_size_does_not_crash(page: Page):
     """
     load_and_wait(page)
     assert canvas_count(page) == 1, "Precondition: exactly one canvas on load"
-    assert canvas_is_animating(page), "Precondition: animation must be running before test"
+    assert canvas_is_animating(page), (
+        "Precondition: animation must be running before test"
+    )
     mark_canvas(page)
     set_param_value(page, "cell size", 10)
     page.wait_for_timeout(500)
     expect(page.locator("canvas")).to_have_count(1)
-    assert not canvas_is_fresh(page), "cell_size is a live param — canvas should not be replaced"
-    assert canvas_is_animating(page), "Animation loop must still be running after cell_size change"
+    assert not canvas_is_fresh(page), (
+        "cell_size is a live param — canvas should not be replaced"
+    )
+    assert canvas_is_animating(page), (
+        "Animation loop must still be running after cell_size change"
+    )
 
 
 def test_cell_size_slider_back_and_forth(page: Page):
@@ -223,7 +233,9 @@ def test_cell_size_slider_back_and_forth(page: Page):
     """
     load_and_wait(page)
     assert canvas_count(page) == 1, "Precondition: exactly one canvas on load"
-    assert canvas_is_animating(page), "Precondition: animation must be running before test"
+    assert canvas_is_animating(page), (
+        "Precondition: animation must be running before test"
+    )
 
     steps = [25, 30, 35, 30, 25, 20, 15, 10, 15, 20]
     for value in steps:
@@ -231,4 +243,6 @@ def test_cell_size_slider_back_and_forth(page: Page):
         page.wait_for_timeout(300)
         expect(page.locator("canvas")).to_have_count(1)
 
-    assert canvas_is_animating(page), "Animation loop must still be running after all cell_size changes"
+    assert canvas_is_animating(page), (
+        "Animation loop must still be running after all cell_size changes"
+    )

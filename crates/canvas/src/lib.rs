@@ -1,4 +1,4 @@
-use debug_ui::{Param, log};
+use debug_ui::Param;
 use std::{cell::RefCell, collections::HashMap, f64, rc::Rc};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -308,7 +308,6 @@ async fn start_animation(animation_step: Rc<RefCell<impl FnMut() -> bool + 'stat
         let value = animation_step.clone();
         *f.borrow_mut() = Some(Closure::new(move || {
             let res = value.borrow_mut()();
-            log!("{res:?}");
             if !res {
                 request_animation_frame(update.borrow_mut().as_ref().unwrap());
             } else {
