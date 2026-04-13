@@ -29,10 +29,19 @@ jobs:
       - name: Detect container tool
         id: tool
         run: |
-          if command -v docker &> /dev/null; then
-            echo "cmd=docker" >> "$GITHUB_OUTPUT"
+          echo "=== Diagnostics ==="
+          for t in buildah podman docker skopeo crane; do
+            printf "%-10s %s\n" "$t:" "$(command -v $t 2>/dev/null || echo 'not found')"
+          done
+          echo "Docker socket: $(ls -la /var/run/docker.sock 2>&1)"
+          echo "OS: $(cat /etc/os-release 2>/dev/null | head -3)"
+          echo "==================="
+          if command -v buildah &> /dev/null; then
+            echo "cmd=buildah" >> "$GITHUB_OUTPUT"
           elif command -v podman &> /dev/null; then
             echo "cmd=podman" >> "$GITHUB_OUTPUT"
+          elif [ -S /var/run/docker.sock ] && command -v docker &> /dev/null; then
+            echo "cmd=docker" >> "$GITHUB_OUTPUT"
           else
             echo "cmd=" >> "$GITHUB_OUTPUT"
           fi
