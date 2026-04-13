@@ -51,8 +51,13 @@ jobs:
           apt-get install -y -qq podman fuse-overlayfs uidmap > /dev/null
           echo "root:100000:65536" >> /etc/subuid
           echo "root:100000:65536" >> /etc/subgid
-          mkdir -p /etc/containers
-          printf '[storage]\ndriver = "vfs"\n' > /etc/containers/storage.conf
+          mkdir -p /etc/containers /var/lib/containers/storage /run/containers/storage
+          cat > /etc/containers/storage.conf <<'EOF'
+[storage]
+driver = "vfs"
+runroot = "/run/containers/storage"
+graphroot = "/var/lib/containers/storage"
+EOF
 
       - name: Login to registry
         if: steps.check.outputs.exists == 'false'
