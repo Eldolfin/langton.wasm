@@ -49,3 +49,7 @@ deploy: build-web
     git commit --no-verify -m "$deploy_msg"
     git push
     git switch -
+
+# Build and push the builder image
+build-push-build-image:
+    docker build --push -t codeberg.org/eldolfin/langton.wasm/build-image:latest -f .github/workflows/Dockerfile .

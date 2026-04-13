@@ -7,8 +7,8 @@ name: Build CI Docker image
 #
 # To build and push manually:
 #   docker buildx build --platform linux/arm64 \
-#     -t codeberg.org/eldolfin/langton-ci:latest \
-#     -f .github/Dockerfile.ci --push .
+#     -t codeberg.org/eldolfin/langton.wasm/build-image:latest \
+#     -f .github/workflows/Dockerfile --push .
 
 on:
   workflow_dispatch:
@@ -26,7 +26,7 @@ jobs:
       - name: Build and push
         run: |
           docker build \
-            -t codeberg.org/eldolfin/langton-ci:latest \
-            -f .github/Dockerfile.ci \
+            -t codeberg.org/eldolfin/langton.wasm/build-image:latest \
+            -f .github/workflows/Dockerfile \
             .
-          docker push codeberg.org/eldolfin/langton-ci:latest
+          docker push codeberg.org/eldolfin/langton.wasm/build-image:latest
