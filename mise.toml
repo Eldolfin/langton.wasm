@@ -2,6 +2,9 @@
 python = "3.12"
 rust = {version = "stable", targets = "wasm32-unknown-unknown"}
 "cargo:live-server" = "latest"
+node = "latest"
+cargo-binstall = "latest"
+"aqua:rustwasm/wasm-pack" = "latest"
 
 [tasks.install-e2e-deps]
 description = "Create venv and install e2e test dependencies"
