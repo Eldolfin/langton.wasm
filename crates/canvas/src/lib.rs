@@ -139,7 +139,10 @@ impl Canvas {
         self.width = (self.canvas_width as f64 / cell_size as f64).ceil() as usize;
         self.height = (self.canvas_height as f64 / cell_size as f64).ceil() as usize;
         self.screen_height = (self.base_screen_height as f64 / cell_size as f64).ceil() as usize;
-        self.last_frame = vec![vec![None; self.height]; self.width]
+        self.last_frame = vec![vec![None; self.height]; self.width];
+        // Discard any queued draw calls that used the old cell dimensions.
+        // Keeping stale coordinates could cause out-of-bounds access in flush().
+        self.queue.clear();
     }
 
     fn calculate_size_if_needed(&mut self) {
@@ -210,9 +213,13 @@ impl Canvas {
             self.queue.push(DrawCall { x, y, color });
         }
 
-        // 2. remove calls for unchanged cells since last frame
-        self.queue
-            .retain(|draw| Some(draw.color) != self.last_frame[draw.x][draw.y]);
+        // 2. remove calls for unchanged cells since last frame, and drop any
+        // out-of-bounds calls that may arise when cell_size changes mid-frame.
+        self.queue.retain(|draw| {
+            draw.x < self.last_frame.len()
+                && draw.y < self.last_frame.get(draw.x).map_or(0, |col| col.len())
+                && Some(draw.color) != self.last_frame[draw.x][draw.y]
+        });
         // 3. order calls by color to avoid changing the pen color each call
         self.queue.sort_unstable_by_key(|draw| draw.color);
     }
