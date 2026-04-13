@@ -48,7 +48,11 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         run: |
           apt-get update -qq
-          apt-get install -y -qq podman fuse-overlayfs > /dev/null
+          apt-get install -y -qq podman fuse-overlayfs uidmap > /dev/null
+          echo "root:100000:65536" >> /etc/subuid
+          echo "root:100000:65536" >> /etc/subgid
+          mkdir -p /etc/containers
+          printf '[storage]\ndriver = "vfs"\n' > /etc/containers/storage.conf
 
       - name: Login to registry
         if: steps.check.outputs.exists == 'false'
