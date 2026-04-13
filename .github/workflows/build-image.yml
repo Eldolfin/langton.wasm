@@ -50,7 +50,7 @@ jobs:
           apt-get update -qq
           apt-get install -y -qq podman > /dev/null
           mkdir -p /etc/containers /var/lib/containers/storage /run/containers/storage
-          printf '[storage]\ndriver = "vfs"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n' > /etc/containers/storage.conf
+          printf '[storage]\ndriver = "vfs"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n\n[storage.options.vfs]\nignore_chown_errors = "true"\n' > /etc/containers/storage.conf
 
       - name: Login to registry
         if: steps.check.outputs.exists == 'false'
