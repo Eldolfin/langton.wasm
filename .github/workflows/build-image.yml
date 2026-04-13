@@ -63,7 +63,7 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         run: |
           TAG="${{ steps.hash.outputs.hash }}"
-          podman build --isolation=chroot \
+          podman build --isolation=chroot --cap-add=all \
             -t "$IMAGE:$TAG" \
             -t "$IMAGE:latest" \
             -f .github/workflows/Dockerfile .
