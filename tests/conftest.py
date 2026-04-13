@@ -68,7 +68,7 @@ def page(browser, http_server):
     pg._console_msgs = []
 
     def _on_console(m):
-        pg._console_msgs.append(f"[{m.type}]: {m.text} (location: {m.location})")
+        pg._console_msgs.append(m)
 
     pg.on("console", _on_console)
     pg.on("pageerror", lambda e: pg._console_msgs.append(str(e)))
@@ -86,7 +86,7 @@ def check_no_console_msgs(page):
     """Assert no console errors were emitted during any test."""
     yield
     msgs = page._console_msgs
-    msgs = [msg for msg in msgs if msg not in ALLOWED_CONSOLE_MSGS]
+    msgs = [f"[{m.type}]: {m.text} (location: {m.location})" for m in msgs if m.text not in ALLOWED_CONSOLE_MSGS]
     assert not msgs, "Console messages:\n" + "\n".join(msgs)
 
 
