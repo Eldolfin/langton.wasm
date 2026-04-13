@@ -58,8 +58,10 @@ jobs:
 
       - name: Save PR benchmark scripts
         run: |
-          cp tests/benchmark.py /tmp/benchmark.py
+          cp tests/benchmark_interleaved.py /tmp/benchmark_interleaved.py
           cp tests/benchmark_comment.py /tmp/benchmark_comment.py
+
+      # --- Build both versions first ---
 
       - name: Checkout main branch
         run: git checkout origin/${{ github.event.pull_request.base.ref }}
@@ -67,8 +69,8 @@ jobs:
       - name: Build WASM (main)
         run: cd crates/langton && wasm-pack build --target web --no-typescript
 
-      - name: Run benchmark (main)
-        run: uv run --project tests/ python /tmp/benchmark.py --duration 30 --output main-results.json
+      - name: Save main pkg
+        run: cp -r crates/langton/pkg /tmp/main-pkg
 
       - name: Checkout PR branch
         run: git checkout ${{ github.event.pull_request.head.sha }}
@@ -76,8 +78,20 @@ jobs:
       - name: Build WASM (PR)
         run: cd crates/langton && wasm-pack build --target web --no-typescript
 
-      - name: Run benchmark (PR)
-        run: uv run --project tests/ python /tmp/benchmark.py --duration 30 --output pr-results.json
+      - name: Save PR pkg
+        run: cp -r crates/langton/pkg /tmp/pr-pkg
+
+      # --- Run interleaved benchmark ---
+
+      - name: Run interleaved benchmark
+        run: |
+          uv run --project tests/ python /tmp/benchmark_interleaved.py \
+            --main-pkg /tmp/main-pkg \
+            --pr-pkg /tmp/pr-pkg \
+            --duration 10 \
+            --iterations 10 \
+            --main-output main-results.json \
+            --pr-output pr-results.json
 
       - name: Post benchmark comparison comment
         if: github.event_name == 'pull_request'

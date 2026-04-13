@@ -56,7 +56,12 @@ def delta_cell(main_val: float, pr_val: float) -> str:
     return text
 
 
-def build_comment(main_results: dict, pr_results: dict, duration: float) -> str:
+def build_comment(
+    main_results: dict,
+    pr_results: dict,
+    duration: float,
+    metadata: dict | None = None,
+) -> str:
     lines = [
         MARKER,
         "## ⚡ Performance Benchmark",
@@ -73,7 +78,14 @@ def build_comment(main_results: dict, pr_results: dict, duration: float) -> str:
         lines.append(f"| {label} | {fmt_num(main_sps)} | {fmt_num(pr_sps)} | {delta} |")
 
     lines.append("")
-    lines.append(f"> Measured over {duration:.0f}s on codeberg-medium runner.")
+    if metadata:
+        iters = metadata["iterations"]
+        per = metadata["duration_per_iteration_s"]
+        lines.append(
+            f"> Mean of {iters} \u00d7 {per:.0f}s runs (interleaved) on codeberg-medium runner."
+        )
+    else:
+        lines.append(f"> Measured over {duration:.0f}s on codeberg-medium runner.")
 
     return "\n".join(lines)
 
@@ -101,14 +113,20 @@ def main() -> None:
     main_results = json.loads(main_path.read_text())
     pr_results = json.loads(pr_path.read_text())
 
-    # Infer duration from results (use first available scenario)
-    duration = 30.0
-    for key in ("light", "medium", "heavy"):
-        if key in main_results and "duration_s" in main_results[key]:
-            duration = main_results[key]["duration_s"]
-            break
+    # Extract metadata if present (new interleaved format)
+    metadata = main_results.get("metadata") or pr_results.get("metadata")
 
-    body = build_comment(main_results, pr_results, duration)
+    # Infer duration from metadata or per-scenario field
+    duration = 30.0
+    if metadata and "duration_per_iteration_s" in metadata:
+        duration = metadata["duration_per_iteration_s"]
+    else:
+        for key in ("light", "medium", "heavy"):
+            if key in main_results and "duration_s" in main_results[key]:
+                duration = main_results[key]["duration_s"]
+                break
+
+    body = build_comment(main_results, pr_results, duration, metadata)
 
     existing_id = find_existing_comment()
     if existing_id is not None:
