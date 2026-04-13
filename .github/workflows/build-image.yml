@@ -48,9 +48,7 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         run: |
           apt-get update -qq
-          apt-get install -y -qq podman fuse-overlayfs uidmap > /dev/null
-          echo "root:100000:65536" >> /etc/subuid
-          echo "root:100000:65536" >> /etc/subgid
+          apt-get install -y -qq podman > /dev/null
           mkdir -p /etc/containers /var/lib/containers/storage /run/containers/storage
           printf '[storage]\ndriver = "vfs"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n' > /etc/containers/storage.conf
 
@@ -65,7 +63,7 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         run: |
           TAG="${{ steps.hash.outputs.hash }}"
-          podman build \
+          podman build --isolation=chroot \
             -t "$IMAGE:$TAG" \
             -t "$IMAGE:latest" \
             -f .github/workflows/Dockerfile .
