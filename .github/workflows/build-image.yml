@@ -38,37 +38,22 @@ jobs:
             -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json")
           if [ "$STATUS" = "200" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Image $IMAGE:$TAG already exists (HTTP $STATUS)"
+            echo "Image $IMAGE:$TAG exists"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Image $IMAGE:$TAG not found (HTTP $STATUS), will build"
+            echo "Image $IMAGE:$TAG not found (HTTP $STATUS)"
           fi
 
-      - name: Install podman
-        if: steps.check.outputs.exists == 'false'
-        run: |
-          apt-get update -qq
-          apt-get install -y -qq podman > /dev/null
-          mkdir -p /etc/containers /var/lib/containers/storage /run/containers/storage
-          printf '[storage]\ndriver = "vfs"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n\n[storage.options.vfs]\nignore_chown_errors = "true"\n' > /etc/containers/storage.conf
-
-      - name: Login to registry
-        if: steps.check.outputs.exists == 'false'
-        run: |
-          USER=$(echo "${{ secrets.REGISTRY_TOKEN }}" | cut -d: -f1)
-          PASS=$(echo "${{ secrets.REGISTRY_TOKEN }}" | cut -d: -f2-)
-          echo "$PASS" | podman login codeberg.org -u "$USER" --password-stdin
-
-      - name: Build and push
+      - name: Fail if image missing
         if: steps.check.outputs.exists == 'false'
         run: |
           TAG="${{ steps.hash.outputs.hash }}"
-          podman build --isolation=chroot --cap-add=all \
-            -t "$IMAGE:$TAG" \
-            -t "$IMAGE:latest" \
-            -f .github/workflows/Dockerfile .
-          podman push "$IMAGE:$TAG"
-          podman push "$IMAGE:latest"
+          echo "::error::Image $IMAGE:$TAG not in registry. Dockerfile inputs changed — rebuild and push locally:"
+          echo ""
+          echo "  just build-push-build-image"
+          echo ""
+          echo "This builds+pushes a multi-arch image tagged $TAG and latest."
+          exit 1
 
       - name: Set image output
         id: resolve

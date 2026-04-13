@@ -50,6 +50,14 @@ deploy: build-web
     git push
     git switch -
 
-# Build and push the builder image
+# Build and push the builder image (multi-arch, tagged with content hash + latest)
 build-push-build-image:
-    docker build --push -t codeberg.org/eldolfin/langton.wasm/build-image:latest -f .github/workflows/Dockerfile .
+    #!/usr/bin/env bash
+    set -euo pipefail
+    HASH=$(cat .github/workflows/Dockerfile mise.toml tests/pyproject.toml tests/uv.lock | sha256sum | cut -c1-16)
+    IMAGE=codeberg.org/eldolfin/langton.wasm/build-image
+    echo "Building $IMAGE:$HASH"
+    docker buildx build --platform linux/amd64,linux/arm64 \
+        -t "$IMAGE:$HASH" \
+        -t "$IMAGE:latest" \
+        -f .github/workflows/Dockerfile --push .
