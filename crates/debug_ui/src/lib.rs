@@ -330,6 +330,7 @@ impl DebugUI {
                     let send = send.clone();
                     let p = p.clone();
                     let key = key.clone();
+                    let needs_restart = needs_restart.clone();
                     EventListener::new(&slider, "input", move |_event| {
                         let value = document
                             .get_element_by_id(&slider_id)
@@ -352,6 +353,9 @@ impl DebugUI {
                         add_url_param(&key, value);
 
                         send.send(value).unwrap();
+                        if p.needs_restart {
+                            *needs_restart.borrow_mut() = true;
+                        }
                     })
                     .forget();
                 }
