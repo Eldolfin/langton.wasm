@@ -213,20 +213,21 @@ impl Game {
             let ratio = Self::shit_ease_in(ratio, config.speed_ease_in_power.get());
             let step = config.final_steps_per_frame.get() * ratio;
             step_accumulator += step;
+            let canvas_size = (canvas.height(), canvas.width());
+            if canvas_size != prev_canvas_size {
+                prev_canvas_size = canvas_size;
+                board = vec![vec![None; canvas_size.0]; canvas_size.1];
+                for ant in &mut self.ants {
+                    ant.x = std::cmp::min(ant.x, canvas_size.1 - 1);
+                    ant.y = std::cmp::min(ant.y, canvas_size.0 - 1);
+                }
+            }
             while step_accumulator >= 1.0 {
                 step_accumulator -= 1.0;
 
                 for ant in &mut self.ants {
-                    let canvas_size = (canvas.height(), canvas.width());
                     assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");
                     assert!(canvas_size.1 > 0, "Can't draw on a canvas of width 0 !");
-                    if canvas_size != prev_canvas_size {
-                        prev_canvas_size = canvas_size;
-                        board = vec![
-                            vec![None; canvas_size.0 + canvas_size.1];
-                            canvas_size.1 + canvas_size.0
-                        ];
-                    }
                     let current_cell_state = board[ant.x][ant.y];
                     let new_cell_color;
                     match current_cell_state {

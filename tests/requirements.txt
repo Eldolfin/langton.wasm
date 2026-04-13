@@ -1,5 +1,0 @@
-playwright
-pytest
-pytest-playwright
-pytest-xdist
-pytest-timeout
