@@ -218,8 +218,8 @@ impl Game {
                 prev_canvas_size = canvas_size;
                 board = vec![vec![None; canvas_size.0]; canvas_size.1];
                 for ant in &mut self.ants {
-                    ant.x = std::cmp::min(ant.x, canvas_size.0 - 1);
-                    ant.y = std::cmp::min(ant.y, canvas_size.1 - 1);
+                    ant.x = std::cmp::min(ant.x, canvas_size.1 - 1);
+                    ant.y = std::cmp::min(ant.y, canvas_size.0 - 1);
                 }
             }
             while step_accumulator >= 1.0 {
