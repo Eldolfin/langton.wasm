@@ -1,92 +1,101 @@
 .DebugUI-root-box {
-  background: #f9f9f9;
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  max-width: 500px;
+    background: #f9f9f9;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 500px;
 }
 
 .DebugUI-title-line {
-  margin-bottom: 12px;
-  display: flex;
-  justify-content: space-between;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
 }
 
 .DebugUI-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
 }
 
 .DebugUI-close-btn {
-  font-size: 22px;
-  color: #f00;
-  cursor: pointer;
-  background-color: transparent;
-  background-repeat: no-repeat;
-  border: none;
+    font-size: 22px;
+    color: #f00;
+    cursor: pointer;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    border: none;
 }
 
 .DebugUI-reset-btn {
-  display: inline-block;
-  padding: 6px 12px;
-  margin-bottom: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+    display: inline-block;
+    padding: 6px 12px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    transition:
+        background-color 0.2s,
+        border-color 0.2s;
 }
 
 .DebugUI-reset-btn:hover {
-  background-color: #f0c0c0;
-  border-color: #999;
+    background-color: #f0c0c0;
+    border-color: #999;
 }
 
 .DebugUI-reset-btn:active {
-  background-color: #d6d6d6;
-  border-color: #777;
+    background-color: #d6d6d6;
+    border-color: #777;
 }
 .DebugUI-section-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-top: 10px;
-  margin-bottom: 2px;
-  color: #333;
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 10px;
+    margin-bottom: 2px;
+    color: #333;
 }
 
 .DebugUI-param-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .DebugUI-param-label {
-  flex: 1;
-  font-size: 16px;
-  color: #555;
-  min-width: 160px;
+    flex: 1;
+    font-size: 16px;
+    color: #555;
+    min-width: 160px;
 }
 
 .DebugUI-param-slider {
-  flex: 2;
-  cursor: pointer;
-  accent-color: #007acc;
-  width: 100px;
+    flex: 2;
+    cursor: pointer;
+    accent-color: #007acc;
+    width: 100px;
 }
 
 .DebugUI-param-value {
-  width: 80px;
-  padding: 4px;
-  font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+    width: 80px;
+    padding: 4px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.DebugUI-step-counter {
+    font-size: 14px;
+    color: #555;
+    margin-top: 8px;
+    padding: 4px 0;
 }

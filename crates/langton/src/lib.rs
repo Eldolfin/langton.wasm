@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use canvas::{Canvas, Color};
-use debug_ui::{DebugUI, Param, ParamParam, log};
+use debug_ui::{DebugUI, Param, ParamParam, StepCounter, log};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
@@ -131,14 +131,16 @@ pub async fn start_langton_ant() {
     let cell_border_size = Rc::new(RefCell::new(cell_border_size));
     let cell_size = Rc::new(RefCell::new(cell_size));
     let config = Rc::new(RefCell::new(game_config));
+    let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
     let needs_restart = match debug_ui {
         DebugUI::Enabled { needs_restart, .. } => needs_restart,
         DebugUI::Disabled => Rc::new(RefCell::new(false)),
     };
     loop {
+        step_counter.borrow_mut().reset();
         let canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
         Game::new(config.clone())
-            .run(canvas, needs_restart.clone())
+            .run(canvas, needs_restart.clone(), step_counter.clone())
             .await;
         *needs_restart.borrow_mut() = false;
     }
@@ -195,7 +197,12 @@ impl Game {
         (out + 0.005).clamp(0.0, 1.0)
     }
 
-    async fn run(mut self, canvas: Canvas, should_stop: Rc<RefCell<bool>>) {
+    async fn run(
+        mut self,
+        canvas: Canvas,
+        should_stop: Rc<RefCell<bool>>,
+        step_counter: Rc<RefCell<StepCounter>>,
+    ) {
         log!(
             "Creating board of size {}x{}",
             canvas.height(),
@@ -222,8 +229,10 @@ impl Game {
                     ant.y = std::cmp::min(ant.y, canvas_size.0 - 1);
                 }
             }
+            let mut steps_this_frame: u64 = 0;
             while step_accumulator >= 1.0 {
                 step_accumulator -= 1.0;
+                steps_this_frame += 1;
 
                 for ant in &mut self.ants {
                     assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");
@@ -252,6 +261,8 @@ impl Game {
                     ant.move_forward(canvas_size.1, canvas_size.0);
                 }
             }
+
+            step_counter.borrow_mut().add_steps(steps_this_frame);
 
             canvas.fill_canvas(config.alpha_retention_factor.get());
 

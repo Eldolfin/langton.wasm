@@ -88,6 +88,31 @@ impl<T: Copy> Param<T> {
     }
 }
 
+pub struct StepCounter {
+    element: Option<Element>,
+    count: u64,
+}
+
+impl StepCounter {
+    pub fn add_steps(&mut self, n: u64) {
+        self.count += n;
+        if let Some(el) = &self.element {
+            el.set_text_content(Some(&format!("Steps: {}", self.count)));
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.count = 0;
+        if let Some(el) = &self.element {
+            el.set_text_content(Some("Steps: 0"));
+        }
+    }
+
+    pub fn get_count(&self) -> u64 {
+        self.count
+    }
+}
+
 pub fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")
 }
@@ -423,6 +448,26 @@ impl DebugUI {
             DebugUI::Disabled => false,
         }
     }
+
+    pub fn step_counter(&mut self) -> StepCounter {
+        match self {
+            DebugUI::Enabled { root, .. } => {
+                let doc = document();
+                let el = doc.create_element("div").unwrap();
+                el.set_class_name("DebugUI-step-counter");
+                el.set_text_content(Some("Steps: 0"));
+                root.append_child(&el).unwrap();
+                StepCounter {
+                    element: Some(el),
+                    count: 0,
+                }
+            }
+            DebugUI::Disabled => StepCounter {
+                element: None,
+                count: 0,
+            },
+        }
+    }
 }
 
 impl Scale {
@@ -462,8 +507,40 @@ impl Scale {
 
 #[cfg(test)]
 mod tests {
-    use super::Scale;
+    use super::{Scale, StepCounter};
     use rstest::rstest;
+
+    #[test]
+    fn step_counter_add_steps() {
+        let mut counter = StepCounter {
+            element: None,
+            count: 0,
+        };
+        counter.add_steps(5);
+        assert_eq!(counter.get_count(), 5);
+        counter.add_steps(3);
+        assert_eq!(counter.get_count(), 8);
+    }
+
+    #[test]
+    fn step_counter_reset() {
+        let mut counter = StepCounter {
+            element: None,
+            count: 42,
+        };
+        counter.reset();
+        assert_eq!(counter.get_count(), 0);
+    }
+
+    #[test]
+    fn step_counter_add_zero() {
+        let mut counter = StepCounter {
+            element: None,
+            count: 10,
+        };
+        counter.add_steps(0);
+        assert_eq!(counter.get_count(), 10);
+    }
 
     #[rstest]
     #[case(Scale::Linear, 0.1, 0., 1000., 0.1)]
