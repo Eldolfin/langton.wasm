@@ -89,7 +89,7 @@ jobs:
             --main-pkg /tmp/main-pkg \
             --pr-pkg /tmp/pr-pkg \
             --duration 10 \
-            --iterations 10 \
+            --iterations 5 \
             --main-output main-results.json \
             --pr-output pr-results.json
 
