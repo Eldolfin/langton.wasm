@@ -239,36 +239,47 @@ impl Canvas {
     pub fn flush(&mut self) {
         self.optimise_queue();
         let cell_size = self.cell_size.borrow_mut().get();
-        let raw_border_size = self.cell_border_size.borrow_mut().get();
-        let border_size = if cell_size <= 2 * raw_border_size {
+        let border_size = self.cell_border_size.borrow_mut().get();
+        let border_size = if cell_size <= 2 * border_size {
             0
         } else {
-            raw_border_size
+            border_size
         };
-        for draw_call in &self.queue {
-            let DrawCall { x, y, color } = draw_call;
-            // avoid calling the "expensive" fill_rect if there is no border
-            if raw_border_size != 0 {
+        if border_size == 0 {
+            for draw_call in &self.queue {
+                let DrawCall { x, y, color } = draw_call;
+                self.context.set_fill_style_str(&color.to_css_color());
+                self.context.fill_rect(
+                    (*x * cell_size) as f64,
+                    (*y * cell_size) as f64,
+                    cell_size as f64,
+                    cell_size as f64,
+                );
+                self.last_frame[*x][*y] = Some(*color);
+            }
+        } else {
+            for draw_call in &self.queue {
+                let DrawCall { x, y, color } = draw_call;
                 self.context
                     .set_fill_style_str(&color.invert().to_css_color());
                 self.context.fill_rect(
                     (*x * cell_size) as f64,
                     (*y * cell_size) as f64,
-                    (cell_size) as f64,
-                    (cell_size) as f64,
+                    cell_size as f64,
+                    cell_size as f64,
                 );
+                self.context.set_fill_style_str(&color.to_css_color());
+                self.context.fill_rect(
+                    (*x * cell_size + border_size) as f64,
+                    (*y * cell_size + border_size) as f64,
+                    (cell_size - 2 * border_size) as f64,
+                    (cell_size - 2 * border_size) as f64,
+                );
+                self.last_frame[*x][*y] = Some(*color);
             }
-            self.context.set_fill_style_str(&color.to_css_color());
-            // center
-            self.context.fill_rect(
-                (*x * cell_size + border_size) as f64,
-                (*y * cell_size + border_size) as f64,
-                (cell_size - 2 * border_size) as f64,
-                (cell_size - 2 * border_size) as f64,
-            );
-            self.last_frame[*x][*y] = Some(*color);
-        }
+}
     }
+
     fn create_canvas() -> Option<web_sys::HtmlCanvasElement> {
         let document = web_sys::window()?.document()?;
         let body = document.body().unwrap();
