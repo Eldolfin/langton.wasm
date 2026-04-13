@@ -9,47 +9,11 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  IMAGE: codeberg.org/eldolfin/langton.wasm/build-image
 
 jobs:
   build-image:
-    runs-on: codeberg-medium
-    outputs:
-      image: ${{ steps.resolve.outputs.image }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Compute image hash
-        id: hash
-        run: |
-          HASH=$(cat .github/workflows/Dockerfile mise.toml tests/pyproject.toml tests/uv.lock | sha256sum | cut -c1-16)
-          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
-          echo "Image content hash: $HASH"
-      - name: Check if image exists
-        id: check
-        run: |
-          if docker manifest inspect "$IMAGE:${{ steps.hash.outputs.hash }}" > /dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Image already exists, skipping build"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Image not found, will build"
-          fi
-      - name: Login to registry
-        if: steps.check.outputs.exists == 'false'
-        run: echo "${{ github.token }}" | docker login codeberg.org -u "${{ github.actor }}" --password-stdin
-      - name: Build and push
-        if: steps.check.outputs.exists == 'false'
-        run: |
-          docker build \
-            -t "$IMAGE:${{ steps.hash.outputs.hash }}" \
-            -t "$IMAGE:latest" \
-            -f .github/workflows/Dockerfile .
-          docker push "$IMAGE:${{ steps.hash.outputs.hash }}"
-          docker push "$IMAGE:latest"
-      - name: Set image output
-        id: resolve
-        run: echo "image=$IMAGE:${{ steps.hash.outputs.hash }}" >> "$GITHUB_OUTPUT"
+    uses: ./.github/workflows/build-image.yml
+    secrets: inherit
 
   benchmark:
     needs: [build-image]
