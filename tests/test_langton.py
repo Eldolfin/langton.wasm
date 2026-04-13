@@ -167,7 +167,7 @@ def test_start_y_restarts_fresh(page: Page):
 
 
 # ---------------------------------------------------------------------------
-# cell_size tests — EXPECTED TO FAIL (known crash bug)
+# cell_size live-param tests
 # ---------------------------------------------------------------------------
 
 
@@ -187,7 +187,6 @@ def test_cell_size_does_not_crash(page: Page):
     assert canvas_is_animating(page), "Animation loop must still be running after cell_size change"
 
 
-@pytest.mark.xfail(strict=True, reason="animation freezes after repeated cell_size changes — see issue #10")
 def test_cell_size_slider_back_and_forth(page: Page):
     """
     Incrementally changing cell_size up and down should not crash the loop.
