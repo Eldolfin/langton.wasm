@@ -52,12 +52,7 @@ jobs:
           echo "root:100000:65536" >> /etc/subuid
           echo "root:100000:65536" >> /etc/subgid
           mkdir -p /etc/containers /var/lib/containers/storage /run/containers/storage
-          cat > /etc/containers/storage.conf <<'EOF'
-[storage]
-driver = "vfs"
-runroot = "/run/containers/storage"
-graphroot = "/var/lib/containers/storage"
-EOF
+          printf '[storage]\ndriver = "vfs"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n' > /etc/containers/storage.conf
 
       - name: Login to registry
         if: steps.check.outputs.exists == 'false'
