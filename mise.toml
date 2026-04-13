@@ -1,7 +1,8 @@
 [tools]
 python = "3.12"
-rust = {version = "stable", targets = "wasm32-unknown-unknown"}
+rust = {version = "1.94.0", targets = "wasm32-unknown-unknown"}
 "cargo:live-server" = "latest"
+node = "latest"
 
 [tasks.install-e2e-deps]
 description = "Create venv and install e2e test dependencies"
