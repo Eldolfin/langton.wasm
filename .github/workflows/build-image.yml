@@ -26,31 +26,10 @@ jobs:
           echo "hash=$HASH" >> "$GITHUB_OUTPUT"
           echo "Image content hash: $HASH"
 
-      - name: Detect container tool
-        id: tool
-        run: |
-          echo "=== Diagnostics ==="
-          for t in buildah podman docker skopeo crane; do
-            printf "%-10s %s\n" "$t:" "$(command -v $t 2>/dev/null || echo 'not found')"
-          done
-          echo "Docker socket: $(ls -la /var/run/docker.sock 2>&1)"
-          echo "OS: $(cat /etc/os-release 2>/dev/null | head -3)"
-          echo "==================="
-          if command -v buildah &> /dev/null; then
-            echo "cmd=buildah" >> "$GITHUB_OUTPUT"
-          elif command -v podman &> /dev/null; then
-            echo "cmd=podman" >> "$GITHUB_OUTPUT"
-          elif [ -S /var/run/docker.sock ] && command -v docker &> /dev/null; then
-            echo "cmd=docker" >> "$GITHUB_OUTPUT"
-          else
-            echo "cmd=" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Check if image exists
         id: check
         run: |
           TAG="${{ steps.hash.outputs.hash }}"
-          # Use REGISTRY_TOKEN (username:token) for registry auth
           TOKEN=$(curl -s -u "${{ secrets.REGISTRY_TOKEN }}" \
             "https://codeberg.org/v2/token" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -65,32 +44,29 @@ jobs:
             echo "Image $IMAGE:$TAG not found (HTTP $STATUS), will build"
           fi
 
-      - name: Fail if build needed but no container tool
-        if: steps.check.outputs.exists == 'false' && steps.tool.outputs.cmd == ''
+      - name: Install podman
+        if: steps.check.outputs.exists == 'false'
         run: |
-          echo "::error::Image $IMAGE:${{ steps.hash.outputs.hash }} not in registry and no container build tool (docker/podman) available."
-          echo "Build and push locally: just build-push-build-image"
-          exit 1
+          apt-get update -qq
+          apt-get install -y -qq podman fuse-overlayfs > /dev/null
 
       - name: Login to registry
         if: steps.check.outputs.exists == 'false'
         run: |
-          CMD="${{ steps.tool.outputs.cmd }}"
           USER=$(echo "${{ secrets.REGISTRY_TOKEN }}" | cut -d: -f1)
           PASS=$(echo "${{ secrets.REGISTRY_TOKEN }}" | cut -d: -f2-)
-          echo "$PASS" | $CMD login codeberg.org -u "$USER" --password-stdin
+          echo "$PASS" | podman login codeberg.org -u "$USER" --password-stdin
 
       - name: Build and push
         if: steps.check.outputs.exists == 'false'
         run: |
-          CMD="${{ steps.tool.outputs.cmd }}"
           TAG="${{ steps.hash.outputs.hash }}"
-          $CMD build \
+          podman build \
             -t "$IMAGE:$TAG" \
             -t "$IMAGE:latest" \
             -f .github/workflows/Dockerfile .
-          $CMD push "$IMAGE:$TAG"
-          $CMD push "$IMAGE:latest"
+          podman push "$IMAGE:$TAG"
+          podman push "$IMAGE:latest"
 
       - name: Set image output
         id: resolve
