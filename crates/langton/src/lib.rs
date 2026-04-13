@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use canvas::{Canvas, Color};
-use debug_ui::{DebugUI, Param, ParamParam, StepCounter, log};
+use debug_ui::{DebugUI, Param, ParamParam, StepCounter};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
@@ -203,11 +203,6 @@ impl Game {
         should_stop: Rc<RefCell<bool>>,
         step_counter: Rc<RefCell<StepCounter>>,
     ) {
-        log!(
-            "Creating board of size {}x{}",
-            canvas.height(),
-            canvas.width()
-        );
         let mut prev_canvas_size = (canvas.height(), canvas.width());
         let mut board = vec![vec![None; prev_canvas_size.0]; prev_canvas_size.1];
         let mut step_accumulator = 0.0;
@@ -266,9 +261,7 @@ impl Game {
 
             canvas.fill_canvas(config.alpha_retention_factor.get());
 
-            let should_stop = *should_stop.borrow();
-            log!("borrow={should_stop:?}");
-            should_stop
+            *should_stop.borrow()
         };
         let canvas = Rc::new(RefCell::new(canvas));
         Canvas::play_animation(canvas, animation).await;
