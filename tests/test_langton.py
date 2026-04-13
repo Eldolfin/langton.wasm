@@ -166,6 +166,35 @@ def test_start_y_restarts_fresh(page: Page):
     assert canvas_is_fresh(page), "Canvas element should be a new element after restart"
 
 
+def test_restart_param_slider_triggers_restart(page: Page):
+    """
+    Dragging the slider for a needs_restart=true param should restart the game.
+
+    The slider fires 'input' events on every movement. When the user releases
+    the slider (or the value settles), a restart must be triggered — identical
+    behaviour to typing in the number input.
+
+    This test catches the bug where the slider 'input' handler sends the new
+    value but never sets needs_restart, so the game silently ignores the change.
+    """
+    load_and_wait(page)
+    mark_canvas(page)
+
+    container = page.locator(
+        ".DebugUI-param-container", has=page.locator("text=start x")
+    )
+    slider = container.locator("input[type=range]")
+    # Move slider to a new position (start_x range is 0..1, slider is unscaled linear)
+    slider.fill("0.3")
+    slider.dispatch_event("input")
+    page.wait_for_timeout(500)
+
+    expect(page.locator("canvas")).to_have_count(1)
+    assert canvas_is_fresh(page), (
+        "Canvas should be replaced after slider change on a needs_restart param"
+    )
+
+
 # ---------------------------------------------------------------------------
 # cell_size tests — EXPECTED TO FAIL (known crash bug)
 # ---------------------------------------------------------------------------
