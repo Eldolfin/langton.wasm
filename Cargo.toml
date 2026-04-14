@@ -25,3 +25,8 @@ features = [
   "console",
 ]
 version = "0.3.77"
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
