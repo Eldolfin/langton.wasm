@@ -9,6 +9,8 @@ pub struct Canvas {
     context: web_sys::CanvasRenderingContext2d,
     /// render calls queue
     queue: Vec<DrawCall>,
+    /// persistent dedup map reused each frame to avoid per-frame allocation
+    dedup_map: HashMap<(usize, usize), Color>,
     last_frame: Vec<Vec<Option<Color>>>,
     /// in pixels
     cell_size: Rc<RefCell<debug_ui::Param<usize>>>,
@@ -108,6 +110,7 @@ impl Canvas {
             canvas_height: canvas.height() as usize,
             base_screen_height,
             queue: vec![],
+            dedup_map: HashMap::new(),
             last_frame: vec![],
             cell_border_size,
             width: 0,
@@ -204,13 +207,17 @@ impl Canvas {
 
     fn optimise_queue(&mut self) {
         // 1. remove dupplicate draw calls to the same cell on the same frame
-        let mut map = HashMap::new();
+        self.dedup_map.clear();
         for draw in &self.queue {
-            map.insert((draw.x, draw.y), draw.color);
+            self.dedup_map.insert((draw.x, draw.y), draw.color);
         }
         self.queue.clear();
-        for ((x, y), color) in map {
-            self.queue.push(DrawCall { x, y, color });
+        for ((x, y), color) in &self.dedup_map {
+            self.queue.push(DrawCall {
+                x: *x,
+                y: *y,
+                color: *color,
+            });
         }
 
         // 2. remove calls for unchanged cells since last frame, and drop any
