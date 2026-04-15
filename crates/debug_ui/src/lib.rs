@@ -1,6 +1,8 @@
 use gloo::events::EventListener;
 use num_traits::{FromPrimitive, Num, ToPrimitive};
-use std::{cell::RefCell, collections::HashMap, ops::Range, rc::Rc, str::FromStr, sync::mpsc};
+use std::{
+    cell::RefCell, collections::HashMap, ops::RangeInclusive, rc::Rc, str::FromStr, sync::mpsc,
+};
 pub use web_sys;
 use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
 
@@ -41,7 +43,7 @@ pub struct ParamParam<T, S> {
     /// Starting value, used when values are reset
     pub default_value: T,
     /// Allowed range of the values
-    pub range: Range<T>,
+    pub range: RangeInclusive<T>,
     /// Optional Logarithmic scale for more freedom of range/precision
     pub scale: Scale,
     /// Allowed precision for sliders
@@ -66,7 +68,7 @@ impl<T: Num> Default for ParamParam<T, &str> {
         Self {
             name: "UNDEFINED 🤡",
             default_value: T::zero(),
-            range: T::zero()..T::one(),
+            range: T::zero()..=T::one(),
             scale: Scale::default(),
             step_size,
             needs_restart: false,
@@ -321,8 +323,8 @@ impl DebugUI {
                 {
                     let (min, max, step) = match p.scale {
                         Scale::Linear => (
-                            p.range.start.to_f64().unwrap(),
-                            p.range.end.to_f64().unwrap(),
+                            p.range.start().to_f64().unwrap(),
+                            p.range.end().to_f64().unwrap(),
                             if p.step_size == 0.0 {
                                 "any".to_string()
                             } else {
@@ -476,13 +478,14 @@ impl Scale {
     /// - input: a float in the range 0..1
     /// - min: minimum output value
     /// - max: maximum output value
-    fn scale<T: ToPrimitive>(self, input: f64, range: &Range<T>) -> f64 {
+    fn scale<T: ToPrimitive>(self, input: f64, range: &RangeInclusive<T>) -> f64 {
         match self {
             Scale::Linear => input,
             Scale::Logarithmic => {
-                (input * (range.end.to_f64().unwrap() - range.start.to_f64().unwrap() + 1.).ln())
-                    .exp()
-                    + range.start.to_f64().unwrap()
+                (input
+                    * (range.end().to_f64().unwrap() - range.start().to_f64().unwrap() + 1.).ln())
+                .exp()
+                    + range.start().to_f64().unwrap()
                     - 1.
             }
         }
@@ -494,12 +497,16 @@ impl Scale {
     ///
     /// Result:
     /// a float in the range 0..1
-    fn unscale<T1: ToPrimitive, T2: ToPrimitive>(self, input: T2, range: &Range<T1>) -> f64 {
+    fn unscale<T1: ToPrimitive, T2: ToPrimitive>(
+        self,
+        input: T2,
+        range: &RangeInclusive<T1>,
+    ) -> f64 {
         match self {
             Scale::Linear => input.to_f64().unwrap(),
             Scale::Logarithmic => {
-                (input.to_f64().unwrap() - range.start.to_f64().unwrap() + 1.).ln()
-                    / (range.end.to_f64().unwrap() - range.start.to_f64().unwrap() + 1.).ln()
+                (input.to_f64().unwrap() - range.start().to_f64().unwrap() + 1.).ln()
+                    / (range.end().to_f64().unwrap() - range.start().to_f64().unwrap() + 1.).ln()
             }
         }
     }
@@ -558,8 +565,8 @@ mod tests {
         #[case] output: f64,
     ) {
         const EPSILON: f64 = 1e-7;
-        let scaled = scale.scale(input, &(min..max));
-        let unscaled = scale.unscale(output, &(min..max));
+        let scaled = scale.scale(input, &(min..=max));
+        let unscaled = scale.unscale(output, &(min..=max));
         assert!(
             (scaled - output).abs() < EPSILON,
             "{scale:?}.scale({input}, {min}, {max}) = {scaled} wanted {output}"
