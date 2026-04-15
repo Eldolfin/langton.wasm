@@ -9,15 +9,9 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-image:
-    runs-on: codeberg-medium
-    uses: ./.github/workflows/build-image.yml
-    secrets: inherit
-
   fmt:
-    needs: [build-image]
     runs-on: codeberg-medium
-    container: ${{ needs.build-image.outputs.image }}
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,9 +19,8 @@ jobs:
         run: cargo fmt --check
 
   check:
-    needs: [build-image]
     runs-on: codeberg-medium
-    container: ${{ needs.build-image.outputs.image }}
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,9 +37,8 @@ jobs:
         run: cargo test --verbose
 
   clippy:
-    needs: [build-image]
     runs-on: codeberg-medium
-    container: ${{ needs.build-image.outputs.image }}
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,9 +55,8 @@ jobs:
         run: cargo clippy --verbose -- -Dwarnings
 
   e2e:
-    needs: [build-image]
     runs-on: codeberg-medium
-    container: ${{ needs.build-image.outputs.image }}
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -4,6 +4,7 @@ rust = {version = "1.94.0", targets = "wasm32-unknown-unknown"}
 # "cargo:live-server" = "latest"
 node = "latest"
 uv = "latest"
+"npm:wasm-pack" = "latest"
 
 [tasks.install-e2e-deps]
 description = "Install e2e test dependencies and Playwright browser"
