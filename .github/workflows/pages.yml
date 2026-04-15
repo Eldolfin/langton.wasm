@@ -12,14 +12,9 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-image:
-    uses: ./.github/workflows/build-image.yml
-    secrets: inherit
-
   deploy:
-    needs: [build-image]
     runs-on: codeberg-medium
-    container: ${{ needs.build-image.outputs.image }}
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
