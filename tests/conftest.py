@@ -1,9 +1,10 @@
 """Pytest configuration and fixtures for end-to-end tests."""
 
+import socket
 import subprocess
 import time
-import socket
 from pathlib import Path
+
 import pytest
 from playwright.sync_api import Page, sync_playwright
 
@@ -54,7 +55,7 @@ def http_server():
 @pytest.fixture(scope="session")
 def browser():
     with sync_playwright() as p:
-        br = p.chromium.launch(headless=True)
+        br = p.chromium.launch(headless=True, args=["--window-size=1920,1080"])
         yield br
         br.close()
 
@@ -64,24 +65,29 @@ def page(browser, http_server):
     """Fresh browser page for each test, with console error collection."""
     ctx = browser.new_context()
     pg = ctx.new_page()
-    pg._console_errors = []
+    pg._console_msgs = []
 
     def _on_console(m):
-        if m.type == "error":
-            pg._console_errors.append(f"{m.text} (location: {m.location})")
+        pg._console_msgs.append(m)
 
     pg.on("console", _on_console)
-    pg.on("pageerror", lambda e: pg._console_errors.append(str(e)))
+    pg.on("pageerror", lambda e: pg._console_msgs.append(str(e)))
     yield pg
     ctx.close()
 
 
+ALLOWED_CONSOLE_MSGS = [
+    "[LANGTON][CANVAS] body.scroll_height is 0, make sure to fully initialize the page before calling start_langton_ant otherwise the canvas might get cut off at the bottom"
+]
+
+
 @pytest.fixture(autouse=True)
-def check_no_console_errors(page):
+def check_no_console_msgs(page):
     """Assert no console errors were emitted during any test."""
     yield
-    errors = page._console_errors
-    assert not errors, "Console errors:\n" + "\n".join(errors)
+    msgs = page._console_msgs
+    msgs = [f"[{m.type}]: {m.text} (location: {m.location})" for m in msgs if m.text not in ALLOWED_CONSOLE_MSGS]
+    assert not msgs, "Console messages:\n" + "\n".join(msgs)
 
 
 def load_and_wait(page: Page, extra_params: str = "") -> None:

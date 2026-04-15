@@ -27,13 +27,17 @@
               # formatters
               alejandra.enable = true; # nix
               end-of-file-fixer.enable = true;
-              rustfmt.enable = true;
+              rustfmt = {
+                enable = true;
+                package = pkgs.rustfmt;
+              };
               trim-trailing-whitespace.enable = true;
               statix.enable = true;
               check-merge-conflicts.enable = true;
               check-yaml.enable = true;
               clippy = {
                 enable = true;
+                package = pkgs.clippy;
                 settings = {
                   allFeatures = true;
                   denyWarnings = true;

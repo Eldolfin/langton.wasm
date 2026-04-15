@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use canvas::{Canvas, Color};
-use debug_ui::{DebugUI, Param, ParamParam, StepCounter, log};
+use debug_ui::{DebugUI, Param, ParamParam, StepCounter};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
@@ -203,13 +203,8 @@ impl Game {
         should_stop: Rc<RefCell<bool>>,
         step_counter: Rc<RefCell<StepCounter>>,
     ) {
-        log!(
-            "Creating board of size {}x{}",
-            canvas.height(),
-            canvas.width()
-        );
         let mut prev_canvas_size = (canvas.height(), canvas.width());
-        let mut board = vec![vec![None; prev_canvas_size.0]; prev_canvas_size.1];
+        let mut board = vec![None::<usize>; prev_canvas_size.0 * prev_canvas_size.1];
         let mut step_accumulator = 0.0;
         let mut frame_counter = 0;
         let animation = move |canvas: &mut Canvas| {
@@ -223,7 +218,7 @@ impl Game {
             let canvas_size = (canvas.height(), canvas.width());
             if canvas_size != prev_canvas_size {
                 prev_canvas_size = canvas_size;
-                board = vec![vec![None; canvas_size.0]; canvas_size.1];
+                board = vec![None::<usize>; canvas_size.0 * canvas_size.1];
                 for ant in &mut self.ants {
                     ant.x = std::cmp::min(ant.x, canvas_size.1 - 1);
                     ant.y = std::cmp::min(ant.y, canvas_size.0 - 1);
@@ -237,19 +232,19 @@ impl Game {
                 for ant in &mut self.ants {
                     assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");
                     assert!(canvas_size.1 > 0, "Can't draw on a canvas of width 0 !");
-                    let current_cell_state = board[ant.x][ant.y];
+                    let current_cell_state = board[ant.x * canvas_size.0 + ant.y];
                     let new_cell_color;
                     match current_cell_state {
                         None => {
                             // Was white
                             ant.direction = ant.direction.right();
-                            board[ant.x][ant.y] = Some(ant.id);
+                            board[ant.x * canvas_size.0 + ant.y] = Some(ant.id);
                             new_cell_color = ant.color;
                         }
                         Some(_) => {
                             // Was black/colored by an ant
                             ant.direction = ant.direction.left();
-                            board[ant.x][ant.y] = None;
+                            board[ant.x * canvas_size.0 + ant.y] = None;
                             new_cell_color = Color::Rgb {
                                 r: config.white_color_r.get(),
                                 g: config.white_color_g.get(),
@@ -266,9 +261,7 @@ impl Game {
 
             canvas.fill_canvas(config.alpha_retention_factor.get());
 
-            let should_stop = *should_stop.borrow();
-            log!("borrow={should_stop:?}");
-            should_stop
+            *should_stop.borrow()
         };
         let canvas = Rc::new(RefCell::new(canvas));
         Canvas::play_animation(canvas, animation).await;
