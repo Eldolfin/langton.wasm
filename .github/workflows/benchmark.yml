@@ -13,48 +13,25 @@ env:
 jobs:
   benchmark:
     runs-on: codeberg-medium
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout PR (full history)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install mise
-        run: |
-          curl https://mise.run | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
-
-      - name: Cache
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/share/mise/installs
-            ~/.rustup
             ~/.cargo/registry
             ~/.cargo/git
             target/
-            ~/.cache/ms-playwright
-            ~/.cache/uv
-          key: ${{ runner.os }}-bench-${{ hashFiles('mise.toml', '**/Cargo.lock', 'tests/pyproject.toml') }}
-          restore-keys: ${{ runner.os }}-bench-
-
-      - name: Install tools
-        env:
-          MISE_PYTHON_GITHUB_ATTESTATIONS: "false"
-        run: mise install
-
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh && echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Sync e2e dependencies
         run: uv sync --project tests/
-
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
-      - name: Install Playwright system deps + browser
-        run: uv run --project tests/ playwright install chromium --with-deps
 
       - name: Save PR benchmark scripts
         run: |
