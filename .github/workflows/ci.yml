@@ -32,7 +32,7 @@ jobs:
             ~/.cargo/git
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          restore-keys: ${{ runner.os }}-cargo-check-
       - name: Run tests
         run: cargo test --verbose
 
@@ -50,7 +50,7 @@ jobs:
             ~/.cargo/git
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          restore-keys: ${{ runner.os }}-cargo-clippy-
       - name: Run clippy
         run: cargo clippy --verbose -- -Dwarnings
 
@@ -68,10 +68,7 @@ jobs:
             ~/.cargo/git
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
-      - name: Sync e2e dependencies
-        run: uv sync --project tests/
+          restore-keys: ${{ runner.os }}-cargo-e2e-
 
       - name: Build WASM
         run: cd crates/langton && wasm-pack build --target web --no-typescript
