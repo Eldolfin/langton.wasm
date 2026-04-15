@@ -14,34 +14,20 @@ env:
 jobs:
   deploy:
     runs-on: codeberg-medium
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install mise
-        run: |
-          curl https://mise.run | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
-
-      - name: Cache
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/share/mise/installs
-            ~/.rustup
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-deploy-${{ hashFiles('mise.toml', '**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-deploy-
-
-      - name: Install tools
-        run: mise install rust
-
-      - name: Setup wasm-pack
-        run: |
-          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Build
         run: |

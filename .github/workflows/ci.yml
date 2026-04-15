@@ -11,123 +11,64 @@ env:
 jobs:
   fmt:
     runs-on: codeberg-medium
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install mise
-        run: |
-          curl https://mise.run | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local/share/mise/installs
-            ~/.rustup
-            ~/.cargo/registry
-            ~/.cargo/git
-            target/
-          key: ${{ runner.os }}-fmt-${{ hashFiles('mise.toml', '**/Cargo.lock') }}
-      - name: Install tools
-        run: mise install rust
       - name: fmt
         run: cargo fmt --check
 
   check:
     runs-on: codeberg-medium
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install mise
-        run: |
-          curl https://mise.run | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
-      - name: Cache
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/share/mise/installs
-            ~/.rustup
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-check-${{ hashFiles('mise.toml', '**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-check-
-      - name: Install tools
-        run: mise install rust
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-check-
       - name: Run tests
         run: cargo test --verbose
 
   clippy:
     runs-on: codeberg-medium
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install mise
-        run: |
-          curl https://mise.run | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
-      - name: Cache
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/share/mise/installs
-            ~/.rustup
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-clippy-${{ hashFiles('mise.toml', '**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-clippy-
-      - name: Install tools
-        run: mise install rust
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-clippy-
       - name: Run clippy
         run: cargo clippy --verbose -- -Dwarnings
 
   e2e:
     runs-on: codeberg-medium
+    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install mise
-        run: |
-          curl https://mise.run | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
-
-      - name: Cache
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/share/mise/installs
-            ~/.rustup
             ~/.cargo/registry
             ~/.cargo/git
             target/
-            ~/.cache/ms-playwright
-            ~/.cache/uv
-          key: ${{ runner.os }}-e2e-${{ hashFiles('mise.toml', '**/Cargo.lock', 'tests/pyproject.toml') }}
-          restore-keys: ${{ runner.os }}-e2e-
-
-      - name: Install tools
-        env:
-          MISE_PYTHON_GITHUB_ATTESTATIONS: "false"
-        run: mise install
-
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh && echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Sync e2e dependencies
-        run: uv sync --project tests/
-
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
-      - name: Install Playwright system deps + browser
-        run: uv run --project tests/ playwright install chromium --with-deps
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-e2e-
 
       - name: Build WASM
         run: cd crates/langton && wasm-pack build --target web --no-typescript
