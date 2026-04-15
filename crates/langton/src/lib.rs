@@ -26,7 +26,7 @@ pub async fn start_langton_ant() {
     let alpha_retention_factor = debug_ui.param(ParamParam {
         name: "alpha retention",
         default_value: 251,
-        range: 0..255,
+        range: 0..=255,
         ..Default::default()
     });
 
@@ -34,14 +34,14 @@ pub async fn start_langton_ant() {
     let final_steps_per_frame = debug_ui.param(ParamParam {
         name: "final speed",
         default_value: 0.2,
-        range: 0.0..1000.0,
+        range: 0.0..=1000.0,
         scale: debug_ui::Scale::Logarithmic,
         ..Default::default()
     });
     let speedup_frames = debug_ui.param(ParamParam {
         name: "speedup frames",
         default_value: 1300,
-        range: 0..1500,
+        range: 0..=1500,
         ..Default::default()
     });
 
@@ -49,21 +49,21 @@ pub async fn start_langton_ant() {
     let num_ants = debug_ui.param(ParamParam {
         name: "number of ants",
         default_value: 2,
-        range: 1..1000,
+        range: 1..=1000,
         scale: debug_ui::Scale::Logarithmic,
         ..Default::default()
     });
     let ant_color_saturation = debug_ui.param(ParamParam {
         name: "ant color saturation",
         default_value: 0.3,
-        range: 0.0..1.0,
+        range: 0.0..=1.0,
         step_size: 0.01,
         ..Default::default()
     });
     let ant_color_brightness = debug_ui.param(ParamParam {
         name: "ant color brightness",
         default_value: 0.7,
-        range: 0.0..1.0,
+        range: 0.0..=1.0,
         step_size: 0.01,
         ..Default::default()
     });
@@ -72,31 +72,31 @@ pub async fn start_langton_ant() {
     let cell_size = debug_ui.param(ParamParam {
         name: "cell size",
         default_value: 20,
-        range: 1..50,
+        range: 1..=50,
         ..Default::default()
     });
     let cell_border_size = debug_ui.param(ParamParam {
         name: "cell border size",
         default_value: 1,
-        range: 0..5,
+        range: 0..=5,
         ..Default::default()
     });
     let white_color_r = debug_ui.param(ParamParam {
         name: "white color red",
         default_value: 30,
-        range: 0..255,
+        range: 0..=255,
         ..Default::default()
     });
     let white_color_g = debug_ui.param(ParamParam {
         name: "white color green",
         default_value: 30,
-        range: 0..255,
+        range: 0..=255,
         ..Default::default()
     });
     let white_color_b = debug_ui.param(ParamParam {
         name: "white color blue",
         default_value: 30,
-        range: 0..255,
+        range: 0..=255,
         ..Default::default()
     });
 
@@ -104,7 +104,7 @@ pub async fn start_langton_ant() {
     let speed_ease_in_power = debug_ui.param(ParamParam {
         name: "speed ease-in power",
         default_value: 2.5,
-        range: 1.0..10.0,
+        range: 1.0..=10.0,
         step_size: 0.1,
         ..Default::default()
     });
