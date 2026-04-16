@@ -85,3 +85,9 @@ build-push-build-image:
         -t "$IMAGE:$HASH" \
         -t "$IMAGE:latest" \
         -f .github/workflows/Dockerfile --push .
+    # Update workflow files to reference the new content hash tag
+    sed -i "s|build-image:[a-f0-9]\{16\}|build-image:$HASH|g" \
+        .github/workflows/ci.yml \
+        .github/workflows/benchmark.yml \
+        .github/workflows/pages.yml
+    echo "Updated workflow files to use $IMAGE:$HASH"
