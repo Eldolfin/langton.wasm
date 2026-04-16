@@ -1,8 +1,7 @@
 use debug_ui::Param;
 use std::{cell::RefCell, collections::HashMap, f64, rc::Rc};
-use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{console::warn_1, window};
+use web_sys::{console::warn_1, wasm_bindgen::prelude::*, window};
 
 pub struct Canvas {
     element: web_sys::HtmlCanvasElement,
@@ -157,19 +156,25 @@ impl Canvas {
     }
 
     /// animation: function that renders a single frame and returns true if it is done
-    pub async fn play_animation(
-        selff: Rc<RefCell<Self>>,
-        mut animation: impl FnMut(&mut Canvas) -> bool + 'static,
-    ) {
-        let step = move || {
-            let mut selff = selff.borrow_mut();
-            selff.calculate_size_if_needed();
-            let res = animation(&mut selff);
-            selff.flush();
-            res
-        };
-        let step = Rc::new(RefCell::new(step));
-        start_animation(step).await;
+    pub async fn play_animation(&mut self, mut animation: impl FnMut(&mut Canvas) -> bool) {
+        loop {
+            // Wait for next animation frame
+            let promise = web_sys::js_sys::Promise::new(&mut |resolve, _| {
+                window()
+                    .unwrap()
+                    .request_animation_frame(&resolve)
+                    .expect("should register `requestAnimationFrame` OK");
+            });
+            JsFuture::from(promise).await.unwrap();
+
+            // Do one frame
+            self.calculate_size_if_needed();
+            let done = animation(self);
+            self.flush();
+            if done {
+                break;
+            }
+        }
     }
 
     pub fn fill_canvas(&mut self, retention_factor: u8) {
@@ -299,33 +304,6 @@ impl Canvas {
             .dyn_into::<web_sys::CanvasRenderingContext2d>()
             .ok()
     }
-}
-
-fn request_animation_frame(f: &Closure<dyn FnMut()>) {
-    window()
-        .unwrap()
-        .request_animation_frame(f.as_ref().unchecked_ref())
-        .expect("should register `requestAnimationFrame` OK");
-}
-
-async fn start_animation(animation_step: Rc<RefCell<impl FnMut() -> bool + 'static>>) {
-    let promise = web_sys::js_sys::Promise::new(&mut |resolve, _reject| {
-        let update = Rc::new(RefCell::new(None));
-        let f = update.clone();
-        let value = animation_step.clone();
-        *f.borrow_mut() = Some(Closure::new(move || {
-            let res = value.borrow_mut()();
-            if !res {
-                request_animation_frame(update.borrow_mut().as_ref().unwrap());
-            } else {
-                // free closure
-                let _ = update.borrow_mut().take();
-                resolve.call0(&JsValue::NULL).unwrap();
-            }
-        }));
-        request_animation_frame(f.borrow_mut().as_ref().unwrap());
-    });
-    JsFuture::from(promise).await.unwrap();
 }
 
 #[cfg(test)]

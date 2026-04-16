@@ -108,6 +108,13 @@ pub async fn start_langton_ant() {
         step_size: 0.1,
         ..Default::default()
     });
+    let seed = debug_ui.param(ParamParam {
+        name: "seed",
+        default_value: 0,
+        range: 0..=u32::MAX,
+        needs_restart: true,
+        ..Default::default()
+    });
 
     debug_ui.link(
         "About this animation",
@@ -127,6 +134,7 @@ pub async fn start_langton_ant() {
         white_color_g,
         white_color_b,
         speed_ease_in_power,
+        seed,
     };
     let cell_border_size = Rc::new(RefCell::new(cell_border_size));
     let cell_size = Rc::new(RefCell::new(cell_size));
@@ -138,9 +146,9 @@ pub async fn start_langton_ant() {
     };
     loop {
         step_counter.borrow_mut().reset();
-        let canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+        let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
         Game::new(config.clone())
-            .run(canvas, needs_restart.clone(), step_counter.clone())
+            .run(&mut canvas, needs_restart.clone(), step_counter.clone())
             .await;
         *needs_restart.borrow_mut() = false;
     }
@@ -159,6 +167,7 @@ struct GameConfig {
     white_color_g: Param<u8>,
     white_color_b: Param<u8>,
     speed_ease_in_power: Param<f64>,
+    seed: Param<u32>,
 }
 
 struct Game {
@@ -199,7 +208,7 @@ impl Game {
 
     async fn run(
         mut self,
-        canvas: Canvas,
+        canvas: &mut Canvas,
         should_stop: Rc<RefCell<bool>>,
         step_counter: Rc<RefCell<StepCounter>>,
     ) {
@@ -207,7 +216,7 @@ impl Game {
         let mut board = vec![None::<usize>; prev_canvas_size.0 * prev_canvas_size.1];
         let mut step_accumulator = 0.0;
         let mut frame_counter = 0;
-        let animation = move |canvas: &mut Canvas| {
+        let animation = |canvas: &mut Canvas| {
             self.balance_ants(canvas);
             let mut config = self.config.borrow_mut();
             frame_counter += 1;
@@ -263,8 +272,7 @@ impl Game {
 
             *should_stop.borrow()
         };
-        let canvas = Rc::new(RefCell::new(canvas));
-        Canvas::play_animation(canvas, animation).await;
+        canvas.play_animation(animation).await;
     }
 
     fn balance_ants(&mut self, canvas: &mut Canvas) {
@@ -283,8 +291,10 @@ impl Game {
     fn add_ant(&mut self, id: usize, canvas: &mut Canvas) {
         let mut config = self.config.borrow_mut();
         let num_ants = config.num_ants.get();
+        let seed = config.seed.get();
+        let seed_offset = (seed as f32 * 137.508) % 360.0; // golden angle for good distribution
         let hue = if num_ants > 0 {
-            (id as f32 * 360.0) / num_ants as f32
+            (id as f32 * 360.0 / num_ants as f32 + seed_offset) % 360.0
         } else {
             0.0
         };
