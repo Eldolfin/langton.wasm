@@ -140,6 +140,7 @@ pub async fn start_langton_ant() {
     let cell_size = Rc::new(RefCell::new(cell_size));
     let config = Rc::new(RefCell::new(game_config));
     let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
+    let needs_clear = debug_ui.needs_clear();
     let needs_restart = match debug_ui {
         DebugUI::Enabled { needs_restart, .. } => needs_restart,
         DebugUI::Disabled => Rc::new(RefCell::new(false)),
@@ -148,7 +149,12 @@ pub async fn start_langton_ant() {
         step_counter.borrow_mut().reset();
         let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
         Game::new(config.clone())
-            .run(&mut canvas, needs_restart.clone(), step_counter.clone())
+            .run(
+                &mut canvas,
+                needs_restart.clone(),
+                needs_clear.clone(),
+                step_counter.clone(),
+            )
             .await;
         *needs_restart.borrow_mut() = false;
     }
@@ -210,13 +216,26 @@ impl Game {
         mut self,
         canvas: &mut Canvas,
         should_stop: Rc<RefCell<bool>>,
+        needs_clear: Rc<RefCell<bool>>,
         step_counter: Rc<RefCell<StepCounter>>,
     ) {
         let mut prev_canvas_size = (canvas.height(), canvas.width());
         let mut board = vec![None::<usize>; prev_canvas_size.0 * prev_canvas_size.1];
         let mut step_accumulator = 0.0;
         let mut frame_counter = 0;
-        let animation = |canvas: &mut Canvas| {
+        let animation = move |canvas: &mut Canvas| {
+            if *needs_clear.borrow() {
+                let mut config = self.config.borrow_mut();
+                let bg_color = Color::Rgb {
+                    r: config.white_color_r.get(),
+                    g: config.white_color_g.get(),
+                    b: config.white_color_b.get(),
+                };
+                drop(config);
+                canvas.clear(bg_color);
+                board.fill(None);
+                *needs_clear.borrow_mut() = false;
+            }
             self.balance_ants(canvas);
             let mut config = self.config.borrow_mut();
             frame_counter += 1;
