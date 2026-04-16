@@ -4,7 +4,9 @@ use std::{
     cell::RefCell, collections::HashMap, ops::RangeInclusive, rc::Rc, str::FromStr, sync::mpsc,
 };
 pub use web_sys;
-use web_sys::{Document, Element, HtmlInputElement, KeyboardEvent, wasm_bindgen::JsCast as _};
+use web_sys::{
+    Document, Element, HtmlInputElement, KeyboardEvent, js_sys::Reflect, wasm_bindgen::JsCast as _,
+};
 
 #[macro_export]
 macro_rules! log {
@@ -20,18 +22,19 @@ macro_rules! warn {
     }
 }
 
-pub enum DebugUI {
+pub enum DebugUIState {
     Enabled {
         root: Element,
-        document: Document,
         next_uid: u32,
-        needs_restart: Rc<RefCell<bool>>,
-        _shortcut_listener: EventListener,
+        needs_restart: bool,
     },
-    Disabled {
-        needs_restart: Rc<RefCell<bool>>,
-        _shortcut_listener: EventListener,
-    },
+    Disabled,
+}
+
+pub struct DebugUI {
+    state: Rc<RefCell<DebugUIState>>,
+    shortcut_listener: EventListener,
+    document: Document,
 }
 
 pub struct Param<T> {
@@ -221,102 +224,69 @@ fn remove_all_url_params_except(key: &str) {
 }
 
 impl DebugUI {
-    fn register_shortcut(needs_restart: &Rc<RefCell<bool>>, is_enabled: bool) -> EventListener {
-        let needs_restart = needs_restart.clone();
+    fn register_shortcut(
+        title: impl AsRef<str>,
+        state: Rc<RefCell<DebugUIState>>,
+    ) -> EventListener {
         let doc = document();
+        let title = title.as_ref().to_owned();
         EventListener::new(&doc, "keydown", move |event| {
             let Some(key_event) = event.dyn_ref::<KeyboardEvent>() else {
                 return;
             };
             if key_event.shift_key() && key_event.key() == "I" {
-                if is_enabled {
-                    remove_url_param("debug");
-                } else {
-                    add_debug_url_param();
+                let old_state = &*state.borrow();
+                match old_state {
+                    DebugUIState::Enabled { .. } => remove_url_param("debug"),
+                    DebugUIState::Disabled => add_debug_url_param(),
                 }
-                *needs_restart.borrow_mut() = true;
+                *state.borrow_mut() = match old_state {
+                    DebugUIState::Enabled { .. } => DebugUIState::Disabled,
+                    DebugUIState::Disabled => Self::enable(&title),
+                };
             }
         })
     }
 
-    pub fn new(title: &str) -> Self {
+    pub fn new(title: impl AsRef<str>) -> Self {
         let document = document();
         if !url().query_pairs().any(|param| param.0 == "debug") {
-            let needs_restart = Rc::new(RefCell::new(false));
-            let _shortcut_listener = Self::register_shortcut(&needs_restart, false);
-            return Self::Disabled {
-                needs_restart,
-                _shortcut_listener,
+            let state = Rc::new(RefCell::new(DebugUIState::Disabled));
+            let shortcut_listener = Self::register_shortcut(title, state.clone());
+            return Self {
+                state,
+                shortcut_listener,
+                document,
             };
         }
-        let body = document.body().expect("document should have a body");
-
-        let root = document.create_element("div").unwrap();
-        let title_line = document.create_element("div").unwrap();
-        let title_elt = document.create_element("h2").unwrap();
-        let close_btn = document.create_element("button").unwrap();
-        let reset_btn = document.create_element("button").unwrap();
-
-        title_elt.set_text_content(Some(title));
-        close_btn.set_text_content(Some("🗙"));
-        reset_btn.set_text_content(Some("Reset params"));
-
-        root.set_class_name("DebugUI-root-box");
-        title_elt.set_class_name("DebugUI-title");
-        title_line.set_class_name("DebugUI-title-line");
-        close_btn.set_class_name("DebugUI-close-btn");
-        reset_btn.set_class_name("DebugUI-reset-btn");
-
-        title_line.append_child(&title_elt).unwrap();
-        title_line.append_child(&close_btn).unwrap();
-        root.append_child(&title_line).unwrap();
-        root.append_child(&reset_btn).unwrap();
-        body.append_child(&root).unwrap();
-
-        let style = document.create_element("style").unwrap();
-        style.set_text_content(Some(include_str!("./style.css")));
-        document.head().unwrap().append_child(&style).unwrap();
-
-        {
-            let root = root.clone();
-            EventListener::new(&close_btn, "click", move |_event| {
-                remove_url_param("debug");
-                root.remove();
-            })
-            .forget();
-        }
-        {
-            EventListener::new(&reset_btn, "click", move |_event| {
-                remove_all_url_params_except("debug");
-                window().location().reload().unwrap();
-            })
-            .forget();
-        }
-
-        let needs_restart = Rc::new(RefCell::new(false));
-        let _shortcut_listener = Self::register_shortcut(&needs_restart, true);
-
-        Self::Enabled {
-            root,
+        let title = title.as_ref().to_owned();
+        let state = Rc::new(RefCell::new(Self::enable(&title)));
+        let shortcut_listener = Self::register_shortcut(title, state.clone());
+        Self {
+            state,
+            shortcut_listener,
             document,
-            next_uid: 0,
-            needs_restart,
-            _shortcut_listener,
         }
     }
 
+    pub fn is_enabled(&self) -> bool {
+        matches!(*self.state.borrow(), DebugUIState::Enabled { .. })
+    }
+
     pub fn start_section<S: AsRef<str>>(&mut self, title: S) {
-        let Self::Enabled { root, .. } = self else {
-            return;
-        };
+        let state = self.state.borrow();
+        match &*state {
+            DebugUIState::Enabled { root, .. } => {
+                let document = document();
+                let el = document.create_element("h3").unwrap();
 
-        let document = document();
-        let el = document.create_element("h3").unwrap();
+                el.set_text_content(Some(title.as_ref()));
+                el.set_class_name("DebugUI-section-title");
 
-        el.set_text_content(Some(title.as_ref()));
-        el.set_class_name("DebugUI-section-title");
-
-        root.append_child(&el).unwrap();
+                root.append_child(&el).unwrap();
+            }
+            _ => {}
+        }
     }
 
     pub fn param<
@@ -337,13 +307,12 @@ impl DebugUI {
             .unwrap_or(p.default_value);
 
         let (send, param_value) = Param::new(default_value);
-        match self {
-            DebugUI::Enabled {
+        let doc = self.document.clone();
+        match &*self.state.borrow() {
+            DebugUIState::Enabled {
                 root,
-                document: doc,
                 next_uid,
                 needs_restart,
-                ..
             } => {
                 let container = doc.create_element("div").unwrap();
                 let label = doc.create_element("label").unwrap();
@@ -433,7 +402,7 @@ impl DebugUI {
 
                         send.send(value).unwrap();
                         if p.needs_restart {
-                            *needs_restart.borrow_mut() = true;
+                            self.set_needs_restart();
                         }
                     })
                     .forget();
@@ -472,20 +441,29 @@ impl DebugUI {
 
                         send.send(value).unwrap();
                         if p.needs_restart {
-                            *needs_restart.borrow_mut() = true;
+                            self.set_needs_restart();
                         }
                     })
                     .forget();
                 }
             }
-            DebugUI::Disabled { .. } => (),
+            DebugUIState::Disabled => (),
         }
         param_value
     }
 
+    fn set_needs_restart(&mut self) {
+        match &mut *self.state.borrow_mut() {
+            DebugUIState::Enabled { needs_restart, .. } => {
+                *needs_restart = true;
+            }
+            _ => {}
+        }
+    }
+
     pub fn link(&mut self, text: &str, href: &str) {
-        match self {
-            DebugUI::Enabled { root, document, .. } => {
+        match &*self.state.borrow() {
+            DebugUIState::Enabled { root, document, .. } => {
                 let a = document.create_element("a").unwrap();
                 a.set_text_content(Some(text));
                 a.set_attribute("href", href).unwrap();
@@ -493,14 +471,13 @@ impl DebugUI {
                 a.set_class_name("DebugUI-link");
                 root.append_child(&a).unwrap();
             }
-            DebugUI::Disabled { .. } => (),
+            DebugUIState::Disabled => (),
         }
     }
     pub fn should_restart(&self) -> bool {
-        match self {
-            DebugUI::Enabled { needs_restart, .. } | DebugUI::Disabled { needs_restart, .. } => {
-                *needs_restart.borrow()
-            }
+        match &*self.state.borrow() {
+            DebugUIState::Enabled { needs_restart, .. } => *needs_restart.borrow(),
+            DebugUIState::Disabled => false,
         }
     }
 
@@ -523,11 +500,63 @@ impl DebugUI {
             },
         }
     }
+    fn enable(title: impl AsRef<str>) -> DebugUIState {
+        let document = document();
+        let body = document.body().expect("document should have a body");
+        let root = document.create_element("div").unwrap();
+        let title_line = document.create_element("div").unwrap();
+        let title_elt = document.create_element("h2").unwrap();
+        let close_btn = document.create_element("button").unwrap();
+        let reset_btn = document.create_element("button").unwrap();
+
+        title_elt.set_text_content(Some(title.as_ref()));
+        close_btn.set_text_content(Some("🗙"));
+        reset_btn.set_text_content(Some("Reset params"));
+
+        root.set_class_name("DebugUI-root-box");
+        title_elt.set_class_name("DebugUI-title");
+        title_line.set_class_name("DebugUI-title-line");
+        close_btn.set_class_name("DebugUI-close-btn");
+        reset_btn.set_class_name("DebugUI-reset-btn");
+
+        title_line.append_child(&title_elt).unwrap();
+        title_line.append_child(&close_btn).unwrap();
+        root.append_child(&title_line).unwrap();
+        root.append_child(&reset_btn).unwrap();
+        body.append_child(&root).unwrap();
+
+        let style = document.create_element("style").unwrap();
+        style.set_text_content(Some(include_str!("./style.css")));
+        document.head().unwrap().append_child(&style).unwrap();
+
+        {
+            let root = root.clone();
+            EventListener::new(&close_btn, "click", move |_event| {
+                remove_url_param("debug");
+                root.remove();
+            })
+            .forget();
+        }
+        {
+            EventListener::new(&reset_btn, "click", move |_event| {
+                remove_all_url_params_except("debug");
+                window().location().reload().unwrap();
+            })
+            .forget();
+        }
+
+        DebugUIState::Enabled {
+            root,
+            document,
+            next_uid: 0,
+            needs_restart: false,
+        }
+    }
 }
 
 impl Drop for DebugUI {
     fn drop(&mut self) {
-        if let DebugUI::Enabled { root, .. } = self {
+        if let DebugUIState::Enabled { root, .. } = &*self.state.borrow() {
             root.remove();
         }
     }
