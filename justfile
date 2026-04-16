@@ -18,6 +18,30 @@ build-pkg *args:
 publish-pkg: build-pkg
     cd crates/langton/pkg && npm publish --userconfig=../.npmrc
 
+# Run interleaved benchmark comparing current branch vs main
+benchmark main_ref="main" duration="5" iterations="2":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Build current branch
+    just build-web
+    cp -r crates/langton/pkg /tmp/pr-pkg
+    # Build main
+    current=$(git rev-parse HEAD)
+    git stash --include-untracked -q || true
+    git checkout "origin/{{main_ref}}" -q
+    just build-web
+    cp -r crates/langton/pkg /tmp/main-pkg
+    git checkout "$current" -q
+    git stash pop -q 2>/dev/null || true
+    # Run interleaved benchmark
+    uv run --project tests/ python tests/benchmark_interleaved.py \
+        --main-pkg /tmp/main-pkg \
+        --pr-pkg /tmp/pr-pkg \
+        --duration "{{duration}}" \
+        --iterations "{{iterations}}" \
+        --main-output main-results.json \
+        --pr-output pr-results.json
+
 # Run langton-ant and watch for changes
 dev:
     #!/bin/sh

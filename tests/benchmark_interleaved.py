@@ -77,7 +77,7 @@ def measure_scenario(
     """
     # Build query string from all scenario params (skip 'label')
     extra = "&".join(f"{k}={v}" for k, v in params.items() if k != "label")
-    url = f"{BASE_URL}/?debug&speedup_frames=0&final_speed=1000&{extra}"
+    url = f"{BASE_URL}/?debug&speedup_frames=0&{extra}"
 
     ctx = browser.new_context()
     page = ctx.new_page()
