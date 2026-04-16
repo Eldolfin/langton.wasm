@@ -4,7 +4,7 @@ use std::{
     cell::RefCell, collections::HashMap, ops::RangeInclusive, rc::Rc, str::FromStr, sync::mpsc,
 };
 pub use web_sys;
-use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
+use web_sys::{wasm_bindgen::JsCast as _, Document, Element, HtmlInputElement, KeyboardEvent};
 
 #[macro_export]
 macro_rules! log {
@@ -26,8 +26,12 @@ pub enum DebugUI {
         document: Document,
         next_uid: u32,
         needs_restart: Rc<RefCell<bool>>,
+        _shortcut_listener: EventListener,
     },
-    Disabled,
+    Disabled {
+        needs_restart: Rc<RefCell<bool>>,
+        _shortcut_listener: EventListener,
+    },
 }
 
 pub struct Param<T> {
@@ -154,6 +158,26 @@ fn add_url_param<T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 's
         .unwrap();
 }
 
+fn add_debug_url_param() {
+    use web_sys::wasm_bindgen::JsValue;
+
+    let mut new_url = url();
+    let mut params: HashMap<String, String> = new_url
+        .query_pairs()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    params.insert("debug".into(), String::new());
+    new_url.query_pairs_mut().clear();
+    let mut params: Vec<_> = params.into_iter().collect();
+    params.sort();
+    new_url.query_pairs_mut().extend_pairs(params);
+    window()
+        .history()
+        .unwrap()
+        .push_state_with_url(&JsValue::NULL, "", Some(new_url.as_str()))
+        .unwrap();
+}
+
 fn remove_url_param(key: &str) {
     use web_sys::wasm_bindgen::JsValue;
 
@@ -197,10 +221,33 @@ fn remove_all_url_params_except(key: &str) {
 }
 
 impl DebugUI {
+    fn register_shortcut(needs_restart: &Rc<RefCell<bool>>, is_enabled: bool) -> EventListener {
+        let needs_restart = needs_restart.clone();
+        let doc = document();
+        EventListener::new(&doc, "keydown", move |event| {
+            let Some(key_event) = event.dyn_ref::<KeyboardEvent>() else {
+                return;
+            };
+            if key_event.shift_key() && key_event.key() == "I" {
+                if is_enabled {
+                    remove_url_param("debug");
+                } else {
+                    add_debug_url_param();
+                }
+                *needs_restart.borrow_mut() = true;
+            }
+        })
+    }
+
     pub fn new(title: &str) -> Self {
         let document = document();
         if !url().query_pairs().any(|param| param.0 == "debug") {
-            return Self::Disabled;
+            let needs_restart = Rc::new(RefCell::new(false));
+            let _shortcut_listener = Self::register_shortcut(&needs_restart, false);
+            return Self::Disabled {
+                needs_restart,
+                _shortcut_listener,
+            };
         }
         let body = document.body().expect("document should have a body");
 
@@ -246,11 +293,15 @@ impl DebugUI {
             .forget();
         }
 
+        let needs_restart = Rc::new(RefCell::new(false));
+        let _shortcut_listener = Self::register_shortcut(&needs_restart, true);
+
         Self::Enabled {
             root,
             document,
             next_uid: 0,
-            needs_restart: Rc::new(RefCell::new(false)),
+            needs_restart,
+            _shortcut_listener,
         }
     }
 
@@ -292,6 +343,7 @@ impl DebugUI {
                 document: doc,
                 next_uid,
                 needs_restart,
+                ..
             } => {
                 let container = doc.create_element("div").unwrap();
                 let label = doc.create_element("label").unwrap();
@@ -426,7 +478,7 @@ impl DebugUI {
                     .forget();
                 }
             }
-            DebugUI::Disabled => (),
+            DebugUI::Disabled { .. } => (),
         }
         param_value
     }
@@ -441,13 +493,14 @@ impl DebugUI {
                 a.set_class_name("DebugUI-link");
                 root.append_child(&a).unwrap();
             }
-            DebugUI::Disabled => (),
+            DebugUI::Disabled { .. } => (),
         }
     }
-    pub fn should_restart(&mut self) -> bool {
+    pub fn should_restart(&self) -> bool {
         match self {
-            DebugUI::Enabled { needs_restart, .. } => *needs_restart.borrow(),
-            DebugUI::Disabled => false,
+            DebugUI::Enabled { needs_restart, .. } | DebugUI::Disabled { needs_restart, .. } => {
+                *needs_restart.borrow()
+            }
         }
     }
 
@@ -464,10 +517,18 @@ impl DebugUI {
                     count: 0,
                 }
             }
-            DebugUI::Disabled => StepCounter {
+            DebugUI::Disabled { .. } => StepCounter {
                 element: None,
                 count: 0,
             },
+        }
+    }
+}
+
+impl Drop for DebugUI {
+    fn drop(&mut self) {
+        if let DebugUI::Enabled { root, .. } = self {
+            root.remove();
         }
     }
 }
