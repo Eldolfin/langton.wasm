@@ -4,7 +4,9 @@
 import json
 import os
 import sys
+from math import sqrt
 from pathlib import Path
+from statistics import mean, median
 from urllib import request
 from urllib.error import HTTPError
 
@@ -52,6 +54,24 @@ def delta_cell(main_val: float, pr_val: float) -> str:
     return text
 
 
+def cv_pct(vals: list[float]) -> float | None:
+    """Coefficient of variation (std / mean * 100). None when insufficient data."""
+    if len(vals) < 2:
+        return None
+    avg = mean(vals)
+    if avg == 0:
+        return None
+    variance = sum((v - avg) ** 2 for v in vals) / (len(vals) - 1)
+    return sqrt(variance) / avg * 100
+
+
+def cv_cell(vals: list[float]) -> str:
+    cv = cv_pct(vals)
+    if cv is None:
+        return "—"
+    return f"{cv:.1f}%"
+
+
 def build_comment(
     main_results: dict,
     pr_results: dict,
@@ -62,23 +82,36 @@ def build_comment(
         MARKER,
         "## ⚡ Performance Benchmark",
         "",
-        "| Scenario | main (steps/s) | PR (steps/s) | Δ |",
-        "|----------|---------------|-------------|------|",
+        "| Scenario | main median | main mean | CV | PR median | PR mean | CV | Δ (median) |",
+        "|----------|------------|----------|-----|-----------|---------|-----|------------|",
     ]
 
     for key, scenario in SCENARIOS.items():
         label = scenario["label"]
-        main_sps = main_results.get(key, {}).get("steps_per_sec", 0)
-        pr_sps = pr_results.get(key, {}).get("steps_per_sec", 0)
-        delta = delta_cell(main_sps, pr_sps)
-        lines.append(f"| {label} | {fmt_num(main_sps)} | {fmt_num(pr_sps)} | {delta} |")
+        main_data = main_results.get(key, {})
+        pr_data = pr_results.get(key, {})
+        main_runs = main_data.get("individual_runs", [])
+        pr_runs = pr_data.get("individual_runs", [])
+        main_med = fmt_num(median(main_runs)) if main_runs else "0"
+        main_avg = fmt_num(mean(main_runs)) if main_runs else "0"
+        pr_med = fmt_num(median(pr_runs)) if pr_runs else "0"
+        pr_avg = fmt_num(mean(pr_runs)) if pr_runs else "0"
+        main_cv = cv_cell(main_runs)
+        pr_cv = cv_cell(pr_runs)
+        delta = delta_cell(
+            median(main_runs) if main_runs else 0,
+            median(pr_runs) if pr_runs else 0,
+        )
+        lines.append(
+            f"| {label} | {main_med} | {main_avg} | {main_cv} | {pr_med} | {pr_avg} | {pr_cv} | {delta} |"
+        )
 
     lines.append("")
     if metadata:
         iters = metadata["iterations"]
         per = metadata["duration_per_iteration_s"]
         lines.append(
-            f"> Mean of {iters} \u00d7 {per:.0f}s runs (interleaved) on codeberg-medium runner."
+            f"> {iters} \u00d7 {per:.0f}s runs (interleaved) on codeberg-medium runner. All values in steps/s. CV = coefficient of variation."
         )
     else:
         lines.append(f"> Measured over {duration:.0f}s on codeberg-medium runner.")
