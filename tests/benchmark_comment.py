@@ -8,6 +8,8 @@ from pathlib import Path
 from urllib import request
 from urllib.error import HTTPError
 
+from benchmark_scenarios import SCENARIOS
+
 FORGEJO_URL = os.environ.get("FORGEJO_URL", "https://codeberg.org")
 TOKEN = os.environ["FORGEJO_TOKEN"]
 REPO = os.environ["GITHUB_REPOSITORY"]
@@ -17,12 +19,6 @@ API = f"{FORGEJO_URL}/api/v1"
 HEADERS = {"Authorization": f"token {TOKEN}", "Content-Type": "application/json"}
 
 MARKER = "<!-- perf-bench -->"
-
-SCENARIO_LABELS = {
-    "light": "Light (2 ants)",
-    "medium": "Medium (50 ants)",
-    "heavy": "Heavy (500 ants)",
-}
 
 
 def api(method: str, path: str, body: dict | None = None) -> dict:
@@ -70,8 +66,8 @@ def build_comment(
         "|----------|---------------|-------------|------|",
     ]
 
-    for key in ("light", "medium", "heavy"):
-        label = SCENARIO_LABELS.get(key, key)
+    for key, scenario in SCENARIOS.items():
+        label = scenario["label"]
         main_sps = main_results.get(key, {}).get("steps_per_sec", 0)
         pr_sps = pr_results.get(key, {}).get("steps_per_sec", 0)
         delta = delta_cell(main_sps, pr_sps)
@@ -121,7 +117,7 @@ def main() -> None:
     if metadata and "duration_per_iteration_s" in metadata:
         duration = metadata["duration_per_iteration_s"]
     else:
-        for key in ("light", "medium", "heavy"):
+        for key in SCENARIOS:
             if key in main_results and "duration_s" in main_results[key]:
                 duration = main_results[key]["duration_s"]
                 break
