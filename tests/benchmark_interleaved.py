@@ -21,7 +21,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from statistics import mean
+from statistics import median
 
 from playwright.sync_api import sync_playwright
 
@@ -69,46 +69,42 @@ def swap_pkg(src: Path) -> None:
 
 
 def measure_scenario(
-    browser, scenario_name: str, params: dict, duration_s: float
+    page, scenario_name: str, params: dict, duration_s: float
 ) -> float:
     """Run one scenario, return steps_per_sec.
 
     ``params`` is the full scenario dict from SCENARIOS (may include 'label').
+    Reuses the given *page* — caller is responsible for lifecycle.
     """
     # Build query string from all scenario params (skip 'label')
     extra = "&".join(f"{k}={v}" for k, v in params.items() if k != "label")
     url = f"{BASE_URL}/?debug&speedup_frames=0&{extra}"
 
-    ctx = browser.new_context()
-    page = ctx.new_page()
-    try:
-        page.goto(url)
-        page.wait_for_selector("canvas", timeout=15_000)
-        page.wait_for_selector(".DebugUI-step-counter", timeout=15_000)
+    page.goto(url)
+    page.wait_for_selector("canvas", timeout=15_000)
+    page.wait_for_selector(".DebugUI-step-counter", timeout=15_000)
 
-        # Let simulation stabilize briefly
-        page.wait_for_timeout(500)
+    # Let simulation stabilize briefly
+    page.wait_for_timeout(500)
 
-        # Read initial step count
-        el = page.query_selector(".DebugUI-step-counter")
-        initial_steps = parse_steps(el.inner_text())
-        t_start = time.monotonic()
+    # Read initial step count
+    el = page.query_selector(".DebugUI-step-counter")
+    initial_steps = parse_steps(el.inner_text())
+    t_start = time.monotonic()
 
-        # Wait for benchmark duration
-        page.wait_for_timeout(int(duration_s * 1000))
+    # Wait for benchmark duration
+    page.wait_for_timeout(int(duration_s * 1000))
 
-        # Read final step count
-        el = page.query_selector(".DebugUI-step-counter")
-        final_steps = parse_steps(el.inner_text())
-        t_end = time.monotonic()
+    # Read final step count
+    el = page.query_selector(".DebugUI-step-counter")
+    final_steps = parse_steps(el.inner_text())
+    t_end = time.monotonic()
 
-        elapsed = t_end - t_start
-        steps = final_steps - initial_steps
-        steps_per_sec = steps / elapsed if elapsed > 0 else 0.0
+    elapsed = t_end - t_start
+    steps = final_steps - initial_steps
+    steps_per_sec = steps / elapsed if elapsed > 0 else 0.0
 
-        return steps_per_sec
-    finally:
-        ctx.close()
+    return steps_per_sec
 
 
 def build_output(
@@ -121,8 +117,9 @@ def build_output(
     for scenario in SCENARIOS:
         vals = results[scenario]
         out[scenario] = {
-            "steps_per_sec": round(mean(vals), 1) if vals else 0.0,
+            "steps_per_sec": round(median(vals), 1) if vals else 0.0,
             "iterations": len(vals),
+            "individual_runs": [round(v, 1) for v in vals],
         }
     return out
 
@@ -170,7 +167,15 @@ def main() -> None:
     server_proc = start_http_server()
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--disable-background-timer-throttling",
+                    "--disable-renderer-backgrounding",
+                    "--disable-backgrounding-occluded-windows",
+                ],
+            )
+            page = browser.new_page()
             try:
                 for i in range(1, args.iterations + 1):
                     print(f"Iteration {i}/{args.iterations}", file=sys.stderr)
@@ -179,7 +184,7 @@ def main() -> None:
                     swap_pkg(main_pkg)
                     for scenario_name, params in SCENARIOS.items():
                         sps = measure_scenario(
-                            browser, scenario_name, params, args.duration
+                            page, scenario_name, params, args.duration
                         )
                         main_results[scenario_name].append(sps)
                         print(
@@ -191,7 +196,7 @@ def main() -> None:
                     swap_pkg(pr_pkg)
                     for scenario_name, params in SCENARIOS.items():
                         sps = measure_scenario(
-                            browser, scenario_name, params, args.duration
+                            page, scenario_name, params, args.duration
                         )
                         pr_results[scenario_name].append(sps)
                         print(
@@ -199,6 +204,7 @@ def main() -> None:
                             file=sys.stderr,
                         )
             finally:
+                page.close()
                 browser.close()
 
         # Build and write outputs
