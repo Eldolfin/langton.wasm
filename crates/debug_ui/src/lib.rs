@@ -4,7 +4,7 @@ use std::{
     cell::RefCell, collections::HashMap, ops::RangeInclusive, rc::Rc, str::FromStr, sync::mpsc,
 };
 pub use web_sys;
-use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
+use web_sys::{wasm_bindgen::JsCast as _, Document, Element, HtmlInputElement};
 
 #[macro_export]
 macro_rules! log {
@@ -26,6 +26,7 @@ pub enum DebugUI {
         document: Document,
         next_uid: u32,
         needs_restart: Rc<RefCell<bool>>,
+        needs_clear: Rc<RefCell<bool>>,
     },
     Disabled,
 }
@@ -209,21 +210,25 @@ impl DebugUI {
         let title_elt = document.create_element("h2").unwrap();
         let close_btn = document.create_element("button").unwrap();
         let reset_btn = document.create_element("button").unwrap();
+        let clear_btn = document.create_element("button").unwrap();
 
         title_elt.set_text_content(Some(title));
         close_btn.set_text_content(Some("🗙"));
         reset_btn.set_text_content(Some("Reset params"));
+        clear_btn.set_text_content(Some("Clear canvas"));
 
         root.set_class_name("DebugUI-root-box");
         title_elt.set_class_name("DebugUI-title");
         title_line.set_class_name("DebugUI-title-line");
         close_btn.set_class_name("DebugUI-close-btn");
         reset_btn.set_class_name("DebugUI-reset-btn");
+        clear_btn.set_class_name("DebugUI-reset-btn");
 
         title_line.append_child(&title_elt).unwrap();
         title_line.append_child(&close_btn).unwrap();
         root.append_child(&title_line).unwrap();
         root.append_child(&reset_btn).unwrap();
+        root.append_child(&clear_btn).unwrap();
         body.append_child(&root).unwrap();
 
         let style = document.create_element("style").unwrap();
@@ -246,11 +251,21 @@ impl DebugUI {
             .forget();
         }
 
+        let needs_clear = Rc::new(RefCell::new(false));
+        {
+            let needs_clear = needs_clear.clone();
+            EventListener::new(&clear_btn, "click", move |_event| {
+                *needs_clear.borrow_mut() = true;
+            })
+            .forget();
+        }
+
         Self::Enabled {
             root,
             document,
             next_uid: 0,
             needs_restart: Rc::new(RefCell::new(false)),
+            needs_clear,
         }
     }
 
@@ -292,6 +307,7 @@ impl DebugUI {
                 document: doc,
                 next_uid,
                 needs_restart,
+                ..
             } => {
                 let container = doc.create_element("div").unwrap();
                 let label = doc.create_element("label").unwrap();
@@ -448,6 +464,13 @@ impl DebugUI {
         match self {
             DebugUI::Enabled { needs_restart, .. } => *needs_restart.borrow(),
             DebugUI::Disabled => false,
+        }
+    }
+
+    pub fn needs_clear(&self) -> Rc<RefCell<bool>> {
+        match self {
+            DebugUI::Enabled { needs_clear, .. } => needs_clear.clone(),
+            DebugUI::Disabled => Rc::new(RefCell::new(false)),
         }
     }
 

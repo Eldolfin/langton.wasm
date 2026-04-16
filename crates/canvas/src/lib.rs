@@ -177,6 +177,23 @@ impl Canvas {
         }
     }
 
+    pub fn clear(&mut self, color: Color) {
+        self.context.set_fill_style_str(&color.to_css_color());
+        self.context.fill_rect(
+            0.0,
+            0.0,
+            self.canvas_width as f64,
+            self.canvas_height as f64,
+        );
+        // Reset last_frame so subsequent draws won't be skipped by dedup
+        for col in &mut self.last_frame {
+            for cell in col.iter_mut() {
+                *cell = None;
+            }
+        }
+        self.queue.clear();
+    }
+
     pub fn fill_canvas(&mut self, retention_factor: u8) {
         // 1. Get and store the current globalCompositeOperation.
         let original_gco = self
