@@ -12,7 +12,7 @@ env:
 
 jobs:
   benchmark:
-    runs-on: codeberg-medium
+    runs-on: docker
     container: codeberg.org/eldolfin/langton.wasm/build-image:9a5281b8bd906147
     steps:
       - name: Checkout PR (full history)
