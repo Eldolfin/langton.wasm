@@ -4,7 +4,7 @@ use std::{
     cell::RefCell, collections::HashMap, ops::RangeInclusive, rc::Rc, str::FromStr, sync::mpsc,
 };
 pub use web_sys;
-use web_sys::{wasm_bindgen::JsCast as _, Document, Element, HtmlInputElement};
+use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
 
 #[macro_export]
 macro_rules! log {
