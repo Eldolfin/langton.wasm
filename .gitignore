@@ -4,3 +4,5 @@
 .env
 deploy
 /tests/__pycache__
+/main-results.json
+/pr-results.json

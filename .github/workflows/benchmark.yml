@@ -13,7 +13,7 @@ env:
 jobs:
   benchmark:
     runs-on: codeberg-medium
-    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
+    container: codeberg.org/eldolfin/langton.wasm/build-image:9a5281b8bd906147
     steps:
       - name: Checkout PR (full history)
         uses: actions/checkout@v4
@@ -33,46 +33,12 @@ jobs:
       - name: Sync e2e dependencies
         run: uv sync --project tests/
 
-      - name: Save PR benchmark scripts
-        run: |
-          cp tests/benchmark_interleaved.py /tmp/benchmark_interleaved.py
-          cp tests/benchmark_comment.py /tmp/benchmark_comment.py
-
-      # --- Build both versions first ---
-
-      - name: Checkout main branch
-        run: git checkout origin/${{ github.event.pull_request.base.ref }}
-
-      - name: Build WASM (main)
-        run: cd crates/langton && wasm-pack build --target web --no-typescript
-
-      - name: Save main pkg
-        run: cp -r crates/langton/pkg /tmp/main-pkg
-
-      - name: Checkout PR branch
-        run: git checkout ${{ github.event.pull_request.head.sha }}
-
-      - name: Build WASM (PR)
-        run: cd crates/langton && wasm-pack build --target web --no-typescript
-
-      - name: Save PR pkg
-        run: cp -r crates/langton/pkg /tmp/pr-pkg
-
-      # --- Run interleaved benchmark ---
-
-      - name: Run interleaved benchmark
-        run: |
-          uv run --project tests/ python /tmp/benchmark_interleaved.py \
-            --main-pkg /tmp/main-pkg \
-            --pr-pkg /tmp/pr-pkg \
-            --duration 10 \
-            --iterations 5 \
-            --main-output main-results.json \
-            --pr-output pr-results.json
+      - name: Run benchmark
+        run: just benchmark ${{ github.event.pull_request.base.ref }} 10 5
 
       - name: Post benchmark comparison comment
         if: github.event_name == 'pull_request'
         env:
           FORGEJO_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: python /tmp/benchmark_comment.py main-results.json pr-results.json
+        run: uv run --project tests/ python tests/benchmark_comment.py main-results.json pr-results.json

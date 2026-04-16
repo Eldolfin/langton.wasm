@@ -25,16 +25,12 @@ from statistics import mean
 
 from playwright.sync_api import sync_playwright
 
+from benchmark_scenarios import SCENARIOS
+
 REPO_ROOT = Path.cwd()
 SERVE_DIR = str(REPO_ROOT / "crates" / "langton")
 PKG_DST = REPO_ROOT / "crates" / "langton" / "pkg"
 BASE_URL = "http://localhost:8765"
-
-SCENARIOS = {
-    "light": {"number_of_ants": 2, "cell_size": 20},
-    "medium": {"number_of_ants": 50, "cell_size": 10},
-    "heavy": {"number_of_ants": 500, "cell_size": 5},
-}
 
 
 def _port_open(port: int) -> bool:
@@ -75,14 +71,13 @@ def swap_pkg(src: Path) -> None:
 def measure_scenario(
     browser, scenario_name: str, params: dict, duration_s: float
 ) -> float:
-    """Run one scenario, return steps_per_sec."""
-    ants = params["number_of_ants"]
-    cell_size = params["cell_size"]
-    url = (
-        f"{BASE_URL}/"
-        f"?debug&speedup_frames=0&final_speed=1000"
-        f"&number_of_ants={ants}&cell_size={cell_size}"
-    )
+    """Run one scenario, return steps_per_sec.
+
+    ``params`` is the full scenario dict from SCENARIOS (may include 'label').
+    """
+    # Build query string from all scenario params (skip 'label')
+    extra = "&".join(f"{k}={v}" for k, v in params.items() if k != "label")
+    url = f"{BASE_URL}/?debug&speedup_frames=0&{extra}"
 
     ctx = browser.new_context()
     page = ctx.new_page()
