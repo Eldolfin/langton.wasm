@@ -81,7 +81,7 @@ build-push-build-image:
     HASH=$(cat .github/workflows/Dockerfile mise.toml tests/pyproject.toml tests/uv.lock | sha256sum | cut -c1-16)
     IMAGE=codeberg.org/eldolfin/langton.wasm/build-image
     echo "Building $IMAGE:$HASH"
-    docker buildx build --platform linux/arm64 \
+    docker buildx build --platform linux/amd64,linux/arm64 \
         -t "$IMAGE:$HASH" \
         -t "$IMAGE:latest" \
         -f .github/workflows/Dockerfile --push .
