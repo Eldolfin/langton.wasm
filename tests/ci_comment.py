@@ -143,9 +143,6 @@ def build_comment(results: dict, screenshot_urls: dict[str, str]) -> str:
 
     if results["failures"]:
         lines += ["", "### Failures", ""]
-        lines.append("<details>")
-        lines.append("<summary>Show failure details</summary>")
-        lines.append("")
         for name, detail in results["failures"]:
             short = (detail or "").strip().splitlines()[-1][:200] if detail else ""
             lines.append(f"- **{name}**: `{short}`")
@@ -159,7 +156,6 @@ def build_comment(results: dict, screenshot_urls: dict[str, str]) -> str:
                 lines.append("")
                 lines.append(f"  </details>")
                 lines.append("")
-        lines.append("</details>")
 
     if screenshot_urls:
         lines += ["", "### Screenshots", ""]
