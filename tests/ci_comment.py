@@ -86,27 +86,36 @@ def parse_junit(path: Path) -> dict:
     # pytest junit: root is <testsuites> or <testsuite>
     suites = root.findall("testsuite") if root.tag == "testsuites" else [root]
 
-    total = errors = failures = skipped = 0
-    failure_details = []
+    total = skipped = 0
+    # name → combined detail text (deduplicated by test name)
+    failures_by_name: dict[str, list[str]] = {}
 
     for suite in suites:
         total += int(suite.get("tests", 0))
-        errors += int(suite.get("errors", 0))
-        failures += int(suite.get("failures", 0))
         skipped += int(suite.get("skipped", 0))
         for tc in suite.findall("testcase"):
-            f = tc.find("failure")
-            if f is not None:
-                failure_details.append((tc.get("name", "?"), f.text or ""))
-            e = tc.find("error")
-            if e is not None:
-                failure_details.append((tc.get("name", "?"), e.text or ""))
+            name = tc.get("name", "?")
+            parts: list[str] = []
+            for tag in ("failure", "error"):
+                node = tc.find(tag)
+                if node is not None:
+                    parts.append(node.text or "")
+            if parts:
+                if name not in failures_by_name:
+                    failures_by_name[name] = []
+                for p in parts:
+                    if p not in failures_by_name[name]:
+                        failures_by_name[name].append(p)
 
-    passed = total - failures - errors - skipped
+    failure_details = [
+        (name, "\n".join(texts)) for name, texts in failures_by_name.items()
+    ]
+    failed = len(failure_details)
+    passed = total - failed - skipped
     return {
         "total": total,
         "passed": passed,
-        "failed": failures + errors,
+        "failed": failed,
         "skipped": skipped,
         "failures": failure_details,
     }
@@ -134,9 +143,23 @@ def build_comment(results: dict, screenshot_urls: dict[str, str]) -> str:
 
     if results["failures"]:
         lines += ["", "### Failures", ""]
+        lines.append("<details>")
+        lines.append("<summary>Show failure details</summary>")
+        lines.append("")
         for name, detail in results["failures"]:
             short = (detail or "").strip().splitlines()[-1][:200] if detail else ""
             lines.append(f"- **{name}**: `{short}`")
+            if detail and detail.strip():
+                lines.append("")
+                lines.append(f"  <details><summary>Full trace</summary>")
+                lines.append("")
+                lines.append(f"  ```")
+                lines.append(detail.strip())
+                lines.append(f"  ```")
+                lines.append("")
+                lines.append(f"  </details>")
+                lines.append("")
+        lines.append("</details>")
 
     if screenshot_urls:
         lines += ["", "### Screenshots", ""]
