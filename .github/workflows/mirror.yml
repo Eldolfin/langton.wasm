@@ -1,0 +1,23 @@
+name: Mirror to GitHub
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  mirror:
+    runs-on: codeberg-medium
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Push to GitHub mirror
+        env:
+          SSH_KEY: ${{ secrets.GH_MIRROR_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/mirror_key
+          chmod 600 ~/.ssh/mirror_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/mirror_key" git push --force git@github.com:Eldolfin/langton.wasm.git HEAD:main
