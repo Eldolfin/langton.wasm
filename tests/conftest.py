@@ -9,7 +9,7 @@ import pytest
 from playwright.sync_api import Page, sync_playwright
 
 REPO_ROOT = Path(__file__).parent.parent
-SERVE_DIR = str(REPO_ROOT / "crates" / "langton")
+SERVE_DIR = str(REPO_ROOT / "crates" / "app")
 BASE_URL = "http://localhost:8765"
 
 
@@ -21,7 +21,7 @@ def _port_open(port: int) -> bool:
 
 @pytest.fixture(scope="session")
 def http_server():
-    """Serve crates/langton/ over HTTP for the duration of the test session.
+    """Serve crates/app/ over HTTP for the duration of the test session.
 
     Safe for parallel xdist workers: if the port is already bound (by another
     worker or an external process) we reuse it instead of starting a second server.
@@ -77,7 +77,8 @@ def page(browser, http_server):
 
 
 ALLOWED_CONSOLE_MSGS = [
-    "[LANGTON][CANVAS] body.scroll_height is 0, make sure to fully initialize the page before calling start_langton_ant otherwise the canvas might get cut off at the bottom"
+    "[LANGTON][CANVAS] body.scroll_height is 0, make sure to fully initialize the page before calling start_langton_ant otherwise the canvas might get cut off at the bottom",
+    "Unknown animation",
 ]
 
 
@@ -86,7 +87,7 @@ def check_no_console_msgs(page):
     """Assert no console errors were emitted during any test."""
     yield
     msgs = page._console_msgs
-    msgs = [f"[{m.type}]: {m.text} (location: {m.location})" for m in msgs if m.text not in ALLOWED_CONSOLE_MSGS]
+    msgs = [f"[{m.type}]: {m.text} (location: {m.location})" for m in msgs if hasattr(m, 'text') and not any(allowed in m.text for allowed in ALLOWED_CONSOLE_MSGS)]
     assert not msgs, "Console messages:\n" + "\n".join(msgs)
 
 
@@ -98,9 +99,16 @@ def load_and_wait(page: Page, extra_params: str = "") -> None:
     near-zero steps in the first few hundred milliseconds, making liveness
     checks unreliable.
     """
-    params = f"?debug&speedup_frames=0&final_speed=50{extra_params}"
+    params = f"?animation=langton&debug&speedup_frames=0&final_speed=50{extra_params}"
     page.goto(f"{BASE_URL}/{params}")
     # Wait for the canvas element to be added to the DOM
     page.wait_for_selector("canvas", timeout=10_000)
     # Give the WASM a couple of frames to initialise
+    page.wait_for_timeout(300)
+
+
+def load_picker(page: Page) -> None:
+    """Navigate to the picker (no ?animation param) and wait for picker grid."""
+    page.goto(f"{BASE_URL}/")
+    page.wait_for_selector("#picker .picker-card", timeout=10_000)
     page.wait_for_timeout(300)

@@ -90,7 +90,7 @@ def test_debug_ui_visible(page: Page):
 
 def test_debug_ui_hidden_without_param(page: Page):
     """No debug panel without ?debug query param."""
-    page.goto("http://localhost:8765/")
+    page.goto("http://localhost:8765/?animation=langton")
     page.wait_for_selector("canvas", timeout=10_000)
     page.wait_for_timeout(300)
     expect(page.locator(".DebugUI-root-box")).not_to_be_visible()
@@ -100,7 +100,7 @@ def test_param_sections_present(page: Page):
     """Expected section headings are visible in the debug panel."""
     load_and_wait(page)
     for section in ("Canvas", "Animation Speed", "Ants", "Visual", "Advanced"):
-        expect(page.locator(f"text={section}").first).to_be_visible()
+        expect(page.locator(".DebugUI-section-title", has_text=section).first).to_be_visible()
 
 
 def test_live_param_change_does_not_restart(page: Page):
@@ -255,3 +255,43 @@ def test_cell_size_slider_back_and_forth(page: Page):
     assert canvas_is_animating(page), (
         "Animation loop must still be running after all cell_size changes"
     )
+
+
+# ---------------------------------------------------------------------------
+# Presets dropdown tests
+# ---------------------------------------------------------------------------
+
+
+def test_presets_dropdown_visible(page: Page):
+    """Presets select is visible in the debug panel."""
+    load_and_wait(page)
+    select = page.locator(".DebugUI-presets-select")
+    expect(select).to_be_visible()
+
+
+def test_presets_default_option(page: Page):
+    """Default option is the placeholder '— Presets —'."""
+    load_and_wait(page)
+    select = page.locator(".DebugUI-presets-select")
+    first_option = select.locator("option").first
+    expect(first_option).to_contain_text("Presets")
+
+
+def test_presets_has_expected_options(page: Page):
+    """All preset names appear as options."""
+    load_and_wait(page)
+    select = page.locator(".DebugUI-presets-select")
+    for name in ["Many small ants", "3 trailing ants", "Angry ant", "Chaos"]:
+        expect(select.locator(f"option[label='{name}'], option:text('{name}')")).to_be_attached()
+
+
+def test_preset_selection_navigates(page: Page):
+    """Selecting a preset navigates to a URL containing its params."""
+    load_and_wait(page)
+    page.locator(".DebugUI-presets-select").select_option(label="Angry ant")
+    page.wait_for_load_state("networkidle", timeout=10_000)
+    page.wait_for_selector("canvas", timeout=10_000)
+    assert "number_of_ants=1" in page.url
+    assert "alpha_retention=220" in page.url
+    assert "final_speed=200" in page.url
+    assert "animation=langton" in page.url

@@ -1,0 +1,12 @@
+[package]
+name = "engine"
+description = "Simulation engine: trait, runner, speed config"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+canvas.workspace = true
+debug_ui.workspace = true
+
+[dev-dependencies]
+rstest = "0.26.1"

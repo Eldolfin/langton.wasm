@@ -49,7 +49,7 @@ def test_screenshot(page: Page, name: str, params: str):
     """
     SCREENSHOTS_DIR.mkdir(exist_ok=True)
     page.set_viewport_size({"width": 1280, "height": 720})
-    page.goto(f"{BASE_URL}/?{params}")
+    page.goto(f"{BASE_URL}/?animation=langton&{params}")
     page.wait_for_selector("canvas", timeout=10_000)
     page.wait_for_timeout(3_000)
     page.screenshot(path=str(SCREENSHOTS_DIR / f"{name}.png"), full_page=False)

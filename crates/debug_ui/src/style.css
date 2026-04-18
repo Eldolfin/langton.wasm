@@ -113,6 +113,24 @@
     border-radius: 4px;
 }
 
+.DebugUI-presets-select {
+    display: block;
+    width: 100%;
+    padding: 6px 8px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #333;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.DebugUI-presets-select:hover {
+    border-color: #999;
+    background-color: #e8e8e8;
+}
+
 .DebugUI-step-counter {
     font-size: 14px;
     color: #555;

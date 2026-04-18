@@ -1,0 +1,10 @@
+[package]
+name = "dummy"
+description = "Blinking pixel simulation for testing the engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+canvas.workspace = true
+engine.workspace = true
+
