@@ -100,7 +100,7 @@ def test_param_sections_present(page: Page):
     """Expected section headings are visible in the debug panel."""
     load_and_wait(page)
     for section in ("Canvas", "Animation Speed", "Ants", "Visual", "Advanced"):
-        expect(page.locator(f"text={section}").first).to_be_visible()
+        expect(page.locator(".DebugUI-section-title", has_text=section).first).to_be_visible()
 
 
 def test_live_param_change_does_not_restart(page: Page):
