@@ -4,9 +4,7 @@ use std::{
     cell::RefCell, collections::HashMap, ops::RangeInclusive, rc::Rc, str::FromStr, sync::mpsc,
 };
 pub use web_sys;
-use web_sys::{
-    Document, Element, HtmlInputElement, KeyboardEvent, js_sys::Reflect, wasm_bindgen::JsCast as _,
-};
+use web_sys::{Document, Element, HtmlInputElement, KeyboardEvent, wasm_bindgen::JsCast as _};
 
 #[macro_export]
 macro_rules! log {
@@ -28,12 +26,15 @@ pub enum DebugUIState {
         next_uid: u32,
         needs_restart: bool,
     },
-    Disabled,
+    Disabled {
+        root: Element,
+        next_uid: u32,
+    },
 }
 
 pub struct DebugUI {
     state: Rc<RefCell<DebugUIState>>,
-    shortcut_listener: EventListener,
+    _shortcut_listener: EventListener,
     document: Document,
 }
 
@@ -224,47 +225,58 @@ fn remove_all_url_params_except(key: &str) {
 }
 
 impl DebugUI {
-    fn register_shortcut(
-        title: impl AsRef<str>,
-        state: Rc<RefCell<DebugUIState>>,
-    ) -> EventListener {
+    fn register_shortcut(state: Rc<RefCell<DebugUIState>>) -> EventListener {
         let doc = document();
-        let title = title.as_ref().to_owned();
         EventListener::new(&doc, "keydown", move |event| {
             let Some(key_event) = event.dyn_ref::<KeyboardEvent>() else {
                 return;
             };
             if key_event.shift_key() && key_event.key() == "I" {
-                let old_state = &*state.borrow();
-                match old_state {
-                    DebugUIState::Enabled { .. } => remove_url_param("debug"),
-                    DebugUIState::Disabled => add_debug_url_param(),
-                }
-                *state.borrow_mut() = match old_state {
-                    DebugUIState::Enabled { .. } => DebugUIState::Disabled,
-                    DebugUIState::Disabled => Self::enable(&title),
+                let (was_enabled, root, next_uid) = {
+                    let s = state.borrow();
+                    match &*s {
+                        DebugUIState::Enabled { root, next_uid, .. } => {
+                            (true, root.clone(), *next_uid)
+                        }
+                        DebugUIState::Disabled { root, next_uid } => {
+                            (false, root.clone(), *next_uid)
+                        }
+                    }
                 };
+                let new_state = if was_enabled {
+                    remove_url_param("debug");
+                    root.set_attribute("style", "display: none").unwrap();
+                    DebugUIState::Disabled { root, next_uid }
+                } else {
+                    add_debug_url_param();
+                    root.remove_attribute("style").unwrap();
+                    DebugUIState::Enabled {
+                        root,
+                        next_uid,
+                        needs_restart: false,
+                    }
+                };
+                *state.borrow_mut() = new_state;
             }
         })
     }
 
     pub fn new(title: impl AsRef<str>) -> Self {
         let document = document();
-        if !url().query_pairs().any(|param| param.0 == "debug") {
-            let state = Rc::new(RefCell::new(DebugUIState::Disabled));
-            let shortcut_listener = Self::register_shortcut(title, state.clone());
-            return Self {
-                state,
-                shortcut_listener,
-                document,
-            };
-        }
         let title = title.as_ref().to_owned();
-        let state = Rc::new(RefCell::new(Self::enable(&title)));
-        let shortcut_listener = Self::register_shortcut(title, state.clone());
+        let debug_enabled = url().query_pairs().any(|param| param.0 == "debug");
+        let initial_state = match Self::enable(&title) {
+            DebugUIState::Enabled { root, next_uid, .. } if !debug_enabled => {
+                root.set_attribute("style", "display: none").unwrap();
+                DebugUIState::Disabled { root, next_uid }
+            }
+            s => s,
+        };
+        let state = Rc::new(RefCell::new(initial_state));
+        let shortcut_listener = Self::register_shortcut(state.clone());
         Self {
             state,
-            shortcut_listener,
+            _shortcut_listener: shortcut_listener,
             document,
         }
     }
@@ -275,18 +287,14 @@ impl DebugUI {
 
     pub fn start_section<S: AsRef<str>>(&mut self, title: S) {
         let state = self.state.borrow();
-        match &*state {
-            DebugUIState::Enabled { root, .. } => {
-                let document = document();
-                let el = document.create_element("h3").unwrap();
-
-                el.set_text_content(Some(title.as_ref()));
-                el.set_class_name("DebugUI-section-title");
-
-                root.append_child(&el).unwrap();
-            }
-            _ => {}
-        }
+        let root = match &*state {
+            DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => root,
+        };
+        let document = document();
+        let el = document.create_element("h3").unwrap();
+        el.set_text_content(Some(title.as_ref()));
+        el.set_class_name("DebugUI-section-title");
+        root.append_child(&el).unwrap();
     }
 
     pub fn param<
@@ -308,12 +316,11 @@ impl DebugUI {
 
         let (send, param_value) = Param::new(default_value);
         let doc = self.document.clone();
-        match &*self.state.borrow() {
-            DebugUIState::Enabled {
-                root,
-                next_uid,
-                needs_restart,
-            } => {
+        let state = self.state.clone();
+        let mut state_match = state.borrow_mut();
+        match &mut *state_match {
+            DebugUIState::Enabled { root, next_uid, .. }
+            | DebugUIState::Disabled { root, next_uid } => {
                 let container = doc.create_element("div").unwrap();
                 let label = doc.create_element("label").unwrap();
                 let slider = doc
@@ -378,7 +385,7 @@ impl DebugUI {
                     let send = send.clone();
                     let p = p.clone();
                     let key = key.clone();
-                    let needs_restart = needs_restart.clone();
+                    let state = state.clone();
                     EventListener::new(&slider, "input", move |_event| {
                         let value = document
                             .get_element_by_id(&slider_id)
@@ -402,7 +409,7 @@ impl DebugUI {
 
                         send.send(value).unwrap();
                         if p.needs_restart {
-                            self.set_needs_restart();
+                            Self::set_needs_restart(&state);
                         }
                     })
                     .forget();
@@ -415,7 +422,7 @@ impl DebugUI {
                     let send = send.clone();
                     let p = p.clone();
                     let key = key.clone();
-                    let needs_restart = needs_restart.clone();
+                    let state = state.clone();
                     EventListener::new(&value_input, "change", move |_event| {
                         let value = doc
                             .get_element_by_id(&value_id)
@@ -441,49 +448,49 @@ impl DebugUI {
 
                         send.send(value).unwrap();
                         if p.needs_restart {
-                            self.set_needs_restart();
+                            Self::set_needs_restart(&state);
                         }
                     })
                     .forget();
                 }
             }
-            DebugUIState::Disabled => (),
         }
         param_value
     }
 
-    fn set_needs_restart(&mut self) {
-        match &mut *self.state.borrow_mut() {
-            DebugUIState::Enabled { needs_restart, .. } => {
-                *needs_restart = true;
-            }
-            _ => {}
+    fn set_needs_restart(state: &Rc<RefCell<DebugUIState>>) {
+        if let DebugUIState::Enabled { needs_restart, .. } = &mut *state.borrow_mut() {
+            *needs_restart = true;
         }
     }
 
     pub fn link(&mut self, text: &str, href: &str) {
-        match &*self.state.borrow() {
-            DebugUIState::Enabled { root, document, .. } => {
-                let a = document.create_element("a").unwrap();
-                a.set_text_content(Some(text));
-                a.set_attribute("href", href).unwrap();
-                a.set_attribute("target", "_blank").unwrap();
-                a.set_class_name("DebugUI-link");
-                root.append_child(&a).unwrap();
-            }
-            DebugUIState::Disabled => (),
-        }
+        let state = self.state.borrow();
+        let root = match &*state {
+            DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => root,
+        };
+        let a = self.document.create_element("a").unwrap();
+        a.set_text_content(Some(text));
+        a.set_attribute("href", href).unwrap();
+        a.set_attribute("target", "_blank").unwrap();
+        a.set_class_name("DebugUI-link");
+        root.append_child(&a).unwrap();
     }
-    pub fn should_restart(&self) -> bool {
-        match &*self.state.borrow() {
-            DebugUIState::Enabled { needs_restart, .. } => *needs_restart.borrow(),
-            DebugUIState::Disabled => false,
+    pub fn should_restart(&mut self) -> bool {
+        let mut state = self.state.borrow_mut();
+        match &mut *state {
+            DebugUIState::Enabled { needs_restart, .. } => {
+                let result = *needs_restart;
+                *needs_restart = false;
+                result
+            }
+            DebugUIState::Disabled { .. } => false,
         }
     }
 
     pub fn step_counter(&mut self) -> StepCounter {
-        match self {
-            DebugUI::Enabled { root, .. } => {
+        match &*self.state.borrow() {
+            DebugUIState::Enabled { root, .. } => {
                 let doc = document();
                 let el = doc.create_element("div").unwrap();
                 el.set_class_name("DebugUI-step-counter");
@@ -494,7 +501,7 @@ impl DebugUI {
                     count: 0,
                 }
             }
-            DebugUI::Disabled { .. } => StepCounter {
+            DebugUIState::Disabled { .. } => StepCounter {
                 element: None,
                 count: 0,
             },
@@ -547,7 +554,6 @@ impl DebugUI {
 
         DebugUIState::Enabled {
             root,
-            document,
             next_uid: 0,
             needs_restart: false,
         }
@@ -556,9 +562,12 @@ impl DebugUI {
 
 impl Drop for DebugUI {
     fn drop(&mut self) {
-        if let DebugUIState::Enabled { root, .. } = &*self.state.borrow() {
-            root.remove();
-        }
+        let root = match &*self.state.borrow() {
+            DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => {
+                root.clone()
+            }
+        };
+        root.remove();
     }
 }
 

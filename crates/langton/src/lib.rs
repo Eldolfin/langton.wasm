@@ -7,144 +7,139 @@ use wasm_bindgen::prelude::wasm_bindgen;
 #[wasm_bindgen]
 pub async fn start_langton_ant() {
     console_error_panic_hook::set_once();
+    let mut debug_ui = DebugUI::new("Langton's ant parameters");
+    debug_ui.start_section("Canvas");
+    let start_x_rel = debug_ui.param(ParamParam {
+        name: "start x",
+        default_value: 0.80,
+        step_size: 0.01,
+        needs_restart: true,
+        ..Default::default()
+    });
+    let start_y_rel = debug_ui.param(ParamParam {
+        name: "start y",
+        default_value: 0.75,
+        step_size: 0.01,
+        needs_restart: true,
+        ..Default::default()
+    });
+    let alpha_retention_factor = debug_ui.param(ParamParam {
+        name: "alpha retention",
+        default_value: 251,
+        range: 0..=255,
+        ..Default::default()
+    });
+
+    debug_ui.start_section("Animation Speed");
+    let final_steps_per_frame = debug_ui.param(ParamParam {
+        name: "final speed",
+        default_value: 0.2,
+        range: 0.0..=1000.0,
+        scale: debug_ui::Scale::Logarithmic,
+        ..Default::default()
+    });
+    let speedup_frames = debug_ui.param(ParamParam {
+        name: "speedup frames",
+        default_value: 1300,
+        range: 0..=1500,
+        ..Default::default()
+    });
+
+    debug_ui.start_section("Ants");
+    let num_ants = debug_ui.param(ParamParam {
+        name: "number of ants",
+        default_value: 2,
+        range: 1..=1000,
+        scale: debug_ui::Scale::Logarithmic,
+        ..Default::default()
+    });
+    let ant_color_saturation = debug_ui.param(ParamParam {
+        name: "ant color saturation",
+        default_value: 0.3,
+        range: 0.0..=1.0,
+        step_size: 0.01,
+        ..Default::default()
+    });
+    let ant_color_brightness = debug_ui.param(ParamParam {
+        name: "ant color brightness",
+        default_value: 0.7,
+        range: 0.0..=1.0,
+        step_size: 0.01,
+        ..Default::default()
+    });
+
+    debug_ui.start_section("Visual");
+    let cell_size = debug_ui.param(ParamParam {
+        name: "cell size",
+        default_value: 20,
+        range: 1..=50,
+        ..Default::default()
+    });
+    let cell_border_size = debug_ui.param(ParamParam {
+        name: "cell border size",
+        default_value: 1,
+        range: 0..=5,
+        ..Default::default()
+    });
+    let white_color_r = debug_ui.param(ParamParam {
+        name: "white color red",
+        default_value: 30,
+        range: 0..=255,
+        ..Default::default()
+    });
+    let white_color_g = debug_ui.param(ParamParam {
+        name: "white color green",
+        default_value: 30,
+        range: 0..=255,
+        ..Default::default()
+    });
+    let white_color_b = debug_ui.param(ParamParam {
+        name: "white color blue",
+        default_value: 30,
+        range: 0..=255,
+        ..Default::default()
+    });
+
+    debug_ui.start_section("Advanced");
+    let speed_ease_in_power = debug_ui.param(ParamParam {
+        name: "speed ease-in power",
+        default_value: 2.5,
+        range: 1.0..=10.0,
+        step_size: 0.1,
+        ..Default::default()
+    });
+
+    debug_ui.link(
+        "About this animation",
+        "https://codeberg.org/eldolfin/langton.wasm",
+    );
+    let game_config = GameConfig {
+        num_ants,
+        final_steps_per_frame,
+        speedup_frames,
+        start_x_rel,
+        start_y_rel,
+        alpha_retention_factor,
+        ant_color_saturation,
+        ant_color_brightness,
+        white_color_r,
+        white_color_g,
+        white_color_b,
+        speed_ease_in_power,
+    };
+    let cell_border_size = Rc::new(RefCell::new(cell_border_size));
+    let cell_size = Rc::new(RefCell::new(cell_size));
+    let config = Rc::new(RefCell::new(game_config));
+    let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
+    let debug_ui = Rc::new(RefCell::new(debug_ui));
     loop {
-        let mut debug_ui = DebugUI::new("Langton's ant parameters");
-        debug_ui.start_section("Canvas");
-        let start_x_rel = debug_ui.param(ParamParam {
-            name: "start x",
-            default_value: 0.80,
-            step_size: 0.01,
-            needs_restart: true,
-            ..Default::default()
-        });
-        let start_y_rel = debug_ui.param(ParamParam {
-            name: "start y",
-            default_value: 0.75,
-            step_size: 0.01,
-            needs_restart: true,
-            ..Default::default()
-        });
-        let alpha_retention_factor = debug_ui.param(ParamParam {
-            name: "alpha retention",
-            default_value: 251,
-            range: 0..=255,
-            ..Default::default()
-        });
-
-        debug_ui.start_section("Animation Speed");
-        let final_steps_per_frame = debug_ui.param(ParamParam {
-            name: "final speed",
-            default_value: 0.2,
-            range: 0.0..=1000.0,
-            scale: debug_ui::Scale::Logarithmic,
-            ..Default::default()
-        });
-        let speedup_frames = debug_ui.param(ParamParam {
-            name: "speedup frames",
-            default_value: 1300,
-            range: 0..=1500,
-            ..Default::default()
-        });
-
-        debug_ui.start_section("Ants");
-        let num_ants = debug_ui.param(ParamParam {
-            name: "number of ants",
-            default_value: 2,
-            range: 1..=1000,
-            scale: debug_ui::Scale::Logarithmic,
-            ..Default::default()
-        });
-        let ant_color_saturation = debug_ui.param(ParamParam {
-            name: "ant color saturation",
-            default_value: 0.3,
-            range: 0.0..=1.0,
-            step_size: 0.01,
-            ..Default::default()
-        });
-        let ant_color_brightness = debug_ui.param(ParamParam {
-            name: "ant color brightness",
-            default_value: 0.7,
-            range: 0.0..=1.0,
-            step_size: 0.01,
-            ..Default::default()
-        });
-
-        debug_ui.start_section("Visual");
-        let cell_size = debug_ui.param(ParamParam {
-            name: "cell size",
-            default_value: 20,
-            range: 1..=50,
-            ..Default::default()
-        });
-        let cell_border_size = debug_ui.param(ParamParam {
-            name: "cell border size",
-            default_value: 1,
-            range: 0..=5,
-            ..Default::default()
-        });
-        let white_color_r = debug_ui.param(ParamParam {
-            name: "white color red",
-            default_value: 30,
-            range: 0..=255,
-            ..Default::default()
-        });
-        let white_color_g = debug_ui.param(ParamParam {
-            name: "white color green",
-            default_value: 30,
-            range: 0..=255,
-            ..Default::default()
-        });
-        let white_color_b = debug_ui.param(ParamParam {
-            name: "white color blue",
-            default_value: 30,
-            range: 0..=255,
-            ..Default::default()
-        });
-
-        debug_ui.start_section("Advanced");
-        let speed_ease_in_power = debug_ui.param(ParamParam {
-            name: "speed ease-in power",
-            default_value: 2.5,
-            range: 1.0..=10.0,
-            step_size: 0.1,
-            ..Default::default()
-        });
-
-        debug_ui.link(
-            "About this animation",
-            "https://codeberg.org/eldolfin/langton.wasm",
-        );
-
-        let game_config = GameConfig {
-            num_ants,
-            final_steps_per_frame,
-            speedup_frames,
-            start_x_rel,
-            start_y_rel,
-            alpha_retention_factor,
-            ant_color_saturation,
-            ant_color_brightness,
-            white_color_r,
-            white_color_g,
-            white_color_b,
-            speed_ease_in_power,
-        };
-        let cell_border_size = Rc::new(RefCell::new(cell_border_size));
-        let cell_size = Rc::new(RefCell::new(cell_size));
-        let config = Rc::new(RefCell::new(game_config));
-        let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
-        let needs_restart = match &debug_ui {
-            DebugUI::Enabled { needs_restart, .. } | DebugUI::Disabled { needs_restart, .. } => {
-                needs_restart.clone()
-            }
-        };
-
         step_counter.borrow_mut().reset();
-        let canvas = Canvas::new(cell_border_size, cell_size);
-        Game::new(config)
-            .run(canvas, needs_restart.clone(), step_counter)
+        let canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+        let debug_ui_ref = debug_ui.clone();
+        let should_restart = Box::new(move || debug_ui_ref.borrow_mut().should_restart());
+        Game::new(config.clone())
+            .run(canvas, should_restart, step_counter.clone())
             .await;
-        *needs_restart.borrow_mut() = false;
     }
 }
 
@@ -202,7 +197,7 @@ impl Game {
     async fn run(
         mut self,
         canvas: Canvas,
-        should_stop: Rc<RefCell<bool>>,
+        should_stop: Box<dyn Fn() -> bool>,
         step_counter: Rc<RefCell<StepCounter>>,
     ) {
         let mut prev_canvas_size = (canvas.height(), canvas.width());
@@ -263,7 +258,7 @@ impl Game {
 
             canvas.fill_canvas(config.alpha_retention_factor.get());
 
-            *should_stop.borrow()
+            should_stop()
         };
         let canvas = Rc::new(RefCell::new(canvas));
         Canvas::play_animation(canvas, animation).await;
