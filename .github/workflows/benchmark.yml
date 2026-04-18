@@ -2,6 +2,13 @@ name: Performance Benchmark
 
 on:
   pull_request:
+    paths:
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "justfile"
+      - "tests/benchmark_scenarios.py"
+      - ".github/workflows/benchmark.yml"
 
 concurrency:
   group: "benchmark-${{ github.event.pull_request.number }}"
@@ -27,8 +34,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-cargo-benchmark-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Sync e2e dependencies
         run: uv sync --project tests/
