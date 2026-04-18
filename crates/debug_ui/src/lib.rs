@@ -312,6 +312,22 @@ impl DebugUI {
         }
     }
 
+    /// Headless instance: no DOM elements created. For use in previews and tests.
+    pub fn headless() -> Self {
+        let document = document();
+        let state = Rc::new(RefCell::new(DebugUIState::Disabled {
+            root: document.create_element("div").unwrap(),
+            next_uid: 0,
+        }));
+        let shortcut_listener = Self::register_shortcut(state.clone());
+        Self {
+            state,
+            _shortcut_listener: shortcut_listener,
+            document,
+            needs_clear_shared: Rc::new(RefCell::new(false)),
+        }
+    }
+
     pub fn is_enabled(&self) -> bool {
         matches!(*self.state.borrow(), DebugUIState::Enabled { .. })
     }

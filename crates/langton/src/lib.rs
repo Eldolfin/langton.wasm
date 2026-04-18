@@ -65,6 +65,16 @@ pub struct GameConfig {
     pub seed: Param<u32>,
 }
 
+pub const LANGTON_PRESETS: &[(&str, &str)] = &[
+    ("Many small ants", "alpha_retention=235&cell_size=5&final_speed=0.5&number_of_ants=400&speedup_frames=0&start_x=0.5&start_y=0.5"),
+    ("3 trailing ants", "alpha_retention=255&final_speed=30&number_of_ants=3&speedup_frames=300&start_x=0.5&start_y=0.5&cell_size=4"),
+    ("Angry ant", "alpha_retention=220&final_speed=200&number_of_ants=1&speedup_frames=0"),
+    ("Flies", "alpha_retention=0&ant_color_brightness=0.3&ant_color_saturation=0&cell_border_size=0&cell_size=6&final_speed=1&number_of_ants=500&speedup_frames=120&start_x=0.5&start_y=0.5&white_color_blue=0&white_color_green=0&white_color_red=0"),
+    ("Chaos", "alpha_retention=255&final_speed=40&number_of_ants=300&speedup_frames=600&start_x=0.5&start_y=0.5"),
+    ("Small grid", "alpha_retention=254&ant_color_brightness=0.65&ant_color_saturation=1&cell_border_size=0&cell_size=5&final_speed=25&number_of_ants=4&speedup_frames=1200&start_x=0.5&start_y=0.5&white_color_blue=227&white_color_green=227&white_color_red=227"),
+    ("1px grid", "alpha_retention=255&ant_color_brightness=0&ant_color_saturation=0.5&cell_border_size=0&cell_size=1&final_speed=5000&number_of_ants=1&speedup_frames=0&white_color_blue=255&white_color_green=255&white_color_red=255"),
+];
+
 pub struct Game {
     ants: Vec<Ant>,
     board: Vec<Option<usize>>,
@@ -102,7 +112,7 @@ impl Game {
     }
 
     pub fn new_preview(width: usize, height: usize) -> Self {
-        let mut debug_ui = DebugUI::new("preview");
+        let mut debug_ui = DebugUI::headless();
         let config = GameConfig::new(&mut debug_ui);
         Self {
             ants: vec![],
