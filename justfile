@@ -29,21 +29,31 @@ publish-pkg: build-pkg
 benchmark main_ref="main" duration="5" iterations="2":
     #!/usr/bin/env bash
     set -euo pipefail
-    # Build current branch
+    rm -rf /tmp/pr-build /tmp/main-build
+    # Build current branch (PR)
     just build-web
-    cp -r crates/coolbg/pkg /tmp/pr-pkg
-    # Build main
+    mkdir -p /tmp/pr-build
+    cp crates/coolbg/index.html /tmp/pr-build/index.html
+    cp -r crates/coolbg/pkg /tmp/pr-build/pkg
+    # Build main (handles both old crates/langton and new crates/coolbg layouts)
     current=$(git rev-parse HEAD)
     git stash --include-untracked -q || true
     git checkout "origin/{{ main_ref }}" -q
     just build-web
-    cp -r crates/coolbg/pkg /tmp/main-pkg
+    mkdir -p /tmp/main-build
+    for crate_dir in crates/coolbg crates/langton; do
+        if [ -d "$crate_dir/pkg" ]; then
+            cp "$crate_dir/index.html" /tmp/main-build/index.html
+            cp -r "$crate_dir/pkg" /tmp/main-build/pkg
+            break
+        fi
+    done
     git checkout "$current" -q
     git stash pop -q 2>/dev/null || true
     # Run interleaved benchmark
     uv run --project tests/ python tests/benchmark_interleaved.py \
-        --main-pkg /tmp/main-pkg \
-        --pr-pkg /tmp/pr-pkg \
+        --main-build /tmp/main-build \
+        --pr-build /tmp/pr-build \
         --duration "{{ duration }}" \
         --iterations "{{ iterations }}" \
         --main-output main-results.json \
