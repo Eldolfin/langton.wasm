@@ -114,11 +114,24 @@ def test_live_param_change_does_not_restart(page: Page):
     )
 
 
-def test_close_button_removes_panel(page: Page):
-    """Clicking the × button hides the debug UI."""
+def test_close_button_hides_panel(page: Page):
+    """Clicking the × button hides the debug UI panel."""
     load_and_wait(page)
+    panel = page.locator(".DebugUI-root-box")
     page.locator(".DebugUI-close-btn").click()
-    expect(page.locator(".DebugUI-root-box")).to_have_count(0)
+    expect(panel).to_have_css("display", "none")
+
+
+def test_shift_i_toggles_panel_after_close(page: Page):
+    """After closing with button, shift+I can show the panel again."""
+    load_and_wait(page)
+    panel = page.locator(".DebugUI-root-box")
+    # Close with button
+    page.locator(".DebugUI-close-btn").click()
+    expect(panel).to_have_css("display", "none")
+    # Show with shift+I
+    page.keyboard.press("Shift+I")
+    expect(panel).not_to_have_css("display", "none")
 
 
 def test_url_updated_on_param_change(page: Page):
