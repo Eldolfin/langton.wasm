@@ -213,12 +213,11 @@ async fn run_preview<S: Simulation>(
     cell_size: usize,
     final_steps_per_frame: f64,
     alpha_retention: u8,
-    bg_color: canvas::Color,
 ) {
     let cell_size = Rc::new(RefCell::new(Param::fixed(cell_size)));
     let cell_border_size = Rc::new(RefCell::new(Param::fixed(0usize)));
     let mut canvas = Canvas::new_with_element(canvas_element, cell_border_size, cell_size);
-    canvas.clear(bg_color);
+    canvas.clear(sim.bg_color());
 
     let needs_clear = Rc::new(RefCell::new(false));
     let step_counter = Rc::new(RefCell::new(debug_ui::StepCounter::disabled()));
@@ -235,25 +234,13 @@ async fn run_preview<S: Simulation>(
 }
 
 async fn run_preview_langton(canvas_element: web_sys::HtmlCanvasElement) {
-    let bg = canvas::Color::Rgb {
-        r: 30,
-        g: 30,
-        b: 30,
-    };
     let w = canvas_element.width() as usize;
     let h = canvas_element.height() as usize;
-    let sim = langton::Game::preview(w, h);
-    run_preview(canvas_element, sim, 1, 50.0, 251, bg).await;
+    run_preview(canvas_element, langton::Game::preview(w, h), 1, 50.0, 251).await;
 }
 
 async fn run_preview_blinker(canvas_element: web_sys::HtmlCanvasElement) {
-    let bg = canvas::Color::Rgb {
-        r: 30,
-        g: 30,
-        b: 30,
-    };
     let w = canvas_element.width() as usize;
     let h = canvas_element.height() as usize;
-    let sim = dummy::BlinkingSim::preview(w, h);
-    run_preview(canvas_element, sim, 10, 1.0, 255, bg).await;
+    run_preview(canvas_element, dummy::BlinkingSim::new(w, h), 10, 1.0, 255).await;
 }

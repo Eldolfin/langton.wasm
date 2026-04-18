@@ -12,7 +12,6 @@ canvas.workspace = true
 debug_ui.workspace = true
 engine.workspace = true
 engine_macros.workspace = true
-utils.workspace = true
 
 [dev-dependencies]
 rstest = "0.26.1"

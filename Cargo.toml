@@ -7,7 +7,6 @@ canvas = { version = "0.1.0", path = "./crates/canvas" }
 debug_ui = { version = "0.1.0", path = "./crates/debug_ui" }
 engine = { version = "0.1.0", path = "./crates/engine" }
 engine_macros = { version = "0.1.0", path = "./crates/engine_macros" }
-utils = { path = "./crates/utils" }
 langton = { version = "0.1.4", path = "./crates/langton" }
 dummy = { version = "0.1.0", path = "./crates/dummy" }
 console_error_panic_hook = "0.1.7"

@@ -4,8 +4,6 @@ use canvas::{Canvas, Color};
 use debug_ui::{DebugUI, Param};
 use engine::Simulation;
 use engine_macros::SimulationConfig;
-use utils::Direction;
-
 #[derive(SimulationConfig)]
 pub struct GameConfig {
     #[param(
@@ -102,6 +100,35 @@ pub const LANGTON_PRESETS: &[(&str, &str)] = &[
         "alpha_retention=255&ant_color_brightness=0&ant_color_saturation=0.5&cell_border_size=0&cell_size=1&final_speed=5000&number_of_ants=1&speedup_frames=0&white_color_blue=255&white_color_green=255&white_color_red=255",
     ),
 ];
+
+#[derive(Debug, Clone, Copy, Default)]
+enum Direction {
+    #[default]
+    North,
+    Est,
+    South,
+    West,
+}
+
+impl Direction {
+    fn left(self) -> Self {
+        match self {
+            Direction::North => Direction::West,
+            Direction::Est => Self::North,
+            Direction::South => Self::Est,
+            Direction::West => Self::South,
+        }
+    }
+
+    fn right(self) -> Self {
+        match self {
+            Direction::North => Direction::Est,
+            Direction::Est => Direction::South,
+            Direction::South => Direction::West,
+            Direction::West => Direction::North,
+        }
+    }
+}
 
 pub struct Game {
     ants: Vec<Ant>,

@@ -16,9 +16,6 @@ impl BlinkingSim {
         }
     }
 
-    pub fn preview(width: usize, height: usize) -> Self {
-        Self::new(width, height)
-    }
 }
 
 impl Simulation for BlinkingSim {
@@ -75,8 +72,8 @@ mod tests {
     }
 
     #[test]
-    fn test_preview_dimensions() {
-        let sim = BlinkingSim::preview(40, 60);
+    fn test_initial_dimensions() {
+        let sim = BlinkingSim::new(40, 60);
         assert_eq!(sim.x, 20);
         assert_eq!(sim.y, 30);
     }

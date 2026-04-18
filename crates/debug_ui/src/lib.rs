@@ -181,67 +181,46 @@ fn push_or_replace_url(new_url: &str) {
     });
 }
 
+fn modify_url_params(f: impl FnOnce(&mut HashMap<String, String>)) {
+    let mut new_url = url();
+    let mut params: HashMap<String, String> = new_url
+        .query_pairs()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    f(&mut params);
+    new_url.query_pairs_mut().clear();
+    let mut params: Vec<_> = params.into_iter().collect();
+    params.sort();
+    new_url.query_pairs_mut().extend_pairs(params);
+    push_or_replace_url(new_url.as_str());
+}
+
 fn add_url_param<T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 'static>(
     key: &str,
     value: T,
 ) {
-    let mut new_url = url();
-    let mut params: HashMap<String, String> = new_url
-        .query_pairs()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-    // remove old parameter
-    params.retain(|k, _| k != key);
-    params.insert(key.into(), value.to_string());
-    new_url.query_pairs_mut().clear();
-    let mut params: Vec<_> = params.into_iter().collect();
-    params.sort();
-    new_url.query_pairs_mut().extend_pairs(params);
-    push_or_replace_url(new_url.as_str());
+    modify_url_params(|params| {
+        params.retain(|k, _| k != key);
+        params.insert(key.into(), value.to_string());
+    });
 }
 
 fn add_debug_url_param() {
-    let mut new_url = url();
-    let mut params: HashMap<String, String> = new_url
-        .query_pairs()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-    params.insert("debug".into(), String::new());
-    new_url.query_pairs_mut().clear();
-    let mut params: Vec<_> = params.into_iter().collect();
-    params.sort();
-    new_url.query_pairs_mut().extend_pairs(params);
-    push_or_replace_url(new_url.as_str());
+    modify_url_params(|params| {
+        params.insert("debug".into(), String::new());
+    });
 }
 
 fn remove_url_param(key: &str) {
-    let mut new_url = url();
-    let mut params: HashMap<String, String> = new_url
-        .query_pairs()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-    // remove old parameter
-    params.retain(|k, _| k != key);
-    new_url.query_pairs_mut().clear();
-    let mut params: Vec<_> = params.into_iter().collect();
-    params.sort();
-    new_url.query_pairs_mut().extend_pairs(params);
-    push_or_replace_url(new_url.as_str());
+    modify_url_params(|params| {
+        params.retain(|k, _| k != key);
+    });
 }
 
 fn remove_all_url_params_except(keys: &[&str]) {
-    let mut new_url = url();
-    let mut params: HashMap<String, String> = new_url
-        .query_pairs()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-    // remove old parameters
-    params.retain(|k, _| keys.contains(&k.as_str()));
-    new_url.query_pairs_mut().clear();
-    let mut params: Vec<_> = params.into_iter().collect();
-    params.sort();
-    new_url.query_pairs_mut().extend_pairs(params);
-    push_or_replace_url(new_url.as_str());
+    modify_url_params(|params| {
+        params.retain(|k, _| keys.contains(&k.as_str()));
+    });
 }
 
 impl DebugUI {
@@ -615,7 +594,7 @@ impl DebugUI {
                 root.append_child(&el).unwrap();
                 StepCounter {
                     element: Some(el),
-                    count: 1,
+                    count: 0,
                 }
             }
             DebugUIState::Disabled { .. } => StepCounter {
