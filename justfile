@@ -39,6 +39,8 @@ benchmark main_ref="main" duration="5" iterations="2":
     current=$(git rev-parse HEAD)
     git stash --include-untracked -q || true
     git checkout "origin/{{ main_ref }}" -q
+    # Remove untracked crate dirs left from PR build (workspace glob would choke on them)
+    git clean -fdx crates/ -e 'crates/*/pkg'
     just build-web
     mkdir -p /tmp/main-build
     for crate_dir in crates/coolbg crates/langton; do
