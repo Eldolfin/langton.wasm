@@ -38,4 +38,11 @@ SCENARIOS: dict[str, dict] = {
         "alpha_retention": 255,
         "final_speed": 100000,
     },
+    "no_border": {
+        "label": "No border (50 ants, border=0)",
+        "number_of_ants": 50,
+        "cell_size": 10,
+        "cell_border_size": 0,
+        "final_speed": 10000,
+    },
 }
