@@ -9,7 +9,7 @@ import pytest
 from playwright.sync_api import Page, sync_playwright
 
 REPO_ROOT = Path(__file__).parent.parent
-SERVE_DIR = str(REPO_ROOT / "crates" / "coolbg")
+SERVE_DIR = str(REPO_ROOT / "crates" / "app")
 BASE_URL = "http://localhost:8765"
 
 
@@ -21,7 +21,7 @@ def _port_open(port: int) -> bool:
 
 @pytest.fixture(scope="session")
 def http_server():
-    """Serve crates/coolbg/ over HTTP for the duration of the test session.
+    """Serve crates/app/ over HTTP for the duration of the test session.
 
     Safe for parallel xdist workers: if the port is already bound (by another
     worker or an external process) we reuse it instead of starting a second server.

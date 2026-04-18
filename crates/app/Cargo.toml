@@ -1,5 +1,5 @@
 [package]
-name = "coolbg"
+name = "app"
 description = "WASM entry point: animation registry and picker integration"
 version = "0.1.0"
 edition = "2024"
