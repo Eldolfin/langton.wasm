@@ -1,6 +1,6 @@
 set dotenv-load := true
 
-DEV_PARAMS := "?animation=langton&debug&alpha_retention=255&final_speed=5&number_of_ants=1&speedup_frames=0&start_x=0.5&start_y=0.5"
+DEV_PARAMS := "?debug&alpha_retention=255&final_speed=5&number_of_ants=1&speedup_frames=0&start_x=0.5&start_y=0.5"
 DEPLOY_DIR := "deploy"
 
 # Shows this help
