@@ -277,7 +277,7 @@ impl Canvas {
                 );
                 self.last_frame[*x][*y] = Some(*color);
             }
-}
+        }
     }
 
     fn create_canvas() -> Option<web_sys::HtmlCanvasElement> {
