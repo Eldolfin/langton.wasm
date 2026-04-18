@@ -1,5 +1,5 @@
 use debug_ui::Param;
-use std::{cell::RefCell, collections::HashMap, f64, rc::Rc};
+use std::{cell::RefCell, f64, rc::Rc};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{console::warn_1, wasm_bindgen::prelude::*, window};
 
@@ -8,8 +8,10 @@ pub struct Canvas {
     context: web_sys::CanvasRenderingContext2d,
     /// render calls queue
     queue: Vec<DrawCall>,
-    /// persistent dedup map reused each frame to avoid per-frame allocation
-    dedup_map: HashMap<(usize, usize), Color>,
+    /// flat 1D dedup buffer indexed by `x * height + y`, reused each frame
+    dedup_vec: Vec<Option<Color>>,
+    /// indices into dedup_vec written this frame; cleared after each optimise_queue
+    dedup_dirty: Vec<usize>,
     last_frame: Vec<Vec<Option<Color>>>,
     /// in pixels
     cell_size: Rc<RefCell<debug_ui::Param<usize>>>,
@@ -109,7 +111,8 @@ impl Canvas {
             canvas_height: canvas.height() as usize,
             base_screen_height,
             queue: vec![],
-            dedup_map: HashMap::new(),
+            dedup_vec: vec![],
+            dedup_dirty: vec![],
             last_frame: vec![],
             cell_border_size,
             width: 0,
@@ -142,6 +145,7 @@ impl Canvas {
         self.height = (self.canvas_height as f64 / cell_size as f64).ceil() as usize;
         self.screen_height = (self.base_screen_height as f64 / cell_size as f64).ceil() as usize;
         self.last_frame = vec![vec![None; self.height]; self.width];
+        self.dedup_vec = vec![None; self.width * self.height];
         // Discard any queued draw calls that used the old cell dimensions.
         // Keeping stale coordinates could cause out-of-bounds access in flush().
         self.queue.clear();
@@ -229,18 +233,26 @@ impl Canvas {
 
     fn optimise_queue(&mut self) {
         // 1. remove dupplicate draw calls to the same cell on the same frame
-        self.dedup_map.clear();
         for draw in &self.queue {
-            self.dedup_map.insert((draw.x, draw.y), draw.color);
+            if draw.x >= self.width || draw.y >= self.height {
+                continue;
+            }
+            let idx = draw.x * self.height + draw.y;
+            if self.dedup_vec[idx].is_none() {
+                self.dedup_dirty.push(idx);
+            }
+            self.dedup_vec[idx] = Some(draw.color);
         }
         self.queue.clear();
-        for ((x, y), color) in &self.dedup_map {
+        for &idx in &self.dedup_dirty {
+            let color = self.dedup_vec[idx].take().unwrap();
             self.queue.push(DrawCall {
-                x: *x,
-                y: *y,
-                color: *color,
+                x: idx / self.height,
+                y: idx % self.height,
+                color,
             });
         }
+        self.dedup_dirty.clear();
 
         // 2. remove calls for unchanged cells since last frame, and drop any
         // out-of-bounds calls that may arise when cell_size changes mid-frame.
