@@ -105,7 +105,7 @@ impl StepCounter {
     }
 
     pub fn reset(&mut self) {
-        self.count = 0;
+        self.count = 1;
         if let Some(el) = &self.element {
             el.set_text_content(Some("Steps: 0"));
         }
@@ -484,7 +484,7 @@ impl DebugUI {
                 root.append_child(&el).unwrap();
                 StepCounter {
                     element: Some(el),
-                    count: 0,
+                    count: 1,
                 }
             }
             DebugUI::Disabled => StepCounter {
@@ -559,7 +559,7 @@ mod tests {
             count: 42,
         };
         counter.reset();
-        assert_eq!(counter.get_count(), 0);
+        assert_eq!(counter.get_count(), 1);
     }
 
     #[test]

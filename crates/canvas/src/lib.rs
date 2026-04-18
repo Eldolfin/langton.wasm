@@ -1,7 +1,30 @@
 use debug_ui::Param;
-use std::{cell::RefCell, collections::HashMap, f64, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{console::warn_1, wasm_bindgen::prelude::*, window};
+
+#[wasm_bindgen(inline_js = "
+export function batch_fill_rects(ctx, data) {
+    const len = data.length;
+    let i = 0;
+    while (i < len) {
+        const x = data[i];
+        const y = data[i + 1];
+        const w = data[i + 2];
+        const h = data[i + 3];
+        const r = data[i + 4];
+        const g = data[i + 5];
+        const b = data[i + 6];
+        const a = data[i + 7];
+        ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + (a / 255) + ')';
+        ctx.fillRect(x, y, w, h);
+        i += 8;
+    }
+}
+")]
+extern "C" {
+    fn batch_fill_rects(ctx: &web_sys::CanvasRenderingContext2d, data: &js_sys::Uint16Array);
+}
 
 pub struct Canvas {
     element: web_sys::HtmlCanvasElement,
@@ -28,6 +51,8 @@ pub struct Canvas {
     /// in pixels
     canvas_height: usize,
     last_cell_size: usize,
+    /// Persistent buffer for flush, reused across frames to avoid per-frame allocation
+    flush_buf: Vec<u16>,
 }
 
 impl Drop for Canvas {
@@ -77,6 +102,15 @@ impl Color {
     }
 }
 
+fn color_components(color: Color) -> (u8, u8, u8, u8) {
+    match color {
+        Color::Rgb { r, g, b } => (r, g, b, 255),
+        Color::Rgba { r, g, b, a } => (r, g, b, a),
+        Color::Named(NamedColor::White) => (255, 255, 255, 255),
+        Color::Named(NamedColor::Black) => (0, 0, 0, 255),
+    }
+}
+
 /// queued rectangle draw call
 #[derive(Clone)]
 struct DrawCall {
@@ -116,6 +150,7 @@ impl Canvas {
             height: 0,
             screen_height: 0,
             last_cell_size: 0,
+            flush_buf: vec![],
         }
     }
 
@@ -255,6 +290,10 @@ impl Canvas {
 
     pub fn flush(&mut self) {
         self.optimise_queue();
+        if self.queue.is_empty() {
+            return;
+        }
+
         let cell_size = self.cell_size.borrow_mut().get();
         let raw_border_size = self.cell_border_size.borrow_mut().get();
         let border_size = if cell_size <= 2 * raw_border_size {
@@ -262,29 +301,42 @@ impl Canvas {
         } else {
             raw_border_size
         };
+        let has_border = raw_border_size != 0;
+
+        let buf = &mut self.flush_buf;
+        buf.clear();
+        buf.reserve(self.queue.len() * 2 * 8);
+
         for draw_call in &self.queue {
             let DrawCall { x, y, color } = draw_call;
-            // avoid calling the "expensive" fill_rect if there is no border
-            if raw_border_size != 0 {
-                self.context
-                    .set_fill_style_str(&color.invert().to_css_color());
-                self.context.fill_rect(
-                    (*x * cell_size) as f64,
-                    (*y * cell_size) as f64,
-                    (cell_size) as f64,
-                    (cell_size) as f64,
-                );
+            let cs = cell_size as u8;
+            let ix = (*x * cell_size) as u16;
+            let iy = (*y * cell_size) as u16;
+            if has_border {
+                let inv = color.invert();
+                let (r, g, b, a) = color_components(inv);
+                buf.extend_from_slice(&[
+                    ix, iy, cs as u16, cs as u16, r as u16, g as u16, b as u16, a as u16,
+                ]);
             }
-            self.context.set_fill_style_str(&color.to_css_color());
-            // center
-            self.context.fill_rect(
-                (*x * cell_size + border_size) as f64,
-                (*y * cell_size + border_size) as f64,
-                (cell_size - 2 * border_size) as f64,
-                (cell_size - 2 * border_size) as f64,
-            );
+            let (r, g, b, a) = color_components(*color);
+            let bs = border_size as u8;
+            let inner_size = (cs - 2 * bs) as u16;
+            buf.extend_from_slice(&[
+                ix + border_size as u16,
+                iy + border_size as u16,
+                inner_size,
+                inner_size,
+                r as u16,
+                g as u16,
+                b as u16,
+                a as u16,
+            ]);
             self.last_frame[*x][*y] = Some(*color);
         }
+
+        let js_array = js_sys::Uint16Array::from(buf.as_slice());
+        batch_fill_rects(&self.context, &js_array);
     }
     fn create_canvas() -> Option<web_sys::HtmlCanvasElement> {
         let document = web_sys::window()?.document()?;

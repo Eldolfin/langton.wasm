@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """Interleaved Playwright benchmark for Langton's Ant WASM app.
 
-Instead of running all main iterations then all PR iterations (which is
-sensitive to system load drift), this runner interleaves them:
+Instead of running all scenarios for main then all for PR, this runner
+interleaves at the *scenario* level within each iteration:
 
-    iteration 1: main light/medium/heavy, PR light/medium/heavy
-    iteration 2: main light/medium/heavy, PR light/medium/heavy
-    ...
+    iteration 1: main-light, PR-light, main-medium, PR-medium, …
+    iteration 2: main-light, PR-light, main-medium, PR-medium, …
 
-Two pre-built pkg/ directories are swapped into crates/langton/pkg/
-before each variant's measurement. A single HTTP server and browser
-instance are reused throughout.
+Both builds are served simultaneously under separate URL paths
+(/ref and /pr) to avoid filesystem swaps that can cause browser caching
+issues.
 """
 
 import argparse
@@ -19,18 +18,19 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from statistics import median
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, Page
 
 from benchmark_scenarios import SCENARIOS
 
 REPO_ROOT = Path.cwd()
-SERVE_DIR = str(REPO_ROOT / "crates" / "langton")
-PKG_DST = REPO_ROOT / "crates" / "langton" / "pkg"
-BASE_URL = "http://localhost:8765"
+INDEX_HTML = REPO_ROOT / "crates" / "langton" / "index.html"
+PORT = 8765
+BASE_URL = f"http://localhost:{PORT}"
 
 
 def _port_open(port: int) -> bool:
@@ -39,19 +39,42 @@ def _port_open(port: int) -> bool:
         return s.connect_ex(("localhost", port)) == 0
 
 
-def start_http_server() -> subprocess.Popen | None:
-    """Start HTTP server on port 8765 serving crates/langton/."""
-    if _port_open(8765):
-        print("Port 8765 already in use, reusing existing server", file=sys.stderr)
+def setup_serve_dir(main_pkg: Path, pr_pkg: Path) -> Path:
+    """Create a temp serve directory with /ref and /pr subdirs.
+
+    Structure:
+        serve_root/
+          ref/
+            index.html
+            pkg/ → (copy of main build)
+          pr/
+            index.html
+            pkg/ → (copy of PR build)
+    """
+    serve_root = Path(tempfile.mkdtemp(prefix="bench-serve-"))
+
+    for name, pkg_src in [("ref", main_pkg), ("pr", pr_pkg)]:
+        subdir = serve_root / name
+        subdir.mkdir()
+        shutil.copy2(INDEX_HTML, subdir / "index.html")
+        shutil.copytree(pkg_src, subdir / "pkg")
+
+    return serve_root
+
+
+def start_http_server(serve_dir: Path) -> subprocess.Popen | None:
+    """Start HTTP server on PORT serving serve_dir."""
+    if _port_open(PORT):
+        print(f"Port {PORT} already in use, reusing existing server", file=sys.stderr)
         return None
 
     proc = subprocess.Popen(
-        ["python3", "-m", "http.server", "8765", "--directory", SERVE_DIR],
+        ["python3", "-m", "http.server", str(PORT), "--directory", str(serve_dir)],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
     for _ in range(40):
-        if _port_open(8765):
+        if _port_open(PORT):
             return proc
         time.sleep(0.1)
     proc.kill()
@@ -63,22 +86,15 @@ def parse_steps(text: str) -> int:
     return int(text.replace("Steps:", "").replace(",", "").strip())
 
 
-def swap_pkg(src: Path) -> None:
-    """Copy src pkg dir → crates/langton/pkg/, overwriting."""
-    shutil.copytree(src, PKG_DST, dirs_exist_ok=True)
-
-
 def measure_scenario(
-    page, scenario_name: str, params: dict, duration_s: float
+    page: Page, variant: str, params: dict, duration_s: float
 ) -> float:
     """Run one scenario, return steps_per_sec.
 
-    ``params`` is the full scenario dict from SCENARIOS (may include 'label').
-    Reuses the given *page* — caller is responsible for lifecycle.
+    *variant* is "ref" or "pr" — determines the URL path prefix.
     """
-    # Build query string from all scenario params (skip 'label')
     extra = "&".join(f"{k}={v}" for k, v in params.items() if k != "label")
-    url = f"{BASE_URL}/?debug&speedup_frames=0&{extra}"
+    url = f"{BASE_URL}/{variant}/?debug&speedup_frames=0&{extra}"
 
     page.goto(url)
     page.wait_for_selector("canvas", timeout=15_000)
@@ -89,6 +105,7 @@ def measure_scenario(
 
     # Read initial step count
     el = page.query_selector(".DebugUI-step-counter")
+    assert el is not None
     initial_steps = parse_steps(el.inner_text())
     t_start = time.monotonic()
 
@@ -97,6 +114,7 @@ def measure_scenario(
 
     # Read final step count
     el = page.query_selector(".DebugUI-step-counter")
+    assert el is not None
     final_steps = parse_steps(el.inner_text())
     t_end = time.monotonic()
 
@@ -126,7 +144,7 @@ def build_output(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Interleaved benchmark: alternates main/PR each iteration"
+        description="Interleaved benchmark: alternates main/PR each scenario"
     )
     parser.add_argument(
         "--main-pkg", type=Path, required=True, help="Pre-built main pkg/ dir"
@@ -164,7 +182,8 @@ def main() -> None:
     main_results: dict[str, list[float]] = {s: [] for s in SCENARIOS}
     pr_results: dict[str, list[float]] = {s: [] for s in SCENARIOS}
 
-    server_proc = start_http_server()
+    serve_dir = setup_serve_dir(main_pkg, pr_pkg)
+    server_proc = start_http_server(serve_dir)
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(
@@ -180,24 +199,17 @@ def main() -> None:
                 for i in range(1, args.iterations + 1):
                     print(f"Iteration {i}/{args.iterations}", file=sys.stderr)
 
-                    # --- main ---
-                    swap_pkg(main_pkg)
                     for scenario_name, params in SCENARIOS.items():
-                        sps = measure_scenario(
-                            page, scenario_name, params, args.duration
-                        )
+                        # --- main (ref) ---
+                        sps = measure_scenario(page, "ref", params, args.duration)
                         main_results[scenario_name].append(sps)
                         print(
                             f"  [main] {scenario_name}: {sps:,.0f} steps/s",
                             file=sys.stderr,
                         )
 
-                    # --- PR ---
-                    swap_pkg(pr_pkg)
-                    for scenario_name, params in SCENARIOS.items():
-                        sps = measure_scenario(
-                            page, scenario_name, params, args.duration
-                        )
+                        # --- PR ---
+                        sps = measure_scenario(page, "pr", params, args.duration)
                         pr_results[scenario_name].append(sps)
                         print(
                             f"  [pr] {scenario_name}: {sps:,.0f} steps/s",
@@ -235,6 +247,7 @@ def main() -> None:
         if server_proc is not None:
             server_proc.terminate()
             server_proc.wait(timeout=5)
+        shutil.rmtree(serve_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":

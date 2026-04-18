@@ -11,6 +11,13 @@ help:
 build-web *args:
     cd crates/langton && rm -rf pkg && wasm-pack build --target web --no-typescript {{ args }}
 
+# Build optimised wasm with debug symbols retained (for profiling)
+build-web-profiling:
+    cd crates/langton && rm -rf pkg && wasm-pack build --target web --no-typescript --profile=release-with-debug --no-opt
+    ~/.cache/.wasm-pack/wasm-opt-*/bin/wasm-opt -O -g \
+        crates/langton/pkg/langton_bg.wasm \
+        -o crates/langton/pkg/langton_bg.wasm
+
 # Build langton-ant with wasm-pack for the bundlers
 build-pkg *args:
     cd crates/langton && rm -rf pkg && wasm-pack build --target bundler --scope codeberg {{ args }}
