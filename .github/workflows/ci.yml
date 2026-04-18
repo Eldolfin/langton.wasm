@@ -43,7 +43,7 @@ jobs:
       - name: Run e2e tests
         run: just test-e2e --junit-xml=test-results/junit.xml -v
       - name: Comment PR with results and screenshots
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && always()
         env:
           FORGEJO_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
