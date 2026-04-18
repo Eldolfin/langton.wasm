@@ -45,6 +45,7 @@ jobs:
           cp crates/langton/pkg/package.json    "$DEPLOY_DIR/pkg/"
           cp crates/langton/pkg/LICENSE         "$DEPLOY_DIR/pkg/" 2>/dev/null || true
           cp crates/langton/pkg/README.md       "$DEPLOY_DIR/pkg/" 2>/dev/null || true
+          cp -r crates/langton/pkg/snippets/    "$DEPLOY_DIR/pkg/snippets/" 2>/dev/null || true
 
       - name: Push to pages branch
         run: |
