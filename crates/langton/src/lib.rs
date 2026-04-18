@@ -145,7 +145,7 @@ pub async fn start_langton_ant() {
     loop {
         // Clear canvas
         {
-            let mut config = config.borrow_mut();
+            let config = config.borrow();
             let bg_color = Color::Rgb {
                 r: config.white_color_r.get(),
                 g: config.white_color_g.get(),
@@ -233,7 +233,7 @@ impl Game {
         let mut frame_counter = 0;
         let animation = move |canvas: &mut Canvas| {
             if *needs_clear.borrow() {
-                let mut config = self.config.borrow_mut();
+                let config = self.config.borrow();
                 let bg_color = Color::Rgb {
                     r: config.white_color_r.get(),
                     g: config.white_color_g.get(),
@@ -245,7 +245,7 @@ impl Game {
                 *needs_clear.borrow_mut() = false;
             }
             self.balance_ants(canvas);
-            let mut config = self.config.borrow_mut();
+            let config = self.config.borrow();
             frame_counter += 1;
             let ratio = (frame_counter as f64 / config.speedup_frames.get() as f64).clamp(0.0, 1.0);
             let ratio = Self::shit_ease_in(ratio, config.speed_ease_in_power.get());
@@ -303,7 +303,7 @@ impl Game {
     }
 
     fn balance_ants(&mut self, canvas: &mut Canvas) {
-        let num_ants = self.config.borrow_mut().num_ants.get();
+        let num_ants = self.config.borrow().num_ants.get();
         match num_ants.cmp(&self.ants.len()) {
             std::cmp::Ordering::Less => self.ants.truncate(num_ants),
             std::cmp::Ordering::Greater => {
@@ -316,7 +316,7 @@ impl Game {
     }
 
     fn add_ant(&mut self, id: usize, canvas: &mut Canvas) {
-        let mut config = self.config.borrow_mut();
+        let config = self.config.borrow();
         let num_ants = config.num_ants.get();
         let seed = config.seed.get();
         let seed_offset = (seed as f32 * 137.508) % 360.0; // golden angle for good distribution

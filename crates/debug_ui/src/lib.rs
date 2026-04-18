@@ -1,7 +1,12 @@
 use gloo::events::EventListener;
 use num_traits::{FromPrimitive, Num, ToPrimitive};
 use std::{
-    cell::RefCell, collections::HashMap, ops::RangeInclusive, rc::Rc, str::FromStr, sync::mpsc,
+    cell::RefCell,
+    collections::HashMap,
+    ops::RangeInclusive,
+    rc::Rc,
+    str::FromStr,
+    sync::{Arc, RwLock},
 };
 pub use web_sys;
 use web_sys::{Document, Element, HtmlInputElement, KeyboardEvent, wasm_bindgen::JsCast as _};
@@ -40,8 +45,7 @@ pub struct DebugUI {
 }
 
 pub struct Param<T> {
-    value: T,
-    recv: mpsc::Receiver<T>,
+    inner: Arc<RwLock<T>>,
 }
 
 /// options for the param function
@@ -86,16 +90,13 @@ impl<T: Num> Default for ParamParam<T, &str> {
 }
 
 impl<T: Copy> Param<T> {
-    fn new(value: T) -> (mpsc::Sender<T>, Self) {
-        let (send, recv) = mpsc::channel();
-        (send, Self { recv, value })
+    fn new(value: T) -> (Arc<RwLock<T>>, Self) {
+        let inner = Arc::new(RwLock::new(value));
+        (Arc::clone(&inner), Self { inner })
     }
 
-    pub fn get(&mut self) -> T {
-        while let Ok(val) = self.recv.try_recv() {
-            self.value = val;
-        }
-        self.value
+    pub fn get(&self) -> T {
+        *self.inner.read().unwrap()
     }
 }
 
@@ -326,7 +327,7 @@ impl DebugUI {
             .next()
             .unwrap_or(p.default_value);
 
-        let (send, param_value) = Param::new(default_value);
+        let (writer, param_value) = Param::new(default_value);
         let doc = self.document.clone();
         let state = self.state.clone();
         let mut state_match = state.borrow_mut();
@@ -394,7 +395,7 @@ impl DebugUI {
                     let name = p.name.as_ref().to_owned();
                     let value_id = value_id.clone();
                     let slider_id = slider_id.clone();
-                    let send = send.clone();
+                    let writer = Arc::clone(&writer);
                     let p = p.clone();
                     let key = key.clone();
                     let state = state.clone();
@@ -419,7 +420,7 @@ impl DebugUI {
 
                         add_url_param(&key, value);
 
-                        send.send(value).unwrap();
+                        *writer.write().unwrap() = value;
                         if p.needs_restart {
                             Self::set_needs_restart(&state);
                         }
@@ -431,7 +432,7 @@ impl DebugUI {
                     let name = p.name.as_ref().to_owned();
                     let value_id = value_id.clone();
                     let slider_id = slider_id.clone();
-                    let send = send.clone();
+                    let writer = Arc::clone(&writer);
                     let p = p.clone();
                     let key = key.clone();
                     let state = state.clone();
@@ -458,7 +459,7 @@ impl DebugUI {
 
                         add_url_param(&key, value);
 
-                        send.send(value).unwrap();
+                        *writer.write().unwrap() = value;
                         if p.needs_restart {
                             Self::set_needs_restart(&state);
                         }
