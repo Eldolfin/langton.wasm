@@ -174,7 +174,7 @@ impl Canvas {
     }
 
     fn calculate_size(&mut self) {
-        let cell_size = self.cell_size.borrow_mut().get();
+        let cell_size = self.cell_size.borrow().get();
         self.last_cell_size = cell_size;
         self.width = (self.canvas_width as f64 / cell_size as f64).ceil() as usize;
         self.height = (self.canvas_height as f64 / cell_size as f64).ceil() as usize;
@@ -187,7 +187,7 @@ impl Canvas {
     }
 
     fn calculate_size_if_needed(&mut self) {
-        if self.cell_size.borrow_mut().get() != self.last_cell_size {
+        if self.cell_size.borrow().get() != self.last_cell_size {
             self.calculate_size();
             assert!(self.width > 0);
             assert!(self.height > 0);
@@ -306,8 +306,8 @@ impl Canvas {
             return;
         }
 
-        let cell_size = self.cell_size.borrow_mut().get();
-        let border_size = self.cell_border_size.borrow_mut().get();
+        let cell_size = self.cell_size.borrow().get();
+        let border_size = self.cell_border_size.borrow().get();
         let border_size = if cell_size <= 2 * border_size {
             0
         } else {
