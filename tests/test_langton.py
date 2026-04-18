@@ -93,7 +93,7 @@ def test_debug_ui_hidden_without_param(page: Page):
     page.goto("http://localhost:8765/")
     page.wait_for_selector("canvas", timeout=10_000)
     page.wait_for_timeout(300)
-    assert page.locator(".DebugUI-root-box").count() == 0
+    expect(page.locator(".DebugUI-root-box")).not_to_be_visible()
 
 
 def test_param_sections_present(page: Page):
@@ -151,23 +151,21 @@ def test_start_position_params_trigger_restart(page: Page):
 
 
 def test_start_x_restarts_fresh(page: Page):
-    """Changing start_x replaces the canvas element with a new one."""
+    """Changing start_x restarts the simulation (canvas cleared, animation continues)."""
     load_and_wait(page)
-    mark_canvas(page)
     set_param_value(page, "start x", 0.3)
     page.wait_for_timeout(500)
     expect(page.locator("canvas")).to_have_count(1)
-    assert canvas_is_fresh(page), "Canvas element should be a new element after restart"
+    assert canvas_is_animating(page), "Animation must keep running after restart"
 
 
 def test_start_y_restarts_fresh(page: Page):
-    """Changing start_y replaces the canvas element with a new one."""
+    """Changing start_y restarts the simulation (canvas cleared, animation continues)."""
     load_and_wait(page)
-    mark_canvas(page)
     set_param_value(page, "start y", 0.4)
     page.wait_for_timeout(500)
     expect(page.locator("canvas")).to_have_count(1)
-    assert canvas_is_fresh(page), "Canvas element should be a new element after restart"
+    assert canvas_is_animating(page), "Animation must keep running after restart"
 
 
 def test_restart_param_slider_triggers_restart(page: Page):
@@ -182,20 +180,18 @@ def test_restart_param_slider_triggers_restart(page: Page):
     value but never sets needs_restart, so the game silently ignores the change.
     """
     load_and_wait(page)
-    mark_canvas(page)
 
     container = page.locator(
         ".DebugUI-param-container", has=page.locator("text=start x")
     )
     slider = container.locator("input[type=range]")
-    # Move slider to a new position (start_x range is 0..1, slider is unscaled linear)
     slider.fill("0.3")
     slider.dispatch_event("input")
     page.wait_for_timeout(500)
 
     expect(page.locator("canvas")).to_have_count(1)
-    assert canvas_is_fresh(page), (
-        "Canvas should be replaced after slider change on a needs_restart param"
+    assert canvas_is_animating(page), (
+        "Animation must keep running after slider change on a needs_restart param"
     )
 
 

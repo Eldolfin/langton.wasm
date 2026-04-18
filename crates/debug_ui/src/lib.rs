@@ -4,7 +4,7 @@ use std::{
     cell::RefCell, collections::HashMap, ops::RangeInclusive, rc::Rc, str::FromStr, sync::mpsc,
 };
 pub use web_sys;
-use web_sys::{Document, Element, HtmlInputElement, wasm_bindgen::JsCast as _};
+use web_sys::{Document, Element, HtmlInputElement, KeyboardEvent, wasm_bindgen::JsCast as _};
 
 #[macro_export]
 macro_rules! log {
@@ -20,15 +20,23 @@ macro_rules! warn {
     }
 }
 
-pub enum DebugUI {
+pub enum DebugUIState {
     Enabled {
         root: Element,
-        document: Document,
         next_uid: u32,
-        needs_restart: Rc<RefCell<bool>>,
-        needs_clear: Rc<RefCell<bool>>,
+        needs_restart: bool,
     },
-    Disabled,
+    Disabled {
+        root: Element,
+        next_uid: u32,
+    },
+}
+
+pub struct DebugUI {
+    state: Rc<RefCell<DebugUIState>>,
+    _shortcut_listener: EventListener,
+    document: Document,
+    needs_clear_shared: Rc<RefCell<bool>>,
 }
 
 pub struct Param<T> {
@@ -105,7 +113,7 @@ impl StepCounter {
     }
 
     pub fn reset(&mut self) {
-        self.count = 0;
+        self.count = 1;
         if let Some(el) = &self.element {
             el.set_text_content(Some("Steps: 0"));
         }
@@ -144,6 +152,26 @@ fn add_url_param<T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 's
     // remove old parameter
     params.retain(|k, _| k != key);
     params.insert(key.into(), value.to_string());
+    new_url.query_pairs_mut().clear();
+    let mut params: Vec<_> = params.into_iter().collect();
+    params.sort();
+    new_url.query_pairs_mut().extend_pairs(params);
+    window()
+        .history()
+        .unwrap()
+        .push_state_with_url(&JsValue::NULL, "", Some(new_url.as_str()))
+        .unwrap();
+}
+
+fn add_debug_url_param() {
+    use web_sys::wasm_bindgen::JsValue;
+
+    let mut new_url = url();
+    let mut params: HashMap<String, String> = new_url
+        .query_pairs()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    params.insert("debug".into(), String::new());
     new_url.query_pairs_mut().clear();
     let mut params: Vec<_> = params.into_iter().collect();
     params.sort();
@@ -198,88 +226,77 @@ fn remove_all_url_params_except(key: &str) {
 }
 
 impl DebugUI {
-    pub fn new(title: &str) -> Self {
+    fn register_shortcut(state: Rc<RefCell<DebugUIState>>) -> EventListener {
+        let doc = document();
+        EventListener::new(&doc, "keydown", move |event| {
+            let Some(key_event) = event.dyn_ref::<KeyboardEvent>() else {
+                return;
+            };
+            if key_event.shift_key() && key_event.key() == "I" {
+                let (was_enabled, root, next_uid) = {
+                    let s = state.borrow();
+                    match &*s {
+                        DebugUIState::Enabled { root, next_uid, .. } => {
+                            (true, root.clone(), *next_uid)
+                        }
+                        DebugUIState::Disabled { root, next_uid } => {
+                            (false, root.clone(), *next_uid)
+                        }
+                    }
+                };
+                let new_state = if was_enabled {
+                    remove_url_param("debug");
+                    root.set_attribute("style", "display: none").unwrap();
+                    DebugUIState::Disabled { root, next_uid }
+                } else {
+                    add_debug_url_param();
+                    root.remove_attribute("style").unwrap();
+                    DebugUIState::Enabled {
+                        root,
+                        next_uid,
+                        needs_restart: false,
+                    }
+                };
+                *state.borrow_mut() = new_state;
+            }
+        })
+    }
+
+    pub fn new(title: impl AsRef<str>) -> Self {
         let document = document();
-        if !url().query_pairs().any(|param| param.0 == "debug") {
-            return Self::Disabled;
-        }
-        let body = document.body().expect("document should have a body");
-
-        let root = document.create_element("div").unwrap();
-        let title_line = document.create_element("div").unwrap();
-        let title_elt = document.create_element("h2").unwrap();
-        let close_btn = document.create_element("button").unwrap();
-        let reset_btn = document.create_element("button").unwrap();
-        let clear_btn = document.create_element("button").unwrap();
-
-        title_elt.set_text_content(Some(title));
-        close_btn.set_text_content(Some("🗙"));
-        reset_btn.set_text_content(Some("Reset params"));
-        clear_btn.set_text_content(Some("Clear canvas"));
-
-        root.set_class_name("DebugUI-root-box");
-        title_elt.set_class_name("DebugUI-title");
-        title_line.set_class_name("DebugUI-title-line");
-        close_btn.set_class_name("DebugUI-close-btn");
-        reset_btn.set_class_name("DebugUI-reset-btn");
-        clear_btn.set_class_name("DebugUI-reset-btn");
-
-        title_line.append_child(&title_elt).unwrap();
-        title_line.append_child(&close_btn).unwrap();
-        root.append_child(&title_line).unwrap();
-        root.append_child(&reset_btn).unwrap();
-        root.append_child(&clear_btn).unwrap();
-        body.append_child(&root).unwrap();
-
-        let style = document.create_element("style").unwrap();
-        style.set_text_content(Some(include_str!("./style.css")));
-        document.head().unwrap().append_child(&style).unwrap();
-
-        {
-            let root = root.clone();
-            EventListener::new(&close_btn, "click", move |_event| {
-                remove_url_param("debug");
-                root.remove();
-            })
-            .forget();
-        }
-        {
-            EventListener::new(&reset_btn, "click", move |_event| {
-                remove_all_url_params_except("debug");
-                window().location().reload().unwrap();
-            })
-            .forget();
-        }
-
-        let needs_clear = Rc::new(RefCell::new(false));
-        {
-            let needs_clear = needs_clear.clone();
-            EventListener::new(&clear_btn, "click", move |_event| {
-                *needs_clear.borrow_mut() = true;
-            })
-            .forget();
-        }
-
-        Self::Enabled {
-            root,
+        let title = title.as_ref().to_owned();
+        let debug_enabled = url().query_pairs().any(|param| param.0 == "debug");
+        let needs_clear_shared = Rc::new(RefCell::new(false));
+        let initial_state = match Self::enable(&title, needs_clear_shared.clone()) {
+            DebugUIState::Enabled { root, next_uid, .. } if !debug_enabled => {
+                root.set_attribute("style", "display: none").unwrap();
+                DebugUIState::Disabled { root, next_uid }
+            }
+            s => s,
+        };
+        let state = Rc::new(RefCell::new(initial_state));
+        let shortcut_listener = Self::register_shortcut(state.clone());
+        Self {
+            state,
+            _shortcut_listener: shortcut_listener,
             document,
-            next_uid: 0,
-            needs_restart: Rc::new(RefCell::new(false)),
-            needs_clear,
+            needs_clear_shared,
         }
     }
 
-    pub fn start_section<S: AsRef<str>>(&mut self, title: S) {
-        let Self::Enabled { root, .. } = self else {
-            return;
-        };
+    pub fn is_enabled(&self) -> bool {
+        matches!(*self.state.borrow(), DebugUIState::Enabled { .. })
+    }
 
+    pub fn start_section<S: AsRef<str>>(&mut self, title: S) {
+        let state = self.state.borrow();
+        let root = match &*state {
+            DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => root,
+        };
         let document = document();
         let el = document.create_element("h3").unwrap();
-
         el.set_text_content(Some(title.as_ref()));
         el.set_class_name("DebugUI-section-title");
-
         root.append_child(&el).unwrap();
     }
 
@@ -301,14 +318,12 @@ impl DebugUI {
             .unwrap_or(p.default_value);
 
         let (send, param_value) = Param::new(default_value);
-        match self {
-            DebugUI::Enabled {
-                root,
-                document: doc,
-                next_uid,
-                needs_restart,
-                ..
-            } => {
+        let doc = self.document.clone();
+        let state = self.state.clone();
+        let mut state_match = state.borrow_mut();
+        match &mut *state_match {
+            DebugUIState::Enabled { root, next_uid, .. }
+            | DebugUIState::Disabled { root, next_uid } => {
                 let container = doc.create_element("div").unwrap();
                 let label = doc.create_element("label").unwrap();
                 let slider = doc
@@ -373,7 +388,7 @@ impl DebugUI {
                     let send = send.clone();
                     let p = p.clone();
                     let key = key.clone();
-                    let needs_restart = needs_restart.clone();
+                    let state = state.clone();
                     EventListener::new(&slider, "input", move |_event| {
                         let value = document
                             .get_element_by_id(&slider_id)
@@ -397,7 +412,7 @@ impl DebugUI {
 
                         send.send(value).unwrap();
                         if p.needs_restart {
-                            *needs_restart.borrow_mut() = true;
+                            Self::set_needs_restart(&state);
                         }
                     })
                     .forget();
@@ -410,7 +425,7 @@ impl DebugUI {
                     let send = send.clone();
                     let p = p.clone();
                     let key = key.clone();
-                    let needs_restart = needs_restart.clone();
+                    let state = state.clone();
                     EventListener::new(&value_input, "change", move |_event| {
                         let value = doc
                             .get_element_by_id(&value_id)
@@ -436,47 +451,53 @@ impl DebugUI {
 
                         send.send(value).unwrap();
                         if p.needs_restart {
-                            *needs_restart.borrow_mut() = true;
+                            Self::set_needs_restart(&state);
                         }
                     })
                     .forget();
                 }
             }
-            DebugUI::Disabled => (),
         }
         param_value
     }
 
-    pub fn link(&mut self, text: &str, href: &str) {
-        match self {
-            DebugUI::Enabled { root, document, .. } => {
-                let a = document.create_element("a").unwrap();
-                a.set_text_content(Some(text));
-                a.set_attribute("href", href).unwrap();
-                a.set_attribute("target", "_blank").unwrap();
-                a.set_class_name("DebugUI-link");
-                root.append_child(&a).unwrap();
-            }
-            DebugUI::Disabled => (),
+    fn set_needs_restart(state: &Rc<RefCell<DebugUIState>>) {
+        if let DebugUIState::Enabled { needs_restart, .. } = &mut *state.borrow_mut() {
+            *needs_restart = true;
         }
     }
+
+    pub fn link(&mut self, text: &str, href: &str) {
+        let state = self.state.borrow();
+        let root = match &*state {
+            DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => root,
+        };
+        let a = self.document.create_element("a").unwrap();
+        a.set_text_content(Some(text));
+        a.set_attribute("href", href).unwrap();
+        a.set_attribute("target", "_blank").unwrap();
+        a.set_class_name("DebugUI-link");
+        root.append_child(&a).unwrap();
+    }
     pub fn should_restart(&mut self) -> bool {
-        match self {
-            DebugUI::Enabled { needs_restart, .. } => *needs_restart.borrow(),
-            DebugUI::Disabled => false,
+        let mut state = self.state.borrow_mut();
+        match &mut *state {
+            DebugUIState::Enabled { needs_restart, .. } => {
+                let result = *needs_restart;
+                *needs_restart = false;
+                result
+            }
+            DebugUIState::Disabled { .. } => false,
         }
     }
 
     pub fn needs_clear(&self) -> Rc<RefCell<bool>> {
-        match self {
-            DebugUI::Enabled { needs_clear, .. } => needs_clear.clone(),
-            DebugUI::Disabled => Rc::new(RefCell::new(false)),
-        }
+        self.needs_clear_shared.clone()
     }
 
     pub fn step_counter(&mut self) -> StepCounter {
-        match self {
-            DebugUI::Enabled { root, .. } => {
+        match &*self.state.borrow() {
+            DebugUIState::Enabled { root, .. } => {
                 let doc = document();
                 let el = doc.create_element("div").unwrap();
                 el.set_class_name("DebugUI-step-counter");
@@ -484,14 +505,87 @@ impl DebugUI {
                 root.append_child(&el).unwrap();
                 StepCounter {
                     element: Some(el),
-                    count: 0,
+                    count: 1,
                 }
             }
-            DebugUI::Disabled => StepCounter {
+            DebugUIState::Disabled { .. } => StepCounter {
                 element: None,
                 count: 0,
             },
         }
+    }
+    fn enable(title: impl AsRef<str>, needs_clear: Rc<RefCell<bool>>) -> DebugUIState {
+        let document = document();
+        let body = document.body().expect("document should have a body");
+        let root = document.create_element("div").unwrap();
+        let title_line = document.create_element("div").unwrap();
+        let title_elt = document.create_element("h2").unwrap();
+        let close_btn = document.create_element("button").unwrap();
+        let reset_btn = document.create_element("button").unwrap();
+        let clear_btn = document.create_element("button").unwrap();
+
+        title_elt.set_text_content(Some(title.as_ref()));
+        close_btn.set_text_content(Some("🗙"));
+        reset_btn.set_text_content(Some("Reset params"));
+        clear_btn.set_text_content(Some("Clear canvas"));
+
+        root.set_class_name("DebugUI-root-box");
+        title_elt.set_class_name("DebugUI-title");
+        title_line.set_class_name("DebugUI-title-line");
+        close_btn.set_class_name("DebugUI-close-btn");
+        reset_btn.set_class_name("DebugUI-reset-btn");
+        clear_btn.set_class_name("DebugUI-clear-btn");
+
+        title_line.append_child(&title_elt).unwrap();
+        title_line.append_child(&close_btn).unwrap();
+        root.append_child(&title_line).unwrap();
+        root.append_child(&reset_btn).unwrap();
+        root.append_child(&clear_btn).unwrap();
+        body.append_child(&root).unwrap();
+
+        let style = document.create_element("style").unwrap();
+        style.set_text_content(Some(include_str!("./style.css")));
+        document.head().unwrap().append_child(&style).unwrap();
+
+        {
+            let root = root.clone();
+            EventListener::new(&close_btn, "click", move |_event| {
+                remove_url_param("debug");
+                root.remove();
+            })
+            .forget();
+        }
+        {
+            EventListener::new(&reset_btn, "click", move |_event| {
+                remove_all_url_params_except("debug");
+                window().location().reload().unwrap();
+            })
+            .forget();
+        }
+        {
+            let needs_clear = needs_clear.clone();
+            EventListener::new(&clear_btn, "click", move |_event| {
+                *needs_clear.borrow_mut() = true;
+            })
+            .forget();
+        }
+
+        DebugUIState::Enabled {
+            root,
+            next_uid: 0,
+            needs_restart: false,
+        }
+    }
+}
+
+impl Drop for DebugUI {
+    fn drop(&mut self) {
+        let root = match &*self.state.borrow() {
+            DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => {
+                root.clone()
+            }
+        };
+        root.remove();
     }
 }
 
@@ -559,7 +653,7 @@ mod tests {
             count: 42,
         };
         counter.reset();
-        assert_eq!(counter.get_count(), 0);
+        assert_eq!(counter.get_count(), 1);
     }
 
     #[test]

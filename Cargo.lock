@@ -29,6 +29,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "debug_ui",
+ "js-sys",
  "rstest",
  "wasm-bindgen",
  "wasm-bindgen-futures",

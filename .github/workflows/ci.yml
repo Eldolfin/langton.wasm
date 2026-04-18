@@ -9,16 +9,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  fmt:
-    runs-on: codeberg-medium
-    container: codeberg.org/eldolfin/langton.wasm/build-image:9a5281b8bd906147
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: fmt
-        run: cargo fmt --check
-
-  check:
+  ci:
     runs-on: codeberg-medium
     container: codeberg.org/eldolfin/langton.wasm/build-image:9a5281b8bd906147
     steps:
@@ -31,28 +22,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-check-
-      - name: Run tests
-        run: cargo test --verbose
-
-  clippy:
-    runs-on: codeberg-medium
-    container: codeberg.org/eldolfin/langton.wasm/build-image:9a5281b8bd906147
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-clippy-
-      - name: Run clippy
-        run: cargo clippy --verbose -- -Dwarnings
+          key: ${{ runner.os }}-cargo-ci-${{ hashFiles('**/Cargo.lock') }}
+      - name: checks
+        run: just ci
 
   e2e:
     runs-on: codeberg-medium
@@ -67,17 +39,11 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-e2e-
-
-      - name: Build WASM
-        run: cd crates/langton && wasm-pack build --target web --no-typescript
-
+          key: ${{ runner.os }}-cargo-e2e-${{ hashFiles('**/Cargo.lock') }}
       - name: Run e2e tests
-        run: uv run --project tests/ pytest tests/ -n auto --junit-xml=test-results/junit.xml -v
-
+        run: just test-e2e --junit-xml=test-results/junit.xml -v
       - name: Comment PR with results and screenshots
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && always()
         env:
           FORGEJO_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
