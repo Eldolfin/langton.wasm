@@ -1,0 +1,16 @@
+[package]
+name = "remote-pr-opener"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { version = "1.0.102", features = ["backtrace"] }
+async-openai = "0.34.0"
+gix = { version = "0.81.0", features = ["blocking-network-client"] }
+indoc = "2.0.7"
+log = "0.4.29"
+rocket = "0.5.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde-jsonlines = "0.7.0"
+tempdir = "0.3.7"
+forgejo-api = "0.10.0"

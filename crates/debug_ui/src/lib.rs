@@ -489,6 +489,7 @@ impl DebugUI {
         a.set_class_name("DebugUI-link");
         root.append_child(&a).unwrap();
     }
+
     pub fn should_restart(&mut self) -> bool {
         let mut state = self.state.borrow_mut();
         match &mut *state {
