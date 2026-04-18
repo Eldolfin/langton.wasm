@@ -17,15 +17,33 @@ struct AnimationEntry {
 }
 
 // Thin wrapper fns bridge async fn → fn pointer (closures can't be stored in const).
-fn langton_start() -> StartFuture { Box::pin(start_langton()) }
-fn langton_preview(el: web_sys::HtmlCanvasElement) -> StartFuture { Box::pin(run_preview_langton(el)) }
-fn blinker_start() -> StartFuture { Box::pin(start_blinker()) }
-fn blinker_preview(el: web_sys::HtmlCanvasElement) -> StartFuture { Box::pin(run_preview_blinker(el)) }
+fn langton_start() -> StartFuture {
+    Box::pin(start_langton())
+}
+fn langton_preview(el: web_sys::HtmlCanvasElement) -> StartFuture {
+    Box::pin(run_preview_langton(el))
+}
+fn blinker_start() -> StartFuture {
+    Box::pin(start_blinker())
+}
+fn blinker_preview(el: web_sys::HtmlCanvasElement) -> StartFuture {
+    Box::pin(run_preview_blinker(el))
+}
 
 /// Single source of truth: add one entry here to register a new animation.
 const REGISTRY: &[AnimationEntry] = &[
-    AnimationEntry { id: "langton", name: "Langton's Ant", start_fn: langton_start, preview_fn: langton_preview },
-    AnimationEntry { id: "blinker", name: "Blinker",       start_fn: blinker_start, preview_fn: blinker_preview },
+    AnimationEntry {
+        id: "langton",
+        name: "Langton's Ant",
+        start_fn: langton_start,
+        preview_fn: langton_preview,
+    },
+    AnimationEntry {
+        id: "blinker",
+        name: "Blinker",
+        start_fn: blinker_start,
+        preview_fn: blinker_preview,
+    },
 ];
 
 // --- WASM exports --------------------------------------------------------
@@ -37,7 +55,13 @@ pub fn get_animations() -> String {
     }
     let entries: Vec<String> = REGISTRY
         .iter()
-        .map(|a| format!(r#"{{"id":"{}","name":"{}"}}"#, escape_json(a.id), escape_json(a.name)))
+        .map(|a| {
+            format!(
+                r#"{{"id":"{}","name":"{}"}}"#,
+                escape_json(a.id),
+                escape_json(a.name)
+            )
+        })
         .collect();
     format!("[{}]", entries.join(","))
 }

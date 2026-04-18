@@ -549,9 +549,7 @@ impl DebugUI {
         }
 
         // Insert before reset_btn
-        let reset_btn = root
-            .query_selector(".DebugUI-reset-btn")
-            .unwrap();
+        let reset_btn = root.query_selector(".DebugUI-reset-btn").unwrap();
         root.insert_before(&select, reset_btn.as_ref().map(|e| e as &web_sys::Node))
             .unwrap();
     }

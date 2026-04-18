@@ -15,7 +15,6 @@ impl BlinkingSim {
             on: false,
         }
     }
-
 }
 
 impl Simulation for BlinkingSim {
