@@ -148,13 +148,14 @@ def build_comment(results: dict, screenshot_urls: dict[str, str]) -> str:
             lines.append(f"- **{name}**: `{short}`")
             if detail and detail.strip():
                 lines.append("")
-                lines.append(f"  <details><summary>Full trace</summary>")
+                lines.append("<details>")
+                lines.append(f"<summary>{name} full trace</summary>")
                 lines.append("")
-                lines.append(f"  ```")
+                lines.append("```")
                 lines.append(detail.strip())
-                lines.append(f"  ```")
+                lines.append("```")
                 lines.append("")
-                lines.append(f"  </details>")
+                lines.append("</details>")
                 lines.append("")
 
     if screenshot_urls:
