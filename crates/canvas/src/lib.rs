@@ -307,49 +307,69 @@ impl Canvas {
         }
 
         let cell_size = self.cell_size.borrow_mut().get();
-        let raw_border_size = self.cell_border_size.borrow_mut().get();
-        let border_size = if cell_size <= 2 * raw_border_size {
+        let border_size = self.cell_border_size.borrow_mut().get();
+        let border_size = if cell_size <= 2 * border_size {
             0
         } else {
-            raw_border_size
+            border_size
         };
-        let has_border = raw_border_size != 0;
+        if border_size == 0 {
+            let buf = &mut self.flush_buf;
+            buf.clear();
+            buf.reserve(self.queue.len() * 8);
 
-        let buf = &mut self.flush_buf;
-        buf.clear();
-        buf.reserve(self.queue.len() * 2 * 8);
+            for draw_call in &self.queue {
+                let DrawCall { x, y, color } = draw_call;
+                let cs = cell_size as u8;
+                let ix = (*x * cell_size) as u16;
+                let iy = (*y * cell_size) as u16;
+                let (r, g, b, a) = color_components(*color);
+                buf.extend_from_slice(&[
+                    ix, iy, cs as u16, cs as u16, r as u16, g as u16, b as u16, a as u16,
+                ]);
+                self.last_frame[*x][*y] = Some(*color);
+            }
 
-        for draw_call in &self.queue {
-            let DrawCall { x, y, color } = draw_call;
-            let cs = cell_size as u8;
-            let ix = (*x * cell_size) as u16;
-            let iy = (*y * cell_size) as u16;
-            if has_border {
+            let js_array = js_sys::Uint16Array::from(buf.as_slice());
+            batch_fill_rects(&self.context, &js_array);
+        } else {
+            let buf = &mut self.flush_buf;
+            buf.clear();
+            buf.reserve(self.queue.len() * 2 * 8);
+
+            for draw_call in &self.queue {
+                let DrawCall { x, y, color } = draw_call;
+                let cs = cell_size as u8;
+                let ix = (*x * cell_size) as u16;
+                let iy = (*y * cell_size) as u16;
+
                 let inv = color.invert();
                 let (r, g, b, a) = color_components(inv);
                 buf.extend_from_slice(&[
                     ix, iy, cs as u16, cs as u16, r as u16, g as u16, b as u16, a as u16,
                 ]);
-            }
-            let (r, g, b, a) = color_components(*color);
-            let bs = border_size as u8;
-            let inner_size = (cs - 2 * bs) as u16;
-            buf.extend_from_slice(&[
-                ix + border_size as u16,
-                iy + border_size as u16,
-                inner_size,
-                inner_size,
-                r as u16,
-                g as u16,
-                b as u16,
-                a as u16,
-            ]);
-            self.last_frame[*x][*y] = Some(*color);
-        }
 
-        let js_array = js_sys::Uint16Array::from(buf.as_slice());
-        batch_fill_rects(&self.context, &js_array);
+                let (r, g, b, a) = color_components(*color);
+                let bs = border_size as u8;
+                let inner_size = (cs - 2 * bs) as u16;
+                buf.extend_from_slice(&[
+                    ix + border_size as u16,
+                    iy + border_size as u16,
+                    inner_size,
+                    inner_size,
+                    r as u16,
+                    g as u16,
+                    b as u16,
+                    a as u16,
+                ]);
+                self.last_frame[*x][*y] = Some(*color);
+            }
+
+            let js_array = js_sys::Uint16Array::from(buf.as_slice());
+            batch_fill_rects(&self.context, &js_array);
+        }
     }
+
     fn create_canvas() -> Option<web_sys::HtmlCanvasElement> {
         let document = web_sys::window()?.document()?;
         let body = document.body().unwrap();
