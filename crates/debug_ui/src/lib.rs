@@ -36,6 +36,7 @@ pub struct DebugUI {
     state: Rc<RefCell<DebugUIState>>,
     _shortcut_listener: EventListener,
     document: Document,
+    needs_clear_shared: Rc<RefCell<bool>>,
 }
 
 pub struct Param<T> {
@@ -274,10 +275,12 @@ impl DebugUI {
         };
         let state = Rc::new(RefCell::new(initial_state));
         let shortcut_listener = Self::register_shortcut(state.clone());
+        let needs_clear_shared = Rc::new(RefCell::new(false));
         Self {
             state,
             _shortcut_listener: shortcut_listener,
             document,
+            needs_clear_shared,
         }
     }
 
@@ -486,6 +489,10 @@ impl DebugUI {
             }
             DebugUIState::Disabled { .. } => false,
         }
+    }
+
+    pub fn needs_clear(&self) -> Rc<RefCell<bool>> {
+        self.needs_clear_shared.clone()
     }
 
     pub fn step_counter(&mut self) -> StepCounter {

@@ -1,25 +1,26 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
+        <link rel="icon" type="image/x-icon" href="/favicon.png" />
+        <link
+            ref="stylesheet"
+            href="https://meyerweb.com/eric/tools/css/reset/reset.css"
+        />
+        <style>
+            body {
+                background-color: #1e1e1e;
+            }
+        </style>
+    </head>
 
-<head>
-  <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
-  <link rel="icon" type="image/x-icon" href="/favicon.png">
-  <link ref="stylesheet" href="https://meyerweb.com/eric/tools/css/reset/reset.css">
-  <style>
-    body {
-      background-color: #303030;
-    }
-  </style>
-</head>
-
-<body>
-  <script type="module" defer>
-    import init, { start_langton_ant } from './pkg/langton.js';
-    (async () => {
-      await init();
-      start_langton_ant()
-    })()
-  </script>
-</body>
-
+    <body>
+        <script type="module" defer>
+            import init, { start_langton_ant } from "./pkg/langton.js";
+            (async () => {
+                await init();
+                start_langton_ant();
+            })();
+        </script>
+    </body>
 </html>
