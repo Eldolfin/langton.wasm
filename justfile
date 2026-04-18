@@ -11,6 +11,13 @@ help:
 build-web *args:
     cd crates/langton && rm -rf pkg && wasm-pack build --target web --no-typescript {{ args }}
 
+# Build optimised wasm with debug symbols retained (for profiling)
+build-web-profiling:
+    cd crates/langton && rm -rf pkg && wasm-pack build --target web --no-typescript --profile=release-with-debug --no-opt
+    ~/.cache/.wasm-pack/wasm-opt-*/bin/wasm-opt -O -g \
+        crates/langton/pkg/langton_bg.wasm \
+        -o crates/langton/pkg/langton_bg.wasm
+
 # Build langton-ant with wasm-pack for the bundlers
 build-pkg *args:
     cd crates/langton && rm -rf pkg && wasm-pack build --target bundler --scope codeberg {{ args }}
@@ -28,7 +35,7 @@ benchmark main_ref="main" duration="5" iterations="2":
     # Build main
     current=$(git rev-parse HEAD)
     git stash --include-untracked -q || true
-    git checkout "origin/{{main_ref}}" -q
+    git checkout "origin/{{ main_ref }}" -q
     just build-web
     cp -r crates/langton/pkg /tmp/main-pkg
     git checkout "$current" -q
@@ -37,8 +44,8 @@ benchmark main_ref="main" duration="5" iterations="2":
     uv run --project tests/ python tests/benchmark_interleaved.py \
         --main-pkg /tmp/main-pkg \
         --pr-pkg /tmp/pr-pkg \
-        --duration "{{duration}}" \
-        --iterations "{{iterations}}" \
+        --duration "{{ duration }}" \
+        --iterations "{{ iterations }}" \
         --main-output main-results.json \
         --pr-output pr-results.json
 
@@ -50,7 +57,7 @@ dev:
     live-server --hard --open='{{ DEV_PARAMS }}' crates/langton &
 
 # Run end-to-end Playwright tests (Python)
-test-e2e *args: build-pkg
+test-e2e *args: build-web
     uv run --project tests pytest tests/ -n auto -v {{ args }}
 
 # deploy build-web to `pages` branch
@@ -91,3 +98,12 @@ build-push-build-image:
         .github/workflows/benchmark.yml \
         .github/workflows/pages.yml
     echo "Updated workflow files to use $IMAGE:$HASH"
+
+ci:
+    cargo fmt --check
+    cargo clippy --verbose -- -Dwarnings
+    cargo test --verbose
+
+fix:
+    cargo fmt
+    cargo clippy --fix --allow-dirty --allow-staged
