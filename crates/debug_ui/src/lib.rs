@@ -267,14 +267,23 @@ impl DebugUI {
         let title = title.as_ref().to_owned();
         let debug_enabled = url().query_pairs().any(|param| param.0 == "debug");
         let needs_clear_shared = Rc::new(RefCell::new(false));
-        let initial_state = match Self::enable(&title, needs_clear_shared.clone()) {
-            DebugUIState::Enabled { root, next_uid, .. } if !debug_enabled => {
-                root.set_attribute("style", "display: none").unwrap();
-                DebugUIState::Disabled { root, next_uid }
-            }
-            s => s,
-        };
-        let state = Rc::new(RefCell::new(initial_state));
+
+        // Create state placeholder before enable() so event handlers can reference it
+        let state = Rc::new(RefCell::new(DebugUIState::Disabled {
+            root: document.create_element("div").unwrap(),
+            next_uid: 0,
+        }));
+
+        let initial_state =
+            match Self::enable(&title, needs_clear_shared.clone(), Some(state.clone())) {
+                DebugUIState::Enabled { root, next_uid, .. } if !debug_enabled => {
+                    root.set_attribute("style", "display: none").unwrap();
+                    DebugUIState::Disabled { root, next_uid }
+                }
+                s => s,
+            };
+        *state.borrow_mut() = initial_state;
+
         let shortcut_listener = Self::register_shortcut(state.clone());
         Self {
             state,
@@ -514,7 +523,11 @@ impl DebugUI {
             },
         }
     }
-    fn enable(title: impl AsRef<str>, needs_clear: Rc<RefCell<bool>>) -> DebugUIState {
+    fn enable(
+        title: impl AsRef<str>,
+        needs_clear: Rc<RefCell<bool>>,
+        state: Option<Rc<RefCell<DebugUIState>>>,
+    ) -> DebugUIState {
         let document = document();
         let body = document.body().expect("document should have a body");
         let root = document.create_element("div").unwrap();
@@ -549,9 +562,22 @@ impl DebugUI {
 
         {
             let root = root.clone();
+            let state = state.clone();
             EventListener::new(&close_btn, "click", move |_event| {
                 remove_url_param("debug");
-                root.remove();
+                root.set_attribute("style", "display: none").unwrap();
+                if let Some(ref s) = state {
+                    let mut s = s.borrow_mut();
+                    if let DebugUIState::Enabled {
+                        root: r, next_uid, ..
+                    } = &*s
+                    {
+                        *s = DebugUIState::Disabled {
+                            root: r.clone(),
+                            next_uid: *next_uid,
+                        };
+                    }
+                }
             })
             .forget();
         }

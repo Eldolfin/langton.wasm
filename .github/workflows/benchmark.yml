@@ -36,9 +36,6 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-benchmark-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Sync e2e dependencies
-        run: uv sync --project tests/
-
       - name: Run benchmark
         run: just benchmark ${{ github.event.pull_request.base.ref }} 10 5
 
