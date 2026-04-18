@@ -9,16 +9,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  fmt:
-    runs-on: codeberg-medium
-    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: fmt
-        run: cargo fmt --check
-
-  check:
+  ci:
     runs-on: codeberg-medium
     container: codeberg.org/eldolfin/langton.wasm/build-image:latest
     steps:
@@ -32,27 +23,9 @@ jobs:
             ~/.cargo/git
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-check-
-      - name: Run tests
-        run: cargo test --verbose
-
-  clippy:
-    runs-on: codeberg-medium
-    container: codeberg.org/eldolfin/langton.wasm/build-image:latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-clippy-
-      - name: Run clippy
-        run: cargo clippy --verbose -- -Dwarnings
+          restore-keys: ${{ runner.os }}-cargo-ci-
+      - name: checks
+        run: just ci
 
   e2e:
     runs-on: codeberg-medium
@@ -70,11 +43,8 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-e2e-
 
-      - name: Build WASM
-        run: cd crates/langton && wasm-pack build --target web --no-typescript
-
       - name: Run e2e tests
-        run: uv run --project tests/ pytest tests/ -n auto --junit-xml=test-results/junit.xml -v
+        run: just test-e2e --junit-xml=test-results/junit.xml -v
 
       - name: Comment PR with results and screenshots
         if: github.event_name == 'pull_request'

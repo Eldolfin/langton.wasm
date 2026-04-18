@@ -61,3 +61,12 @@ build-push-build-image:
         -t "$IMAGE:$HASH" \
         -t "$IMAGE:latest" \
         -f .github/workflows/Dockerfile --push .
+
+ci:
+    cargo fmt --check
+    cargo clippy --verbose -- -Dwarnings
+    cargo test --verbose
+
+fix:
+    cargo fmt
+    cargo clippy --fix --allow-dirty --allow-staged
