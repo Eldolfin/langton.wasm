@@ -4,6 +4,7 @@ use canvas::{Canvas, Color};
 use debug_ui::{DebugUI, Param};
 use engine::Simulation;
 use engine_macros::SimulationConfig;
+use utils::Direction;
 
 #[derive(SimulationConfig)]
 pub struct GameConfig {
@@ -16,7 +17,13 @@ pub struct GameConfig {
         needs_restart
     )]
     pub start_x_rel: Param<f32>,
-    #[param(name = "start y", default = "0.75", range = "0.0..=1.0", step = 0.01, needs_restart)]
+    #[param(
+        name = "start y",
+        default = "0.75",
+        range = "0.0..=1.0",
+        step = 0.01,
+        needs_restart
+    )]
     pub start_y_rel: Param<f32>,
     #[param(
         section = "Ants",
@@ -66,13 +73,34 @@ pub struct GameConfig {
 }
 
 pub const LANGTON_PRESETS: &[(&str, &str)] = &[
-    ("Many small ants", "alpha_retention=235&cell_size=5&final_speed=0.5&number_of_ants=400&speedup_frames=0&start_x=0.5&start_y=0.5"),
-    ("3 trailing ants", "alpha_retention=255&final_speed=30&number_of_ants=3&speedup_frames=300&start_x=0.5&start_y=0.5&cell_size=4"),
-    ("Angry ant", "alpha_retention=220&final_speed=200&number_of_ants=1&speedup_frames=0"),
-    ("Flies", "alpha_retention=0&ant_color_brightness=0.3&ant_color_saturation=0&cell_border_size=0&cell_size=6&final_speed=1&number_of_ants=500&speedup_frames=120&start_x=0.5&start_y=0.5&white_color_blue=0&white_color_green=0&white_color_red=0"),
-    ("Chaos", "alpha_retention=255&final_speed=40&number_of_ants=300&speedup_frames=600&start_x=0.5&start_y=0.5"),
-    ("Small grid", "alpha_retention=254&ant_color_brightness=0.65&ant_color_saturation=1&cell_border_size=0&cell_size=5&final_speed=25&number_of_ants=4&speedup_frames=1200&start_x=0.5&start_y=0.5&white_color_blue=227&white_color_green=227&white_color_red=227"),
-    ("1px grid", "alpha_retention=255&ant_color_brightness=0&ant_color_saturation=0.5&cell_border_size=0&cell_size=1&final_speed=5000&number_of_ants=1&speedup_frames=0&white_color_blue=255&white_color_green=255&white_color_red=255"),
+    (
+        "Many small ants",
+        "alpha_retention=235&cell_size=5&final_speed=0.5&number_of_ants=400&speedup_frames=0&start_x=0.5&start_y=0.5",
+    ),
+    (
+        "3 trailing ants",
+        "alpha_retention=255&final_speed=30&number_of_ants=3&speedup_frames=300&start_x=0.5&start_y=0.5&cell_size=4",
+    ),
+    (
+        "Angry ant",
+        "alpha_retention=220&final_speed=200&number_of_ants=1&speedup_frames=0",
+    ),
+    (
+        "Flies",
+        "alpha_retention=0&ant_color_brightness=0.3&ant_color_saturation=0&cell_border_size=0&cell_size=6&final_speed=1&number_of_ants=500&speedup_frames=120&start_x=0.5&start_y=0.5&white_color_blue=0&white_color_green=0&white_color_red=0",
+    ),
+    (
+        "Chaos",
+        "alpha_retention=255&final_speed=40&number_of_ants=300&speedup_frames=600&start_x=0.5&start_y=0.5",
+    ),
+    (
+        "Small grid",
+        "alpha_retention=254&ant_color_brightness=0.65&ant_color_saturation=1&cell_border_size=0&cell_size=5&final_speed=25&number_of_ants=4&speedup_frames=1200&start_x=0.5&start_y=0.5&white_color_blue=227&white_color_green=227&white_color_red=227",
+    ),
+    (
+        "1px grid",
+        "alpha_retention=255&ant_color_brightness=0&ant_color_saturation=0.5&cell_border_size=0&cell_size=1&final_speed=5000&number_of_ants=1&speedup_frames=0&white_color_blue=255&white_color_green=255&white_color_red=255",
+    ),
 ];
 
 pub struct Game {
@@ -91,15 +119,6 @@ struct Ant {
     color: Color,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-enum Direction {
-    #[default]
-    North,
-    Est,
-    South,
-    West,
-}
-
 impl Game {
     pub fn new(config: Rc<RefCell<GameConfig>>, width: usize, height: usize) -> Self {
         Self {
@@ -112,10 +131,6 @@ impl Game {
     }
 
     pub fn preview(width: usize, height: usize) -> Self {
-        Game::new_preview(width, height)
-    }
-
-    pub fn new_preview(width: usize, height: usize) -> Self {
         let mut debug_ui = DebugUI::headless();
         let config = GameConfig::new(&mut debug_ui);
         Self {
@@ -223,7 +238,6 @@ impl Simulation for Game {
             b: c.white_color_b.get(),
         }
     }
-
 }
 
 impl Ant {
@@ -291,24 +305,4 @@ fn hue_to_rgb(hue: f32, saturation: f32, lightness: f32) -> Color {
     let b = ((b_temp + m) * 255.0).round() as u8;
 
     Color::Rgb { r, g, b }
-}
-
-impl Direction {
-    fn left(self) -> Self {
-        match self {
-            Direction::North => Direction::West,
-            Direction::Est => Self::North,
-            Direction::South => Self::Est,
-            Direction::West => Self::South,
-        }
-    }
-
-    fn right(self) -> Self {
-        match self {
-            Direction::North => Direction::Est,
-            Direction::Est => Direction::South,
-            Direction::South => Direction::West,
-            Direction::West => Direction::North,
-        }
-    }
 }
