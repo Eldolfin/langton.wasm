@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "timezone": "UTC",
+  "groupName": "dependencies",
+  "automerge": true,
+  "automergeType": "pr",
+  "automergeStrategy": "squash",
+  "major": {
+    "automerge": false
+  },
+  "semanticCommits": "enabled",
+  "packageRules": [
+    {
+      "description": "Major version bumps - require manual review",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "labels": [
+        "breaking-change"
+      ]
+    },
+    {
+      "description": "Security vulnerabilities - require manual review",
+      "matchDatasources": [
+        "security"
+      ],
+      "automerge": false,
+      "labels": [
+        "security"
+      ]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": [
+      "security"
+    ],
+    "automerge": false
+  },
+  "lockFileMaintenance": {
+    "enabled": false
+  },
+  "prConcurrentLimit": 1,
+  "suppressNotifications": [
+    "prIgnoreNotification"
+  ]
+}
