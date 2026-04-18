@@ -23,9 +23,12 @@ const ANIMATIONS: &[AnimationEntry] = &[
 
 #[wasm_bindgen]
 pub fn get_animations() -> String {
+    fn escape_json(s: &str) -> String {
+        s.replace('\\', "\\\\").replace('"', "\\\"")
+    }
     let entries: Vec<String> = ANIMATIONS
         .iter()
-        .map(|a| format!(r#"{{"id":"{}","name":"{}"}}"#, a.id, a.name))
+        .map(|a| format!(r#"{{"id":"{}","name":"{}"}}"#, escape_json(a.id), escape_json(a.name)))
         .collect();
     format!("[{}]", entries.join(","))
 }
@@ -51,13 +54,38 @@ pub async fn start_preview(id: &str, canvas_element: web_sys::HtmlCanvasElement)
 }
 
 const LANGTON_PRESETS: &[(&str, &str)] = &[
-    ("Many small ants", "alpha_retention=235&cell_size=5&final_speed=0.5&number_of_ants=400&speedup_frames=0&start_x=0.5&start_y=0.5"),
-    ("3 trailing ants", "alpha_retention=255&final_speed=30&number_of_ants=3&speedup_frames=300&start_x=0.5&start_y=0.5&cell_size=4"),
-    ("Angry ant", "alpha_retention=220&final_speed=200&number_of_ants=1&speedup_frames=0"),
-    ("Flies", "alpha_retention=0&ant_color_brightness=0.3&ant_color_saturation=0&cell_border_size=0&cell_size=6&final_speed=1&number_of_ants=500&speedup_frames=120&start_x=0.5&start_y=0.5&white_color_blue=0&white_color_green=0&white_color_red=0"),
-    ("Chaos", "alpha_retention=255&final_speed=40&number_of_ants=300&speedup_frames=600&start_x=0.5&start_y=0.5"),
-    ("Small grid", "alpha_retention=254&ant_color_brightness=0.65&ant_color_saturation=1&cell_border_size=0&cell_size=5&final_speed=25&number_of_ants=4&speedup_frames=1200&start_x=0.5&start_y=0.5&white_color_blue=227&white_color_green=227&white_color_red=227"),
-    ("1px grid", "alpha_retention=255&ant_color_brightness=0&ant_color_saturation=0.5&cell_border_size=0&cell_size=1&final_speed=5000&number_of_ants=1&speedup_frames=0&white_color_blue=255&white_color_green=255&white_color_red=255"),
+    (
+        "Simple",
+        "alpha_retention=255&animation=langton&ant_color_saturation=0&final_speed=0.2&number_of_ants=1&seed=42&speed_ease-in_power=2&speedup_frames=800&start_x=0.5&start_y=0.5",
+    ),
+    (
+        "Many small ants",
+        "alpha_retention=235&cell_size=5&final_speed=0.5&number_of_ants=400&speedup_frames=0&start_x=0.5&start_y=0.5",
+    ),
+    (
+        "3 trailing ants",
+        "alpha_retention=255&final_speed=30&number_of_ants=3&speedup_frames=300&start_x=0.5&start_y=0.5&cell_size=4",
+    ),
+    (
+        "Angry ant",
+        "alpha_retention=220&final_speed=200&number_of_ants=1&speedup_frames=0",
+    ),
+    (
+        "Flies",
+        "alpha_retention=0&ant_color_brightness=0.3&ant_color_saturation=0&cell_border_size=0&cell_size=6&final_speed=1&number_of_ants=500&speedup_frames=120&start_x=0.5&start_y=0.5&white_color_blue=0&white_color_green=0&white_color_red=0",
+    ),
+    (
+        "Chaos",
+        "alpha_retention=255&final_speed=40&number_of_ants=300&speedup_frames=600&start_x=0.5&start_y=0.5",
+    ),
+    (
+        "Small grid",
+        "alpha_retention=254&ant_color_brightness=0.65&ant_color_saturation=1&cell_border_size=0&cell_size=5&final_speed=25&number_of_ants=4&speedup_frames=1200&start_x=0.5&start_y=0.5&white_color_blue=227&white_color_green=227&white_color_red=227",
+    ),
+    (
+        "1px grid",
+        "alpha_retention=255&ant_color_brightness=0&ant_color_saturation=0.5&cell_border_size=0&cell_size=1&final_speed=5000&number_of_ants=1&speedup_frames=0&white_color_blue=255&white_color_green=255&white_color_red=255",
+    ),
 ];
 
 async fn start_langton() {
@@ -71,6 +99,8 @@ async fn start_langton() {
     let final_steps_per_frame = debug_ui.param(ParamParam {
         name: "final speed",
         default_value: 0.2,
+        // Upper bound 1M intentional: enables extreme benchmark scenarios (1px grid preset).
+        // At these speeds the browser may stutter; that is acceptable.
         range: 0.05..=1_000_000.0,
         scale: debug_ui::Scale::Logarithmic,
         ..Default::default()

@@ -6,6 +6,7 @@ node = "latest"
 uv = "latest"
 just = "latest"
 "npm:wasm-pack" = "latest"
+rust-analyzer = "latest"
 
 [tasks.install-e2e-deps]
 description = "Install e2e test dependencies and Playwright browser"

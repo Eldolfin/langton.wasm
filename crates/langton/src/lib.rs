@@ -11,11 +11,12 @@ pub struct GameConfig {
         section = "Canvas",
         name = "start x",
         default = "0.80",
+        range = "0.0..=1.0",
         step = 0.01,
         needs_restart
     )]
     pub start_x_rel: Param<f32>,
-    #[param(name = "start y", default = "0.75", step = 0.01, needs_restart)]
+    #[param(name = "start y", default = "0.75", range = "0.0..=1.0", step = 0.01, needs_restart)]
     pub start_y_rel: Param<f32>,
     #[param(
         section = "Ants",
@@ -157,6 +158,7 @@ impl Simulation for Game {
     fn step(&mut self, canvas: &mut Canvas) {
         self.balance_ants(canvas);
         let config = self.config.borrow();
+        // (height, width) — indices are swapped when passing to board/move APIs
         let canvas_size = (self.height, self.width);
         for ant in &mut self.ants {
             assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");

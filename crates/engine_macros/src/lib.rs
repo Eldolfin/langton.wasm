@@ -29,11 +29,15 @@ struct ParamFieldOpts {
 }
 
 fn parse_range_tokens(range_str: &str) -> proc_macro2::TokenStream {
-    range_str.parse().unwrap()
+    range_str
+        .parse()
+        .unwrap_or_else(|e| panic!("invalid range expression in #[param(range = ...)]: {e}"))
 }
 
 fn parse_default_tokens(default_str: &str) -> proc_macro2::TokenStream {
-    default_str.parse().unwrap()
+    default_str
+        .parse()
+        .unwrap_or_else(|e| panic!("invalid default expression in #[param(default = ...)]: {e}"))
 }
 
 #[proc_macro_derive(SimulationConfig, attributes(param))]
@@ -45,7 +49,10 @@ pub fn derive_simulation_config(input: TokenStream) -> TokenStream {
     };
 
     let struct_name = &opts.ident;
-    let fields = opts.data.take_struct().unwrap();
+    let fields = opts
+        .data
+        .take_struct()
+        .expect("SimulationConfig can only be derived for structs with named fields");
 
     let mut section_stmts: Vec<proc_macro2::TokenStream> = vec![];
     let mut field_inits: Vec<proc_macro2::TokenStream> = vec![];
@@ -71,7 +78,7 @@ pub fn derive_simulation_config(input: TokenStream) -> TokenStream {
         });
 
         let scale_expr = field.scale.as_ref().map(|s| {
-            let scale_ident = syn::Ident::new(s, proc_macro2::Span::call_site());
+            let scale_ident = syn::Ident::new(s, proc_macro2::Span::mixed_site());
             quote! { scale: debug_ui::Scale::#scale_ident, }
         });
 
@@ -81,7 +88,6 @@ pub fn derive_simulation_config(input: TokenStream) -> TokenStream {
             quote! {}
         };
 
-        let idx = section_stmts.len();
         section_stmts.push(quote! {
             let #field_name = debug_ui.param(debug_ui::ParamParam {
                 name: #name,
@@ -94,7 +100,6 @@ pub fn derive_simulation_config(input: TokenStream) -> TokenStream {
             });
         });
 
-        let _ = idx;
         field_inits.push(quote! { #field_name });
     }
 

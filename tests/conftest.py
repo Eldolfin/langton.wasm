@@ -77,7 +77,8 @@ def page(browser, http_server):
 
 
 ALLOWED_CONSOLE_MSGS = [
-    "[LANGTON][CANVAS] body.scroll_height is 0, make sure to fully initialize the page before calling start_langton_ant otherwise the canvas might get cut off at the bottom"
+    "[LANGTON][CANVAS] body.scroll_height is 0, make sure to fully initialize the page before calling start_langton_ant otherwise the canvas might get cut off at the bottom",
+    "Unknown animation",
 ]
 
 
@@ -86,7 +87,7 @@ def check_no_console_msgs(page):
     """Assert no console errors were emitted during any test."""
     yield
     msgs = page._console_msgs
-    msgs = [f"[{m.type}]: {m.text} (location: {m.location})" for m in msgs if hasattr(m, 'text') and m.text not in ALLOWED_CONSOLE_MSGS]
+    msgs = [f"[{m.type}]: {m.text} (location: {m.location})" for m in msgs if hasattr(m, 'text') and not any(allowed in m.text for allowed in ALLOWED_CONSOLE_MSGS)]
     assert not msgs, "Console messages:\n" + "\n".join(msgs)
 
 

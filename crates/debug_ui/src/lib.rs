@@ -135,7 +135,7 @@ impl StepCounter {
     }
 
     pub fn reset(&mut self) {
-        self.count = 1;
+        self.count = 0;
         if let Some(el) = &self.element {
             el.set_text_content(Some("Steps: 0"));
         }
@@ -764,7 +764,7 @@ mod tests {
             count: 42,
         };
         counter.reset();
-        assert_eq!(counter.get_count(), 1);
+        assert_eq!(counter.get_count(), 0);
     }
 
     #[test]

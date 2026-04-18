@@ -87,7 +87,9 @@
       });
     })();
 
-    function showPicker() {
+  let animationRunning = false;
+
+  function showPicker() {
       const picker = document.getElementById("picker");
       picker.style.display = "";
 
@@ -118,6 +120,7 @@
             const url = new URL(window.location);
             url.searchParams.set("animation", anim.id);
             window.history.pushState(null, "", url);
+            animationRunning = true;
             start_animation(anim.id);
           }, 300);
         });
@@ -128,11 +131,8 @@
     }
 
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        const picker = document.getElementById("picker");
-        if (picker.style.display === "none" && picker.innerHTML === "") {
-          window.location.search = "";
-        }
+      if (e.key === "Escape" && animationRunning) {
+        window.location.search = "";
       }
     });
   </script>

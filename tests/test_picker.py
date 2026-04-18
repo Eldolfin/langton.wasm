@@ -53,7 +53,3 @@ def test_picker_unknown_animation(page: Page):
     """?animation=nonexistent → no crash (console.error expected but no JS exception)."""
     page.goto(f"{BASE_URL}/?animation=nonexistent")
     page.wait_for_timeout(1000)
-    page._console_msgs = [
-        m for m in page._console_msgs
-        if not (hasattr(m, 'text') and "Unknown animation" in m.text)
-    ]

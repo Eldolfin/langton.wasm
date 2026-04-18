@@ -8,5 +8,3 @@ edition = "2024"
 canvas.workspace = true
 engine.workspace = true
 
-[dev-dependencies]
-rstest = "0.26.1"

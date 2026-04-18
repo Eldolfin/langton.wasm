@@ -60,6 +60,7 @@ impl<S: Simulation> SimulationRunner<S> {
     }
 
     pub async fn run(mut self, canvas: &mut Canvas, should_stop: Box<dyn Fn() -> bool>) {
+        // Tuple is (height, width) to match canvas API order; on_canvas_resize takes (width, height).
         let mut prev_canvas_size = (canvas.height(), canvas.width());
         let animation = move |canvas: &mut Canvas| {
             if *self.needs_clear.borrow() {
@@ -77,6 +78,7 @@ impl<S: Simulation> SimulationRunner<S> {
             let canvas_size = (canvas.height(), canvas.width());
             if canvas_size != prev_canvas_size {
                 prev_canvas_size = canvas_size;
+                // .1 = width, .0 = height (tuple order is (height, width))
                 self.sim.on_canvas_resize(canvas_size.1, canvas_size.0);
             }
 
