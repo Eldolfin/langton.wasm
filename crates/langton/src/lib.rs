@@ -120,7 +120,6 @@ pub async fn start_langton_ant() {
         "About this animation",
         "https://codeberg.org/eldolfin/langton.wasm",
     );
-
     let game_config = GameConfig {
         num_ants,
         final_steps_per_frame,
@@ -140,23 +139,32 @@ pub async fn start_langton_ant() {
     let cell_size = Rc::new(RefCell::new(cell_size));
     let config = Rc::new(RefCell::new(game_config));
     let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
-    let needs_clear = debug_ui.needs_clear();
-    let needs_restart = match debug_ui {
-        DebugUI::Enabled { needs_restart, .. } => needs_restart,
-        DebugUI::Disabled => Rc::new(RefCell::new(false)),
-    };
+    let debug_ui = Rc::new(RefCell::new(debug_ui));
+    let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+    let needs_clear = debug_ui.borrow().needs_clear();
     loop {
+        // Clear canvas
+        {
+            let mut config = config.borrow_mut();
+            let bg_color = Color::Rgb {
+                r: config.white_color_r.get(),
+                g: config.white_color_g.get(),
+                b: config.white_color_b.get(),
+            };
+            canvas.clear(bg_color);
+        }
+
         step_counter.borrow_mut().reset();
-        let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+        let debug_ui_ref = debug_ui.clone();
+        let should_restart = Box::new(move || debug_ui_ref.borrow_mut().should_restart());
         Game::new(config.clone())
             .run(
                 &mut canvas,
-                needs_restart.clone(),
+                should_restart,
                 needs_clear.clone(),
                 step_counter.clone(),
             )
             .await;
-        *needs_restart.borrow_mut() = false;
     }
 }
 
@@ -215,7 +223,7 @@ impl Game {
     async fn run(
         mut self,
         canvas: &mut Canvas,
-        should_stop: Rc<RefCell<bool>>,
+        should_stop: Box<dyn Fn() -> bool>,
         needs_clear: Rc<RefCell<bool>>,
         step_counter: Rc<RefCell<StepCounter>>,
     ) {
@@ -289,7 +297,7 @@ impl Game {
 
             canvas.fill_canvas(config.alpha_retention_factor.get());
 
-            *should_stop.borrow()
+            should_stop()
         };
         canvas.play_animation(animation).await;
     }
