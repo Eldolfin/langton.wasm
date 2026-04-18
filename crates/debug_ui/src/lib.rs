@@ -266,7 +266,8 @@ impl DebugUI {
         let document = document();
         let title = title.as_ref().to_owned();
         let debug_enabled = url().query_pairs().any(|param| param.0 == "debug");
-        let initial_state = match Self::enable(&title) {
+        let needs_clear_shared = Rc::new(RefCell::new(false));
+        let initial_state = match Self::enable(&title, needs_clear_shared.clone()) {
             DebugUIState::Enabled { root, next_uid, .. } if !debug_enabled => {
                 root.set_attribute("style", "display: none").unwrap();
                 DebugUIState::Disabled { root, next_uid }
@@ -275,7 +276,6 @@ impl DebugUI {
         };
         let state = Rc::new(RefCell::new(initial_state));
         let shortcut_listener = Self::register_shortcut(state.clone());
-        let needs_clear_shared = Rc::new(RefCell::new(false));
         Self {
             state,
             _shortcut_listener: shortcut_listener,
@@ -514,7 +514,7 @@ impl DebugUI {
             },
         }
     }
-    fn enable(title: impl AsRef<str>) -> DebugUIState {
+    fn enable(title: impl AsRef<str>, needs_clear: Rc<RefCell<bool>>) -> DebugUIState {
         let document = document();
         let body = document.body().expect("document should have a body");
         let root = document.create_element("div").unwrap();
@@ -522,21 +522,25 @@ impl DebugUI {
         let title_elt = document.create_element("h2").unwrap();
         let close_btn = document.create_element("button").unwrap();
         let reset_btn = document.create_element("button").unwrap();
+        let clear_btn = document.create_element("button").unwrap();
 
         title_elt.set_text_content(Some(title.as_ref()));
         close_btn.set_text_content(Some("🗙"));
         reset_btn.set_text_content(Some("Reset params"));
+        clear_btn.set_text_content(Some("Clear canvas"));
 
         root.set_class_name("DebugUI-root-box");
         title_elt.set_class_name("DebugUI-title");
         title_line.set_class_name("DebugUI-title-line");
         close_btn.set_class_name("DebugUI-close-btn");
         reset_btn.set_class_name("DebugUI-reset-btn");
+        clear_btn.set_class_name("DebugUI-clear-btn");
 
         title_line.append_child(&title_elt).unwrap();
         title_line.append_child(&close_btn).unwrap();
         root.append_child(&title_line).unwrap();
         root.append_child(&reset_btn).unwrap();
+        root.append_child(&clear_btn).unwrap();
         body.append_child(&root).unwrap();
 
         let style = document.create_element("style").unwrap();
@@ -555,6 +559,13 @@ impl DebugUI {
             EventListener::new(&reset_btn, "click", move |_event| {
                 remove_all_url_params_except("debug");
                 window().location().reload().unwrap();
+            })
+            .forget();
+        }
+        {
+            let needs_clear = needs_clear.clone();
+            EventListener::new(&clear_btn, "click", move |_event| {
+                *needs_clear.borrow_mut() = true;
             })
             .forget();
         }
