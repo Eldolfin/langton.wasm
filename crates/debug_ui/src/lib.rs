@@ -95,8 +95,22 @@ impl<T: Copy> Param<T> {
         (Arc::clone(&inner), Self { inner })
     }
 
+    pub fn fixed(value: T) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(value)),
+        }
+    }
+
     pub fn get(&self) -> T {
         *self.inner.read().unwrap()
+    }
+}
+
+impl<T: Copy> Clone for Param<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
     }
 }
 
@@ -106,6 +120,13 @@ pub struct StepCounter {
 }
 
 impl StepCounter {
+    pub fn disabled() -> Self {
+        Self {
+            element: None,
+            count: 0,
+        }
+    }
+
     pub fn add_steps(&mut self, n: u64) {
         self.count += n;
         if let Some(el) = &self.element {

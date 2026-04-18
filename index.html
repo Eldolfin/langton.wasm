@@ -8,16 +8,125 @@
     body {
       background-color: #1e1e1e;
     }
+
+    #picker {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 24px;
+      padding: 40px 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      transition: opacity 0.3s ease;
+    }
+
+    #picker h1 {
+      width: 100%;
+      text-align: center;
+      color: #fff;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 24px;
+      font-weight: 300;
+      margin-bottom: 8px;
+    }
+
+    .picker-card {
+      cursor: pointer;
+      border: 1px solid #444;
+      border-radius: 8px;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+      background: #2a2a2a;
+    }
+
+    .picker-card:hover {
+      border-color: #888;
+      transform: scale(1.03);
+    }
+
+    .picker-card canvas {
+      display: block;
+      width: 240px;
+      height: 180px;
+      image-rendering: pixelated;
+    }
+
+    .picker-card .label {
+      color: #ccc;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      text-align: center;
+      padding: 8px 0;
+    }
   </style>
 </head>
 
 <body>
+  <div id="picker" style="display: none;"></div>
   <script type="module" defer>
-    import init, {start_langton_ant} from "./pkg/langton.js";
+    import init, { get_animations, start_animation, start_preview } from "./pkg/coolbg.js";
     (async () => {
       await init();
-      start_langton_ant();
+
+      const params = new URLSearchParams(window.location.search);
+      const animId = params.get("animation");
+
+      if (animId) {
+        start_animation(animId);
+      } else {
+        showPicker();
+      }
     })();
+
+    function showPicker() {
+      const picker = document.getElementById("picker");
+      picker.style.display = "";
+
+      const title = document.createElement("h1");
+      title.textContent = "Choose an animation";
+      picker.appendChild(title);
+
+      const animations = JSON.parse(get_animations());
+      for (const anim of animations) {
+        const card = document.createElement("div");
+        card.className = "picker-card";
+        card.dataset.animId = anim.id;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 240;
+        canvas.height = 180;
+        card.appendChild(canvas);
+
+        const label = document.createElement("div");
+        label.className = "label";
+        label.textContent = anim.name;
+        card.appendChild(label);
+
+        card.addEventListener("click", () => {
+          picker.style.opacity = "0";
+          setTimeout(() => {
+            picker.style.display = "none";
+            picker.innerHTML = "";
+            const url = new URL(window.location);
+            url.searchParams.set("animation", anim.id);
+            window.history.pushState(null, "", url);
+            start_animation(anim.id);
+          }, 300);
+        });
+
+        picker.appendChild(card);
+        start_preview(anim.id, canvas);
+      }
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const picker = document.getElementById("picker");
+        if (picker.style.display === "none" && picker.innerHTML === "") {
+          window.location.search = "";
+        }
+      }
+    });
   </script>
 </body>
 

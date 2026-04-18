@@ -157,6 +157,34 @@ impl Canvas {
         }
     }
 
+    pub fn new_with_element(
+        element: web_sys::HtmlCanvasElement,
+        cell_border_size: Rc<RefCell<Param<usize>>>,
+        cell_size: Rc<RefCell<Param<usize>>>,
+    ) -> Self {
+        let context = Self::get_context(&element).expect("Failed to get context 2d");
+        let base_screen_height = element.height() as usize;
+
+        Self {
+            canvas_width: element.width() as usize,
+            canvas_height: element.height() as usize,
+            element,
+            context,
+            cell_size,
+            base_screen_height,
+            queue: vec![],
+            dedup_vec: vec![],
+            dedup_dirty: vec![],
+            last_frame: vec![],
+            cell_border_size,
+            width: 0,
+            height: 0,
+            screen_height: 0,
+            last_cell_size: 0,
+            flush_buf: vec![],
+        }
+    }
+
     pub fn fill_rect(&mut self, x: usize, y: usize, color: Color) {
         self.queue.push(DrawCall { x, y, color });
     }

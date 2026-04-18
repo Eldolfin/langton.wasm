@@ -28,7 +28,7 @@ from playwright.sync_api import sync_playwright, Page
 from benchmark_scenarios import SCENARIOS
 
 REPO_ROOT = Path.cwd()
-INDEX_HTML = REPO_ROOT / "crates" / "langton" / "index.html"
+INDEX_HTML = REPO_ROOT / "crates" / "coolbg" / "index.html"
 PORT = 8765
 BASE_URL = f"http://localhost:{PORT}"
 
@@ -94,7 +94,7 @@ def measure_scenario(
     *variant* is "ref" or "pr" — determines the URL path prefix.
     """
     extra = "&".join(f"{k}={v}" for k, v in params.items() if k != "label")
-    url = f"{BASE_URL}/{variant}/?debug&speedup_frames=0&{extra}"
+    url = f"{BASE_URL}/{variant}/?animation=langton&debug&speedup_frames=0&{extra}"
 
     page.goto(url)
     page.wait_for_selector("canvas", timeout=15_000)

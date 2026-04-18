@@ -1,29 +1,29 @@
 set dotenv-load := true
 
-DEV_PARAMS := "?debug&alpha_retention=255&final_speed=5&number_of_ants=1&speedup_frames=0&start_x=0.5&start_y=0.5"
+DEV_PARAMS := "?animation=langton&debug&alpha_retention=255&final_speed=5&number_of_ants=1&speedup_frames=0&start_x=0.5&start_y=0.5"
 DEPLOY_DIR := "deploy"
 
 # Shows this help
 help:
     just --list
 
-# Build langton-ant with wasm-pack for the web
+# Build coolbg with wasm-pack for the web
 build-web *args:
-    cd crates/langton && rm -rf pkg && wasm-pack build --target web --no-typescript {{ args }}
+    cd crates/coolbg && rm -rf pkg && wasm-pack build --target web --no-typescript {{ args }}
 
 # Build optimised wasm with debug symbols retained (for profiling)
 build-web-profiling:
-    cd crates/langton && rm -rf pkg && wasm-pack build --target web --no-typescript --profile=release-with-debug --no-opt
+    cd crates/coolbg && rm -rf pkg && wasm-pack build --target web --no-typescript --profile=release-with-debug --no-opt
     ~/.cache/.wasm-pack/wasm-opt-*/bin/wasm-opt -O -g \
-        crates/langton/pkg/langton_bg.wasm \
-        -o crates/langton/pkg/langton_bg.wasm
+        crates/coolbg/pkg/coolbg_bg.wasm \
+        -o crates/coolbg/pkg/coolbg_bg.wasm
 
-# Build langton-ant with wasm-pack for the bundlers
+# Build coolbg with wasm-pack for the bundlers
 build-pkg *args:
-    cd crates/langton && rm -rf pkg && wasm-pack build --target bundler --scope codeberg {{ args }}
+    cd crates/coolbg && rm -rf pkg && wasm-pack build --target bundler --scope codeberg {{ args }}
 
 publish-pkg: build-pkg
-    cd crates/langton/pkg && npm publish --userconfig=../.npmrc
+    cd crates/coolbg/pkg && npm publish --userconfig=../.npmrc
 
 # Run interleaved benchmark comparing current branch vs main
 benchmark main_ref="main" duration="5" iterations="2":
@@ -31,13 +31,13 @@ benchmark main_ref="main" duration="5" iterations="2":
     set -euo pipefail
     # Build current branch
     just build-web
-    cp -r crates/langton/pkg /tmp/pr-pkg
+    cp -r crates/coolbg/pkg /tmp/pr-pkg
     # Build main
     current=$(git rev-parse HEAD)
     git stash --include-untracked -q || true
     git checkout "origin/{{ main_ref }}" -q
     just build-web
-    cp -r crates/langton/pkg /tmp/main-pkg
+    cp -r crates/coolbg/pkg /tmp/main-pkg
     git checkout "$current" -q
     git stash pop -q 2>/dev/null || true
     # Run interleaved benchmark
@@ -49,12 +49,12 @@ benchmark main_ref="main" duration="5" iterations="2":
         --main-output main-results.json \
         --pr-output pr-results.json
 
-# Run langton-ant and watch for changes
+# Run coolbg and watch for changes
 dev:
     #!/bin/sh
     killall live-server entr
     git ls-files | entr -c just build-web --dev &
-    live-server --hard --open='{{ DEV_PARAMS }}' crates/langton &
+    live-server --hard --open='{{ DEV_PARAMS }}' crates/coolbg &
 
 # Run end-to-end Playwright tests (Python)
 test-e2e *args: build-web
@@ -68,9 +68,9 @@ deploy: build-web
     git commit -am "$deploy_msg" || true
 
     mkdir -p {{ DEPLOY_DIR }}
-    cp src/langton/index.html  {{ DEPLOY_DIR }}
-    cp src/langton/favicon.png {{ DEPLOY_DIR }}
-    cp -r src/langton/pkg      {{ DEPLOY_DIR }}
+    cp crates/coolbg/index.html  {{ DEPLOY_DIR }}
+    cp crates/coolbg/favicon.png {{ DEPLOY_DIR }}
+    cp -r crates/coolbg/pkg      {{ DEPLOY_DIR }}
     rm deploy/pkg/.gitignore
     git switch pages
     git ls-files ':!/.gitignore' -z | xargs -0 rm -f

@@ -90,7 +90,7 @@ def test_debug_ui_visible(page: Page):
 
 def test_debug_ui_hidden_without_param(page: Page):
     """No debug panel without ?debug query param."""
-    page.goto("http://localhost:8765/")
+    page.goto("http://localhost:8765/?animation=langton")
     page.wait_for_selector("canvas", timeout=10_000)
     page.wait_for_timeout(300)
     expect(page.locator(".DebugUI-root-box")).not_to_be_visible()
