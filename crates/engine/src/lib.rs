@@ -3,6 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use canvas::{Canvas, Color};
 use debug_ui::{Param, StepCounter};
 
+/// Core simulation trait. Object-safe: no associated functions returning Self.
 pub trait Simulation {
     /// Execute one simulation step. Called N times per frame based on speed config.
     fn step(&mut self, canvas: &mut Canvas);
@@ -15,9 +16,6 @@ pub trait Simulation {
 
     /// Background color for this simulation.
     fn bg_color(&self) -> Color;
-
-    /// Create a lightweight instance for the animation picker thumbnail.
-    fn preview(width: usize, height: usize) -> Self;
 }
 
 pub struct SpeedConfig {

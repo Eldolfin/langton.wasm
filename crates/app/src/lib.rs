@@ -5,28 +5,37 @@ use debug_ui::{DebugUI, Param, ParamParam};
 use engine::{RenderConfig, Simulation, SimulationRunner, SpeedConfig};
 use wasm_bindgen::prelude::*;
 
+// --- Registry -----------------------------------------------------------
+
+type StartFuture = std::pin::Pin<Box<dyn std::future::Future<Output = ()>>>;
+
 struct AnimationEntry {
     id: &'static str,
     name: &'static str,
+    start_fn: fn() -> StartFuture,
+    preview_fn: fn(web_sys::HtmlCanvasElement) -> StartFuture,
 }
 
-const ANIMATIONS: &[AnimationEntry] = &[
-    AnimationEntry {
-        id: "langton",
-        name: "Langton's Ant",
-    },
-    AnimationEntry {
-        id: "blinker",
-        name: "Blinker",
-    },
+// Thin wrapper fns bridge async fn → fn pointer (closures can't be stored in const).
+fn langton_start() -> StartFuture { Box::pin(start_langton()) }
+fn langton_preview(el: web_sys::HtmlCanvasElement) -> StartFuture { Box::pin(run_preview_langton(el)) }
+fn blinker_start() -> StartFuture { Box::pin(start_blinker()) }
+fn blinker_preview(el: web_sys::HtmlCanvasElement) -> StartFuture { Box::pin(run_preview_blinker(el)) }
+
+/// Single source of truth: add one entry here to register a new animation.
+const REGISTRY: &[AnimationEntry] = &[
+    AnimationEntry { id: "langton", name: "Langton's Ant", start_fn: langton_start, preview_fn: langton_preview },
+    AnimationEntry { id: "blinker", name: "Blinker",       start_fn: blinker_start, preview_fn: blinker_preview },
 ];
+
+// --- WASM exports --------------------------------------------------------
 
 #[wasm_bindgen]
 pub fn get_animations() -> String {
     fn escape_json(s: &str) -> String {
         s.replace('\\', "\\\\").replace('"', "\\\"")
     }
-    let entries: Vec<String> = ANIMATIONS
+    let entries: Vec<String> = REGISTRY
         .iter()
         .map(|a| format!(r#"{{"id":"{}","name":"{}"}}"#, escape_json(a.id), escape_json(a.name)))
         .collect();
@@ -36,24 +45,19 @@ pub fn get_animations() -> String {
 #[wasm_bindgen]
 pub async fn start_animation(id: &str) {
     console_error_panic_hook::set_once();
-    match id {
-        "langton" => start_langton().await,
-        "blinker" => start_blinker().await,
-        _ => web_sys::console::error_1(&format!("Unknown animation: {id}").into()),
+    match REGISTRY.iter().find(|e| e.id == id) {
+        Some(entry) => (entry.start_fn)().await,
+        None => web_sys::console::error_1(&format!("Unknown animation: {id}").into()),
     }
 }
 
 #[wasm_bindgen]
 pub async fn start_preview(id: &str, canvas_element: web_sys::HtmlCanvasElement) {
     console_error_panic_hook::set_once();
-    match id {
-        "langton" => run_preview_langton(canvas_element).await,
-        "blinker" => run_preview_blinker(canvas_element).await,
-        _ => {}
+    if let Some(entry) = REGISTRY.iter().find(|e| e.id == id) {
+        (entry.preview_fn)(canvas_element).await;
     }
 }
-
-
 
 async fn start_langton() {
     let mut debug_ui = DebugUI::new("Langton's ant parameters");
@@ -68,7 +72,7 @@ async fn start_langton() {
         default_value: 0.2,
         // Upper bound 1M intentional: enables extreme benchmark scenarios (1px grid preset).
         // At these speeds the browser may stutter; that is acceptable.
-        range: 0.05..=1_000_000.0,
+        range: 0.00..=1_000_000.0,
         scale: debug_ui::Scale::Logarithmic,
         ..Default::default()
     });
@@ -231,7 +235,11 @@ async fn run_preview<S: Simulation>(
 }
 
 async fn run_preview_langton(canvas_element: web_sys::HtmlCanvasElement) {
-    let bg = canvas::Color::Rgb { r: 30, g: 30, b: 30 };
+    let bg = canvas::Color::Rgb {
+        r: 30,
+        g: 30,
+        b: 30,
+    };
     let w = canvas_element.width() as usize;
     let h = canvas_element.height() as usize;
     let sim = langton::Game::preview(w, h);
@@ -239,7 +247,11 @@ async fn run_preview_langton(canvas_element: web_sys::HtmlCanvasElement) {
 }
 
 async fn run_preview_blinker(canvas_element: web_sys::HtmlCanvasElement) {
-    let bg = canvas::Color::Rgb { r: 30, g: 30, b: 30 };
+    let bg = canvas::Color::Rgb {
+        r: 30,
+        g: 30,
+        b: 30,
+    };
     let w = canvas_element.width() as usize;
     let h = canvas_element.height() as usize;
     let sim = dummy::BlinkingSim::preview(w, h);

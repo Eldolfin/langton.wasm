@@ -15,6 +15,10 @@ impl BlinkingSim {
             on: false,
         }
     }
+
+    pub fn preview(width: usize, height: usize) -> Self {
+        Self::new(width, height)
+    }
 }
 
 impl Simulation for BlinkingSim {
@@ -47,10 +51,6 @@ impl Simulation for BlinkingSim {
             g: 30,
             b: 30,
         }
-    }
-
-    fn preview(width: usize, height: usize) -> Self {
-        Self::new(width, height)
     }
 }
 

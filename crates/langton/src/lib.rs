@@ -111,6 +111,10 @@ impl Game {
         }
     }
 
+    pub fn preview(width: usize, height: usize) -> Self {
+        Game::new_preview(width, height)
+    }
+
     pub fn new_preview(width: usize, height: usize) -> Self {
         let mut debug_ui = DebugUI::headless();
         let config = GameConfig::new(&mut debug_ui);
@@ -220,9 +224,6 @@ impl Simulation for Game {
         }
     }
 
-    fn preview(width: usize, height: usize) -> Self {
-        Game::new_preview(width, height)
-    }
 }
 
 impl Ant {
