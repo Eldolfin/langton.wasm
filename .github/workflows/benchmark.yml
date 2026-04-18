@@ -20,7 +20,7 @@ env:
 jobs:
   benchmark:
     runs-on: docker
-    container: codeberg.org/eldolfin/langton.wasm/build-image:9a5281b8bd906147
+    container: codeberg.org/eldolfin/langton.wasm/build-image:88b2a30450288968
     steps:
       - name: Checkout PR (full history)
         uses: actions/checkout@v6

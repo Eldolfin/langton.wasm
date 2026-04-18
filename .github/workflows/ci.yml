@@ -25,7 +25,7 @@ env:
 jobs:
   ci:
     runs-on: codeberg-medium
-    container: codeberg.org/eldolfin/langton.wasm/build-image:9a5281b8bd906147
+    container: codeberg.org/eldolfin/langton.wasm/build-image:88b2a30450288968
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -42,7 +42,7 @@ jobs:
 
   e2e:
     runs-on: codeberg-medium
-    container: codeberg.org/eldolfin/langton.wasm/build-image:9a5281b8bd906147
+    container: codeberg.org/eldolfin/langton.wasm/build-image:88b2a30450288968
     steps:
       - name: Checkout
         uses: actions/checkout@v6
