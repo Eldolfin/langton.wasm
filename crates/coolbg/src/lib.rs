@@ -71,7 +71,7 @@ async fn start_langton() {
     let final_steps_per_frame = debug_ui.param(ParamParam {
         name: "final speed",
         default_value: 0.2,
-        range: 0.0..=1000.0,
+        range: 0.05..=1_000_000.0,
         scale: debug_ui::Scale::Logarithmic,
         ..Default::default()
     });

@@ -785,6 +785,9 @@ mod tests {
     #[case(Scale::Logarithmic, 0., 526., 527., 526.)]
     #[case(Scale::Logarithmic, 1., 526., 527., 527.)]
     #[case(Scale::Logarithmic, 0.5, 0., 1000., 30.638584039112747)]
+    // speed param range: slider endpoints hit the exact bounds
+    #[case(Scale::Logarithmic, 0., 0.05, 1_000_000., 0.05)]
+    #[case(Scale::Logarithmic, 1., 0.05, 1_000_000., 1_000_000.)]
     pub fn scale_unscale_test(
         #[case] scale: Scale,
         #[case] input: f64,
