@@ -68,10 +68,31 @@
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
+
+    details {
+      max-width: 400px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+
+    details summary {
+      cursor: pointer;
+    }
   </style>
 </head>
 
 <body>
+  <h1>Submit a PR</h1>
+
+  <details>
+    <summary>How do I get the payload?</summary>
+    <p>
+      Visit the <a href="https://eldolfin.codeberg.page/langton.wasm/?animation=langton&debug">langton.wasm simulator</a>
+      and click the <strong>"Bugfix / new feature idea"</strong> button.
+      This opens an AI chatbot that will implement your idea and generate the JSON payload to paste below.
+    </p>
+  </details>
+
   <form action="http://localhost:3000/submit" method="POST" enctype="multipart/form-data">
     <label for="name">Name (optional; used for git author)</label>
     <input type="text" id="name" name="name" placeholder="Your name" autocomplete="name">
