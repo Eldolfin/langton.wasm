@@ -1,5 +1,7 @@
 FROM docker.io/rust:1-slim-bullseye AS build
 
+RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /build
 
 COPY . .
@@ -25,5 +27,4 @@ COPY --from=build /build/Rocket.toml ./static
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=3000
 
-CMD ./main
-
+CMD ["./main"]

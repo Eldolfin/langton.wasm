@@ -128,3 +128,12 @@ dev-remote-pr-opener:
     export RUST_BACKTRACE=1
     export RUST_LOG=debug
     git ls-files | entr -cr cargo r
+
+# Open remote-pr-opener submit page with docker compose
+docker-remote-pr-opener:
+    #!/usr/bin/sh
+    cd dev/remote-pr-opener
+    xdg-open localhost:3000/submit &
+    export RUST_BACKTRACE=1
+    export RUST_LOG=debug
+    docker compose up -d --build
