@@ -1,5 +1,5 @@
 services:
-  smolform:
+  pr-opener:
     volumes:
       - ./mnt/repo-cache:/var/lib/propener/repo
       - ./mnt/logs.jsonl:/var/log/propener/logs.jsonl
