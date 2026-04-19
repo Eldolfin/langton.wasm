@@ -18,9 +18,12 @@ RUN --mount=type=cache,target=/build/target \
 
 ################################################################################
 
-FROM docker.io/debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
+FROM docker.io/debian:bullseye-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl1.1 git openssh-client
 RUN update-ca-certificates
+
+RUN git config --global user.email "pr-opener@eldolfin.top"
+RUN git config --global user.name "pr-opener"
 
 WORKDIR /app
 

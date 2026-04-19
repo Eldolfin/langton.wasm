@@ -1,5 +1,9 @@
 services:
   smolform:
+    volumes:
+      - ./mnt/repo-cache:/var/lib/propener/repo
+      - ./mnt/logs.jsonl:/var/log/propener/logs.jsonl
+      - ./.ssh:/root/.ssh:ro
     build:
       context: ../..
       dockerfile: dev/remote-pr-opener/Dockerfile

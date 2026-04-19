@@ -133,7 +133,7 @@ dev-remote-pr-opener:
 docker-remote-pr-opener:
     #!/usr/bin/sh
     cd dev/remote-pr-opener
-    xdg-open localhost:3000/submit &
+    xdg-open localhost:$PROPENER_PORT/submit &
     export RUST_BACKTRACE=1
     export RUST_LOG=debug
     docker compose up -d --build

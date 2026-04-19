@@ -4,17 +4,17 @@ use std::path::PathBuf;
 
 use anyhow::Context as _;
 use forgejo_api::{
-    structs::{CreateLabelOption, CreatePullRequestOption, IssueListLabelsQuery},
     Auth, Forgejo,
+    structs::{CreateLabelOption, CreatePullRequestOption, IssueListLabelsQuery},
 };
-use indoc::indoc;
+use indoc::formatdoc;
 use log::info;
 use rocket::form::{Form, Strict};
 use rocket::http::{ContentType, Status};
 use rocket::request::{FromRequest, Outcome};
-use rocket::response::content::RawHtml;
 use rocket::response::Redirect;
-use rocket::{get, launch, post, routes, FromForm, Request, State};
+use rocket::response::content::RawHtml;
+use rocket::{FromForm, Request, State, get, launch, post, routes};
 use serde::{Deserialize, Serialize};
 use serde_jsonlines::append_json_lines;
 use tempdir::TempDir;
@@ -204,15 +204,16 @@ async fn send_pr(form: UserForm, ip: &IpHeader, config: &PROpenerConfig) -> anyh
         form.name.as_deref(),
         form.email.as_deref(),
         |old_message| {
-            format!(
-                indoc! {"
-        Declared name: {:?}
-        Declared email: {:?}
+            let (subject, rest) = old_message.split_once("\n\n").unwrap();
+            let name = &form.name;
+            let email = &form.email;
+            formatdoc! {"
+        {subject}
+        Declared name: {name:?}
+        Declared email: {email:?}
         ---
-        {}
-    "},
-                form.name, form.email, old_message
-            )
+        {rest}
+    "}
         },
     )
     .context("Failed to amend commit")?;

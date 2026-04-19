@@ -7,3 +7,4 @@ deploy
 /main-results.json
 /pr-results.json
 .playwright-mcp
+/dev/remote-pr-opener/.ssh
