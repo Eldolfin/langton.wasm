@@ -138,16 +138,34 @@
     padding: 4px 0;
 }
 
+.DebugUI-color-preview {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.DebugUI-color-input {
+    display: none;
+}
+
 .DebugUI-link {
     display: block;
-    margin-top: 8px;
-    font-size: 12px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #ddd;
+    font-size: 13px;
     color: #007acc;
     text-decoration: none;
 }
 
 .DebugUI-link:hover {
     text-decoration: underline;
+    color: #005fa3;
 }
 
 .DebugUI-ai-launcher {

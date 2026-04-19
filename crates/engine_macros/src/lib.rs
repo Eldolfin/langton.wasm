@@ -26,6 +26,8 @@ struct ParamFieldOpts {
     needs_restart: bool,
     #[darling(default)]
     section: Option<String>,
+    #[darling(default)]
+    color: bool,
 }
 
 fn parse_range_tokens(range_str: &str) -> proc_macro2::TokenStream {
@@ -88,17 +90,23 @@ pub fn derive_simulation_config(input: TokenStream) -> TokenStream {
             quote! {}
         };
 
-        section_stmts.push(quote! {
-            let #field_name = debug_ui.param(debug_ui::ParamParam {
-                name: #name,
-                default_value: #default_val,
-                #range_expr
-                #step_expr
-                #scale_expr
-                #restart_expr
-                ..Default::default()
+        if field.color {
+            section_stmts.push(quote! {
+                let #field_name = debug_ui.color_param(#name, #default_val);
             });
-        });
+        } else {
+            section_stmts.push(quote! {
+                let #field_name = debug_ui.param(debug_ui::ParamParam {
+                    name: #name,
+                    default_value: #default_val,
+                    #range_expr
+                    #step_expr
+                    #scale_expr
+                    #restart_expr
+                    ..Default::default()
+                });
+            });
+        }
 
         field_inits.push(quote! { #field_name });
     }
