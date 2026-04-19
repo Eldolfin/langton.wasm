@@ -4,7 +4,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libs
 
 WORKDIR /build
 
-COPY . .
+COPY assets/ assets/
+COPY dev/remote-pr-opener/Cargo.toml Cargo.toml
+COPY dev/remote-pr-opener/Rocket.toml Rocket.toml
+COPY dev/remote-pr-opener/src/ src/
 
 RUN --mount=type=cache,target=/build/target \
     --mount=type=cache,target=/usr/local/cargo/registry \
