@@ -124,7 +124,7 @@ fix:
 dev-remote-pr-opener:
     #!/usr/bin/sh
     cd dev/remote-pr-opener
-    xdg-open localhost:3000/submit &
+    xdg-open localhost:$PROPENER_PORT/submit &
     export RUST_BACKTRACE=1
     export RUST_LOG=debug
     git ls-files | entr -cr cargo r

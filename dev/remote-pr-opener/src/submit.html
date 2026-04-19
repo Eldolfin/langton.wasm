@@ -54,7 +54,7 @@
       padding: 14px 20px;
       border-radius: 8px;
       font-size: 0.9rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       z-index: 9999;
       max-width: 280px;
     }
@@ -65,8 +65,15 @@
     }
 
     @keyframes fadein {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     details {
@@ -87,13 +94,14 @@
   <details>
     <summary>How do I get the payload?</summary>
     <p>
-      Visit the <a href="https://eldolfin.codeberg.page/langton.wasm/?animation=langton&debug">langton.wasm simulator</a>
+      Visit the <a href="https://eldolfin.codeberg.page/langton.wasm/?animation=langton&debug">langton.wasm
+        simulator</a>
       and click the <strong>"Bugfix / new feature idea"</strong> button.
       This opens an AI chatbot that will implement your idea and generate the JSON payload to paste below.
     </p>
   </details>
 
-  <form action="http://localhost:3000/submit" method="POST" enctype="multipart/form-data">
+  <form action="/submit" method="POST" enctype="multipart/form-data">
     <label for="name">Name (optional; used for git author)</label>
     <input type="text" id="name" name="name" placeholder="Your name" autocomplete="name">
 
@@ -103,9 +111,7 @@
     <label for="payload">JSON payload (patch + PR metadata)</label>
     <textarea id="payload" name="payload"
       placeholder='{"patch": "From 0000... Mon Sep 17 00:00:00 2001\n...", "pr-title": "feat: ...", "pr-body": "## Summary\n..."}'
-      spellcheck="false"
-      autocorrect="off"
-      autocapitalize="off"></textarea>
+      spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
 
     <button type="submit">Submit PR!</button>
 
@@ -115,7 +121,7 @@
   <div id="toast">PR is being created — you'll be redirected once it's ready.</div>
 
   <script>
-    document.querySelector('form').addEventListener('submit', function() {
+    document.querySelector('form').addEventListener('submit', function () {
       document.getElementById('toast').classList.add('visible');
     });
   </script>
