@@ -37,6 +37,31 @@
       margin-top: 15px;
       cursor: pointer;
     }
+
+    #toast {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 14px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 9999;
+      max-width: 280px;
+    }
+
+    #toast.visible {
+      display: block;
+      animation: fadein 0.3s ease;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 
@@ -56,6 +81,14 @@
 
     *Please note that your IP address (<<USER_IP>>) will be logged for abuse abuse prevention
   </form>
+
+  <div id="toast">PR is being created — you'll be redirected once it's ready.</div>
+
+  <script>
+    document.querySelector('form').addEventListener('submit', function() {
+      document.getElementById('toast').classList.add('visible');
+    });
+  </script>
 </body>
 
 </html>

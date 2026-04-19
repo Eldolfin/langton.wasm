@@ -109,7 +109,12 @@ fn rocket() -> _ {
     let config = PROpenerConfig::from_env().expect("Config is invalid");
     rocket::build()
         .manage(config)
-        .mount("/", routes![submit, submit_page])
+        .mount("/", routes![index_redirect, submit, submit_page])
+}
+
+#[get("/")]
+fn index_redirect() -> Redirect {
+    Redirect::to("/submit")
 }
 
 #[get("/submit")]
