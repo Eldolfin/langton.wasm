@@ -27,8 +27,6 @@ from playwright.sync_api import sync_playwright, Page
 
 from benchmark_scenarios import SCENARIOS
 
-REPO_ROOT = Path.cwd()
-INDEX_HTML = REPO_ROOT / "crates" / "langton" / "index.html"
 PORT = 8765
 BASE_URL = f"http://localhost:{PORT}"
 
@@ -39,25 +37,27 @@ def _port_open(port: int) -> bool:
         return s.connect_ex(("localhost", port)) == 0
 
 
-def setup_serve_dir(main_pkg: Path, pr_pkg: Path) -> Path:
+def setup_serve_dir(main_build: Path, pr_build: Path) -> Path:
     """Create a temp serve directory with /ref and /pr subdirs.
+
+    Each build dir must contain index.html and pkg/.
 
     Structure:
         serve_root/
           ref/
-            index.html
-            pkg/ → (copy of main build)
+            index.html  (from main build)
+            pkg/         (from main build)
           pr/
-            index.html
-            pkg/ → (copy of PR build)
+            index.html  (from PR build)
+            pkg/         (from PR build)
     """
     serve_root = Path(tempfile.mkdtemp(prefix="bench-serve-"))
 
-    for name, pkg_src in [("ref", main_pkg), ("pr", pr_pkg)]:
+    for name, build_src in [("ref", main_build), ("pr", pr_build)]:
         subdir = serve_root / name
         subdir.mkdir()
-        shutil.copy2(INDEX_HTML, subdir / "index.html")
-        shutil.copytree(pkg_src, subdir / "pkg")
+        shutil.copy2(build_src / "index.html", subdir / "index.html")
+        shutil.copytree(build_src / "pkg", subdir / "pkg")
 
     return serve_root
 
@@ -94,7 +94,7 @@ def measure_scenario(
     *variant* is "ref" or "pr" — determines the URL path prefix.
     """
     extra = "&".join(f"{k}={v}" for k, v in params.items() if k != "label")
-    url = f"{BASE_URL}/{variant}/?debug&speedup_frames=0&{extra}"
+    url = f"{BASE_URL}/{variant}/?animation=langton&debug&speedup_frames=0&{extra}"
 
     page.goto(url)
     page.wait_for_selector("canvas", timeout=15_000)
@@ -147,10 +147,10 @@ def main() -> None:
         description="Interleaved benchmark: alternates main/PR each scenario"
     )
     parser.add_argument(
-        "--main-pkg", type=Path, required=True, help="Pre-built main pkg/ dir"
+        "--main-build", type=Path, required=True, help="Main build dir (index.html + pkg/)"
     )
     parser.add_argument(
-        "--pr-pkg", type=Path, required=True, help="Pre-built PR pkg/ dir"
+        "--pr-build", type=Path, required=True, help="PR build dir (index.html + pkg/)"
     )
     parser.add_argument(
         "--duration",
@@ -169,20 +169,20 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    main_pkg = args.main_pkg.resolve()
-    pr_pkg = args.pr_pkg.resolve()
+    main_build = args.main_build.resolve()
+    pr_build = args.pr_build.resolve()
 
-    if not main_pkg.is_dir():
-        print(f"ERROR: --main-pkg not a directory: {main_pkg}", file=sys.stderr)
+    if not main_build.is_dir():
+        print(f"ERROR: --main-build not a directory: {main_build}", file=sys.stderr)
         sys.exit(1)
-    if not pr_pkg.is_dir():
-        print(f"ERROR: --pr-pkg not a directory: {pr_pkg}", file=sys.stderr)
+    if not pr_build.is_dir():
+        print(f"ERROR: --pr-build not a directory: {pr_build}", file=sys.stderr)
         sys.exit(1)
 
     main_results: dict[str, list[float]] = {s: [] for s in SCENARIOS}
     pr_results: dict[str, list[float]] = {s: [] for s in SCENARIOS}
 
-    serve_dir = setup_serve_dir(main_pkg, pr_pkg)
+    serve_dir = setup_serve_dir(main_build, pr_build)
     server_proc = start_http_server(serve_dir)
     try:
         with sync_playwright() as p:

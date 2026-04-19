@@ -29,25 +29,19 @@ jobs:
           key: ${{ runner.os }}-cargo-deploy-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build
-        run: |
-          cd crates/langton
-          wasm-pack build --target web
+        run: just build-web
 
       - name: Prepare deploy directory
         run: |
           DEPLOY_DIR="deploy"
-          mkdir -p "$DEPLOY_DIR/pkg"
-          cp index.html              "$DEPLOY_DIR/"
-          cp favicon.png             "$DEPLOY_DIR/"
-          cp crates/langton/pkg/langton.js      "$DEPLOY_DIR/pkg/"
-          cp crates/langton/pkg/langton_bg.wasm "$DEPLOY_DIR/pkg/"
-          cp crates/langton/pkg/package.json    "$DEPLOY_DIR/pkg/"
-          cp crates/langton/pkg/LICENSE         "$DEPLOY_DIR/pkg/" 2>/dev/null || true
-          cp crates/langton/pkg/README.md       "$DEPLOY_DIR/pkg/" 2>/dev/null || true
-          cp -r crates/langton/pkg/snippets/    "$DEPLOY_DIR/pkg/snippets/" 2>/dev/null || true
+          mkdir -p "$DEPLOY_DIR"
+          cp crates/app/index.html   "$DEPLOY_DIR/"
+          cp crates/app/favicon.png  "$DEPLOY_DIR/"
+          cp -r crates/app/pkg/      "$DEPLOY_DIR/pkg/"
 
       - name: Push to pages branch
         run: |
+          rm deploy/pkg/.gitignore
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout --orphan pages-tmp

@@ -1,0 +1,25 @@
+[package]
+name = "app"
+description = "WASM entry point: animation registry and picker integration"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+engine.workspace = true
+canvas.workspace = true
+debug_ui.workspace = true
+langton.workspace = true
+dummy.workspace = true
+console_error_panic_hook.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+web-sys.workspace = true
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz"]
+
+[package.metadata.wasm-pack.profile.release-with-debug]
+wasm-opt = ["-g"]

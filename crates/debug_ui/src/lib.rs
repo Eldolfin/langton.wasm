@@ -95,8 +95,22 @@ impl<T: Copy> Param<T> {
         (Arc::clone(&inner), Self { inner })
     }
 
+    pub fn fixed(value: T) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(value)),
+        }
+    }
+
     pub fn get(&self) -> T {
         *self.inner.read().unwrap()
+    }
+}
+
+impl<T: Copy> Clone for Param<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
     }
 }
 
@@ -106,6 +120,13 @@ pub struct StepCounter {
 }
 
 impl StepCounter {
+    pub fn disabled() -> Self {
+        Self {
+            element: None,
+            count: 0,
+        }
+    }
+
     pub fn add_steps(&mut self, n: u64) {
         self.count += n;
         if let Some(el) = &self.element {
@@ -114,7 +135,7 @@ impl StepCounter {
     }
 
     pub fn reset(&mut self) {
-        self.count = 1;
+        self.count = 0;
         if let Some(el) = &self.element {
             el.set_text_content(Some("Steps: 0"));
         }
@@ -139,91 +160,67 @@ fn url() -> url::Url {
     document().url().unwrap().parse().unwrap()
 }
 
+thread_local! {
+    static HISTORY_PUSHED: RefCell<bool> = const { RefCell::new(false) };
+}
+
+fn push_or_replace_url(new_url: &str) {
+    use web_sys::wasm_bindgen::JsValue;
+    let history = window().history().unwrap();
+    HISTORY_PUSHED.with(|pushed| {
+        if *pushed.borrow() {
+            history
+                .replace_state_with_url(&JsValue::NULL, "", Some(new_url))
+                .unwrap();
+        } else {
+            history
+                .push_state_with_url(&JsValue::NULL, "", Some(new_url))
+                .unwrap();
+            *pushed.borrow_mut() = true;
+        }
+    });
+}
+
+fn modify_url_params(f: impl FnOnce(&mut HashMap<String, String>)) {
+    let mut new_url = url();
+    let mut params: HashMap<String, String> = new_url
+        .query_pairs()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    f(&mut params);
+    new_url.query_pairs_mut().clear();
+    let mut params: Vec<_> = params.into_iter().collect();
+    params.sort();
+    new_url.query_pairs_mut().extend_pairs(params);
+    push_or_replace_url(new_url.as_str());
+}
+
 fn add_url_param<T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 'static>(
     key: &str,
     value: T,
 ) {
-    use web_sys::wasm_bindgen::JsValue;
-
-    let mut new_url = url();
-    let mut params: HashMap<String, String> = new_url
-        .query_pairs()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-    // remove old parameter
-    params.retain(|k, _| k != key);
-    params.insert(key.into(), value.to_string());
-    new_url.query_pairs_mut().clear();
-    let mut params: Vec<_> = params.into_iter().collect();
-    params.sort();
-    new_url.query_pairs_mut().extend_pairs(params);
-    window()
-        .history()
-        .unwrap()
-        .push_state_with_url(&JsValue::NULL, "", Some(new_url.as_str()))
-        .unwrap();
+    modify_url_params(|params| {
+        params.retain(|k, _| k != key);
+        params.insert(key.into(), value.to_string());
+    });
 }
 
 fn add_debug_url_param() {
-    use web_sys::wasm_bindgen::JsValue;
-
-    let mut new_url = url();
-    let mut params: HashMap<String, String> = new_url
-        .query_pairs()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-    params.insert("debug".into(), String::new());
-    new_url.query_pairs_mut().clear();
-    let mut params: Vec<_> = params.into_iter().collect();
-    params.sort();
-    new_url.query_pairs_mut().extend_pairs(params);
-    window()
-        .history()
-        .unwrap()
-        .push_state_with_url(&JsValue::NULL, "", Some(new_url.as_str()))
-        .unwrap();
+    modify_url_params(|params| {
+        params.insert("debug".into(), String::new());
+    });
 }
 
 fn remove_url_param(key: &str) {
-    use web_sys::wasm_bindgen::JsValue;
-
-    let mut new_url = url();
-    let mut params: HashMap<String, String> = new_url
-        .query_pairs()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-    // remove old parameter
-    params.retain(|k, _| k != key);
-    new_url.query_pairs_mut().clear();
-    let mut params: Vec<_> = params.into_iter().collect();
-    params.sort();
-    new_url.query_pairs_mut().extend_pairs(params);
-    window()
-        .history()
-        .unwrap()
-        .push_state_with_url(&JsValue::NULL, "", Some(new_url.as_str()))
-        .unwrap();
+    modify_url_params(|params| {
+        params.retain(|k, _| k != key);
+    });
 }
 
-fn remove_all_url_params_except(key: &str) {
-    use web_sys::wasm_bindgen::JsValue;
-
-    let mut new_url = url();
-    let mut params: HashMap<String, String> = new_url
-        .query_pairs()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-    // remove old parameters
-    params.retain(|k, _| k == key);
-    new_url.query_pairs_mut().clear();
-    let mut params: Vec<_> = params.into_iter().collect();
-    params.sort();
-    new_url.query_pairs_mut().extend_pairs(params);
-    window()
-        .history()
-        .unwrap()
-        .push_state_with_url(&JsValue::NULL, "", Some(new_url.as_str()))
-        .unwrap();
+fn remove_all_url_params_except(keys: &[&str]) {
+    modify_url_params(|params| {
+        params.retain(|k, _| keys.contains(&k.as_str()));
+    });
 }
 
 impl DebugUI {
@@ -291,6 +288,22 @@ impl DebugUI {
             _shortcut_listener: shortcut_listener,
             document,
             needs_clear_shared,
+        }
+    }
+
+    /// Headless instance: no DOM elements created. For use in previews and tests.
+    pub fn headless() -> Self {
+        let document = document();
+        let state = Rc::new(RefCell::new(DebugUIState::Disabled {
+            root: document.create_element("div").unwrap(),
+            next_uid: 0,
+        }));
+        let shortcut_listener = Self::register_shortcut(state.clone());
+        Self {
+            state,
+            _shortcut_listener: shortcut_listener,
+            document,
+            needs_clear_shared: Rc::new(RefCell::new(false)),
         }
     }
 
@@ -477,6 +490,70 @@ impl DebugUI {
         }
     }
 
+    pub fn presets(&mut self, presets: &[(&'static str, &'static str)]) {
+        let state = self.state.borrow();
+        let root = match &*state {
+            DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => root,
+        };
+        let document = document();
+        let select = document.create_element("select").unwrap();
+        select.set_class_name("DebugUI-presets-select");
+
+        let placeholder = document.create_element("option").unwrap();
+        placeholder.set_text_content(Some("— Presets —"));
+        placeholder.set_attribute("disabled", "").unwrap();
+        placeholder.set_attribute("selected", "").unwrap();
+        select.append_child(&placeholder).unwrap();
+
+        for (name, query_string) in presets {
+            let option = document.create_element("option").unwrap();
+            option.set_text_content(Some(name));
+            option.set_attribute("value", query_string).unwrap();
+            select.append_child(&option).unwrap();
+        }
+
+        {
+            use web_sys::HtmlSelectElement;
+            let select_clone = select.clone().dyn_into::<HtmlSelectElement>().unwrap();
+            EventListener::new(&select, "change", move |_event| {
+                let value = select_clone.value();
+                let mut new_url = url();
+                // Keep only animation and debug params
+                let kept: Vec<(String, String)> = new_url
+                    .query_pairs()
+                    .filter(|(k, _)| k == "animation" || k == "debug")
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect();
+                // Parse preset query string params
+                let preset_params: Vec<(String, String)> = value
+                    .split('&')
+                    .filter_map(|pair: &str| {
+                        let mut parts = pair.splitn(2, '=');
+                        let k = parts.next()?;
+                        let v = parts.next().unwrap_or("");
+                        if k.is_empty() {
+                            None
+                        } else {
+                            Some((k.to_string(), v.to_string()))
+                        }
+                    })
+                    .collect();
+                new_url.query_pairs_mut().clear();
+                let mut all_params: Vec<(String, String)> = kept;
+                all_params.extend(preset_params);
+                all_params.sort();
+                new_url.query_pairs_mut().extend_pairs(&all_params);
+                window().location().assign(new_url.as_str()).unwrap();
+            })
+            .forget();
+        }
+
+        // Insert before reset_btn
+        let reset_btn = root.query_selector(".DebugUI-reset-btn").unwrap();
+        root.insert_before(&select, reset_btn.as_ref().map(|e| e as &web_sys::Node))
+            .unwrap();
+    }
+
     pub fn link(&mut self, text: &str, href: &str) {
         let state = self.state.borrow();
         let root = match &*state {
@@ -516,7 +593,7 @@ impl DebugUI {
                 root.append_child(&el).unwrap();
                 StepCounter {
                     element: Some(el),
-                    count: 1,
+                    count: 0,
                 }
             }
             DebugUIState::Disabled { .. } => StepCounter {
@@ -585,7 +662,7 @@ impl DebugUI {
         }
         {
             EventListener::new(&reset_btn, "click", move |_event| {
-                remove_all_url_params_except("debug");
+                remove_all_url_params_except(&["debug", "animation"]);
                 window().location().reload().unwrap();
             })
             .forget();
@@ -681,7 +758,7 @@ mod tests {
             count: 42,
         };
         counter.reset();
-        assert_eq!(counter.get_count(), 1);
+        assert_eq!(counter.get_count(), 0);
     }
 
     #[test]
@@ -702,6 +779,9 @@ mod tests {
     #[case(Scale::Logarithmic, 0., 526., 527., 526.)]
     #[case(Scale::Logarithmic, 1., 526., 527., 527.)]
     #[case(Scale::Logarithmic, 0.5, 0., 1000., 30.638584039112747)]
+    // speed param range: slider endpoints hit the exact bounds
+    #[case(Scale::Logarithmic, 0., 0.05, 1_000_000., 0.05)]
+    #[case(Scale::Logarithmic, 1., 0.05, 1_000_000., 1_000_000.)]
     pub fn scale_unscale_test(
         #[case] scale: Scale,
         #[case] input: f64,

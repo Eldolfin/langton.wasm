@@ -1,201 +1,105 @@
 use std::{cell::RefCell, rc::Rc};
 
 use canvas::{Canvas, Color};
-use debug_ui::{DebugUI, Param, ParamParam, StepCounter};
-use wasm_bindgen::prelude::wasm_bindgen;
-
-#[wasm_bindgen]
-pub async fn start_langton_ant() {
-    console_error_panic_hook::set_once();
-    let mut debug_ui = DebugUI::new("Langton's ant parameters");
-    debug_ui.start_section("Canvas");
-    let start_x_rel = debug_ui.param(ParamParam {
-        name: "start x",
-        default_value: 0.80,
-        step_size: 0.01,
-        needs_restart: true,
-        ..Default::default()
-    });
-    let start_y_rel = debug_ui.param(ParamParam {
-        name: "start y",
-        default_value: 0.75,
-        step_size: 0.01,
-        needs_restart: true,
-        ..Default::default()
-    });
-    let alpha_retention_factor = debug_ui.param(ParamParam {
-        name: "alpha retention",
-        default_value: 251,
-        range: 0..=255,
-        ..Default::default()
-    });
-
-    debug_ui.start_section("Animation Speed");
-    let final_steps_per_frame = debug_ui.param(ParamParam {
-        name: "final speed",
-        default_value: 0.2,
-        range: 0.0..=1000.0,
-        scale: debug_ui::Scale::Logarithmic,
-        ..Default::default()
-    });
-    let speedup_frames = debug_ui.param(ParamParam {
-        name: "speedup frames",
-        default_value: 1300,
-        range: 0..=1500,
-        ..Default::default()
-    });
-
-    debug_ui.start_section("Ants");
-    let num_ants = debug_ui.param(ParamParam {
-        name: "number of ants",
-        default_value: 2,
-        range: 1..=1000,
-        scale: debug_ui::Scale::Logarithmic,
-        ..Default::default()
-    });
-    let ant_color_saturation = debug_ui.param(ParamParam {
-        name: "ant color saturation",
-        default_value: 0.3,
-        range: 0.0..=1.0,
-        step_size: 0.01,
-        ..Default::default()
-    });
-    let ant_color_brightness = debug_ui.param(ParamParam {
-        name: "ant color brightness",
-        default_value: 0.7,
-        range: 0.0..=1.0,
-        step_size: 0.01,
-        ..Default::default()
-    });
-
-    debug_ui.start_section("Visual");
-    let cell_size = debug_ui.param(ParamParam {
-        name: "cell size",
-        default_value: 20,
-        range: 1..=50,
-        ..Default::default()
-    });
-    let cell_border_size = debug_ui.param(ParamParam {
-        name: "cell border size",
-        default_value: 1,
-        range: 0..=5,
-        ..Default::default()
-    });
-    let white_color_r = debug_ui.param(ParamParam {
-        name: "white color red",
-        default_value: 30,
-        range: 0..=255,
-        ..Default::default()
-    });
-    let white_color_g = debug_ui.param(ParamParam {
-        name: "white color green",
-        default_value: 30,
-        range: 0..=255,
-        ..Default::default()
-    });
-    let white_color_b = debug_ui.param(ParamParam {
-        name: "white color blue",
-        default_value: 30,
-        range: 0..=255,
-        ..Default::default()
-    });
-
-    debug_ui.start_section("Advanced");
-    let speed_ease_in_power = debug_ui.param(ParamParam {
-        name: "speed ease-in power",
-        default_value: 2.5,
-        range: 1.0..=10.0,
-        step_size: 0.1,
-        ..Default::default()
-    });
-    let seed = debug_ui.param(ParamParam {
-        name: "seed",
-        default_value: 0,
-        range: 0..=u32::MAX,
-        needs_restart: true,
-        ..Default::default()
-    });
-
-    debug_ui.link(
-        "About this animation",
-        "https://codeberg.org/eldolfin/langton.wasm",
-    );
-    let game_config = GameConfig {
-        num_ants,
-        final_steps_per_frame,
-        speedup_frames,
-        start_x_rel,
-        start_y_rel,
-        alpha_retention_factor,
-        ant_color_saturation,
-        ant_color_brightness,
-        white_color_r,
-        white_color_g,
-        white_color_b,
-        speed_ease_in_power,
-        seed,
-    };
-    let cell_border_size = Rc::new(RefCell::new(cell_border_size));
-    let cell_size = Rc::new(RefCell::new(cell_size));
-    let config = Rc::new(RefCell::new(game_config));
-    let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
-    let debug_ui = Rc::new(RefCell::new(debug_ui));
-    let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
-    let needs_clear = debug_ui.borrow().needs_clear();
-    loop {
-        // Clear canvas
-        {
-            let config = config.borrow();
-            let bg_color = Color::Rgb {
-                r: config.white_color_r.get(),
-                g: config.white_color_g.get(),
-                b: config.white_color_b.get(),
-            };
-            canvas.clear(bg_color);
-        }
-
-        step_counter.borrow_mut().reset();
-        let debug_ui_ref = debug_ui.clone();
-        let should_restart = Box::new(move || debug_ui_ref.borrow_mut().should_restart());
-        Game::new(config.clone())
-            .run(
-                &mut canvas,
-                should_restart,
-                needs_clear.clone(),
-                step_counter.clone(),
-            )
-            .await;
-    }
+use debug_ui::{DebugUI, Param};
+use engine::Simulation;
+use engine_macros::SimulationConfig;
+#[derive(SimulationConfig)]
+pub struct GameConfig {
+    #[param(
+        section = "Canvas",
+        name = "start x",
+        default = "0.80",
+        range = "0.0..=1.0",
+        step = 0.01,
+        needs_restart
+    )]
+    pub start_x_rel: Param<f32>,
+    #[param(
+        name = "start y",
+        default = "0.75",
+        range = "0.0..=1.0",
+        step = 0.01,
+        needs_restart
+    )]
+    pub start_y_rel: Param<f32>,
+    #[param(
+        section = "Ants",
+        name = "number of ants",
+        default = "2",
+        range = "1..=1000",
+        scale = "Logarithmic"
+    )]
+    pub num_ants: Param<usize>,
+    #[param(
+        name = "ant color saturation",
+        default = "0.3",
+        range = "0.0..=1.0",
+        step = 0.01
+    )]
+    pub ant_color_saturation: Param<f32>,
+    #[param(
+        name = "ant color brightness",
+        default = "0.7",
+        range = "0.0..=1.0",
+        step = 0.01
+    )]
+    pub ant_color_brightness: Param<f32>,
+    #[param(
+        section = "Visual",
+        name = "cell size",
+        default = "20",
+        range = "1..=50"
+    )]
+    pub cell_size: Param<usize>,
+    #[param(name = "cell border size", default = "1", range = "0..=5")]
+    pub cell_border_size: Param<usize>,
+    #[param(name = "white color red", default = "30", range = "0..=255")]
+    pub white_color_r: Param<u8>,
+    #[param(name = "white color green", default = "30", range = "0..=255")]
+    pub white_color_g: Param<u8>,
+    #[param(name = "white color blue", default = "30", range = "0..=255")]
+    pub white_color_b: Param<u8>,
+    #[param(
+        section = "Advanced",
+        name = "seed",
+        default = "0",
+        range = "0..=4294967295",
+        needs_restart
+    )]
+    pub seed: Param<u32>,
 }
 
-struct GameConfig {
-    num_ants: Param<usize>,
-    final_steps_per_frame: Param<f64>,
-    speedup_frames: Param<usize>,
-    start_x_rel: Param<f32>,
-    start_y_rel: Param<f32>,
-    alpha_retention_factor: Param<u8>,
-    ant_color_saturation: Param<f32>,
-    ant_color_brightness: Param<f32>,
-    white_color_r: Param<u8>,
-    white_color_g: Param<u8>,
-    white_color_b: Param<u8>,
-    speed_ease_in_power: Param<f64>,
-    seed: Param<u32>,
-}
-
-struct Game {
-    ants: Vec<Ant>,
-    config: Rc<RefCell<GameConfig>>,
-}
-
-struct Ant {
-    x: usize,
-    y: usize,
-    direction: Direction,
-    id: usize,
-    color: Color,
-}
+pub const LANGTON_PRESETS: &[(&str, &str)] = &[
+    (
+        "Many small ants",
+        "alpha_retention=235&cell_size=5&final_speed=0.5&number_of_ants=400&speedup_frames=0&start_x=0.5&start_y=0.5",
+    ),
+    (
+        "3 trailing ants",
+        "alpha_retention=255&final_speed=30&number_of_ants=3&speedup_frames=300&start_x=0.5&start_y=0.5&cell_size=4",
+    ),
+    (
+        "Angry ant",
+        "alpha_retention=220&final_speed=200&number_of_ants=1&speedup_frames=0",
+    ),
+    (
+        "Flies",
+        "alpha_retention=0&ant_color_brightness=0.3&ant_color_saturation=0&cell_border_size=0&cell_size=6&final_speed=1&number_of_ants=500&speedup_frames=120&start_x=0.5&start_y=0.5&white_color_blue=0&white_color_green=0&white_color_red=0",
+    ),
+    (
+        "Chaos",
+        "alpha_retention=255&final_speed=40&number_of_ants=300&speedup_frames=600&start_x=0.5&start_y=0.5",
+    ),
+    (
+        "Small grid",
+        "alpha_retention=254&ant_color_brightness=0.65&ant_color_saturation=1&cell_border_size=0&cell_size=5&final_speed=25&number_of_ants=4&speedup_frames=1200&start_x=0.5&start_y=0.5&white_color_blue=227&white_color_green=227&white_color_red=227",
+    ),
+    (
+        "1px grid",
+        "alpha_retention=255&ant_color_brightness=0&ant_color_saturation=0.5&cell_border_size=0&cell_size=1&final_speed=5000&number_of_ants=1&speedup_frames=0&white_color_blue=255&white_color_green=255&white_color_red=255",
+    ),
+];
 
 #[derive(Debug, Clone, Copy, Default)]
 enum Direction {
@@ -206,103 +110,66 @@ enum Direction {
     West,
 }
 
-impl Game {
-    fn new(config: Rc<RefCell<GameConfig>>) -> Self {
-        Self {
-            ants: vec![],
-            config,
+impl Direction {
+    fn left(self) -> Self {
+        match self {
+            Direction::North => Direction::West,
+            Direction::Est => Self::North,
+            Direction::South => Self::Est,
+            Direction::West => Self::South,
         }
     }
 
-    /// An ease-in I felt satisfying enough by trial and error
-    fn shit_ease_in(inp: f64, power: f64) -> f64 {
-        let out = inp.powf(power);
-        (out + 0.005).clamp(0.0, 1.0)
+    fn right(self) -> Self {
+        match self {
+            Direction::North => Direction::Est,
+            Direction::Est => Direction::South,
+            Direction::South => Direction::West,
+            Direction::West => Direction::North,
+        }
+    }
+}
+
+pub struct Game {
+    ants: Vec<Ant>,
+    board: Vec<Option<usize>>,
+    config: Rc<RefCell<GameConfig>>,
+    width: usize,
+    height: usize,
+}
+
+struct Ant {
+    x: usize,
+    y: usize,
+    direction: Direction,
+    id: usize,
+    color: Color,
+}
+
+impl Game {
+    pub fn new(config: Rc<RefCell<GameConfig>>, width: usize, height: usize) -> Self {
+        Self {
+            ants: vec![],
+            board: vec![None; width * height],
+            config,
+            width,
+            height,
+        }
     }
 
-    async fn run(
-        mut self,
-        canvas: &mut Canvas,
-        should_stop: Box<dyn Fn() -> bool>,
-        needs_clear: Rc<RefCell<bool>>,
-        step_counter: Rc<RefCell<StepCounter>>,
-    ) {
-        let mut prev_canvas_size = (canvas.height(), canvas.width());
-        let mut board = vec![None::<usize>; prev_canvas_size.0 * prev_canvas_size.1];
-        let mut step_accumulator = 0.0;
-        let mut frame_counter = 0;
-        let animation = move |canvas: &mut Canvas| {
-            if *needs_clear.borrow() {
-                let config = self.config.borrow();
-                let bg_color = Color::Rgb {
-                    r: config.white_color_r.get(),
-                    g: config.white_color_g.get(),
-                    b: config.white_color_b.get(),
-                };
-                drop(config);
-                canvas.clear(bg_color);
-                board.fill(None);
-                *needs_clear.borrow_mut() = false;
-            }
-            self.balance_ants(canvas);
-            let config = self.config.borrow();
-            frame_counter += 1;
-            let ratio = (frame_counter as f64 / config.speedup_frames.get() as f64).clamp(0.0, 1.0);
-            let ratio = Self::shit_ease_in(ratio, config.speed_ease_in_power.get());
-            let step = config.final_steps_per_frame.get() * ratio;
-            step_accumulator += step;
-            let canvas_size = (canvas.height(), canvas.width());
-            if canvas_size != prev_canvas_size {
-                prev_canvas_size = canvas_size;
-                board = vec![None::<usize>; canvas_size.0 * canvas_size.1];
-                for ant in &mut self.ants {
-                    ant.x = std::cmp::min(ant.x, canvas_size.1 - 1);
-                    ant.y = std::cmp::min(ant.y, canvas_size.0 - 1);
-                }
-            }
-            let mut steps_this_frame: u64 = 0;
-            while step_accumulator >= 1.0 {
-                step_accumulator -= 1.0;
-                steps_this_frame += 1;
-
-                for ant in &mut self.ants {
-                    assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");
-                    assert!(canvas_size.1 > 0, "Can't draw on a canvas of width 0 !");
-                    let current_cell_state = board[ant.x * canvas_size.0 + ant.y];
-                    let new_cell_color;
-                    match current_cell_state {
-                        None => {
-                            // Was white
-                            ant.direction = ant.direction.right();
-                            board[ant.x * canvas_size.0 + ant.y] = Some(ant.id);
-                            new_cell_color = ant.color;
-                        }
-                        Some(_) => {
-                            // Was black/colored by an ant
-                            ant.direction = ant.direction.left();
-                            board[ant.x * canvas_size.0 + ant.y] = None;
-                            new_cell_color = Color::Rgb {
-                                r: config.white_color_r.get(),
-                                g: config.white_color_g.get(),
-                                b: config.white_color_b.get(),
-                            };
-                        }
-                    }
-                    canvas.fill_rect(ant.x, ant.y, new_cell_color);
-                    ant.move_forward(canvas_size.1, canvas_size.0);
-                }
-            }
-
-            step_counter.borrow_mut().add_steps(steps_this_frame);
-
-            canvas.fill_canvas(config.alpha_retention_factor.get());
-
-            should_stop()
-        };
-        canvas.play_animation(animation).await;
+    pub fn preview(width: usize, height: usize) -> Self {
+        let mut debug_ui = DebugUI::headless();
+        let config = GameConfig::new(&mut debug_ui);
+        Self {
+            ants: vec![],
+            board: vec![None; width * height],
+            config: Rc::new(RefCell::new(config)),
+            width,
+            height,
+        }
     }
 
-    fn balance_ants(&mut self, canvas: &mut Canvas) {
+    fn balance_ants(&mut self, canvas: &Canvas) {
         let num_ants = self.config.borrow().num_ants.get();
         match num_ants.cmp(&self.ants.len()) {
             std::cmp::Ordering::Less => self.ants.truncate(num_ants),
@@ -315,11 +182,11 @@ impl Game {
         }
     }
 
-    fn add_ant(&mut self, id: usize, canvas: &mut Canvas) {
+    fn add_ant(&mut self, id: usize, canvas: &Canvas) {
         let config = self.config.borrow();
         let num_ants = config.num_ants.get();
         let seed = config.seed.get();
-        let seed_offset = (seed as f32 * 137.508) % 360.0; // golden angle for good distribution
+        let seed_offset = (seed as f32 * 137.508) % 360.0;
         let hue = if num_ants > 0 {
             (id as f32 * 360.0 / num_ants as f32 + seed_offset) % 360.0
         } else {
@@ -340,6 +207,63 @@ impl Game {
             color,
         };
         self.ants.push(ant);
+    }
+}
+
+impl Simulation for Game {
+    fn step(&mut self, canvas: &mut Canvas) {
+        self.balance_ants(canvas);
+        let config = self.config.borrow();
+        // (height, width) — indices are swapped when passing to board/move APIs
+        let canvas_size = (self.height, self.width);
+        for ant in &mut self.ants {
+            assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");
+            assert!(canvas_size.1 > 0, "Can't draw on a canvas of width 0 !");
+            let current_cell_state = self.board[ant.x * canvas_size.0 + ant.y];
+            let new_cell_color;
+            match current_cell_state {
+                None => {
+                    ant.direction = ant.direction.right();
+                    self.board[ant.x * canvas_size.0 + ant.y] = Some(ant.id);
+                    new_cell_color = ant.color;
+                }
+                Some(_) => {
+                    ant.direction = ant.direction.left();
+                    self.board[ant.x * canvas_size.0 + ant.y] = None;
+                    new_cell_color = Color::Rgb {
+                        r: config.white_color_r.get(),
+                        g: config.white_color_g.get(),
+                        b: config.white_color_b.get(),
+                    };
+                }
+            }
+            canvas.fill_rect(ant.x, ant.y, new_cell_color);
+            ant.move_forward(canvas_size.1, canvas_size.0);
+        }
+    }
+
+    fn on_canvas_resize(&mut self, new_width: usize, new_height: usize) {
+        self.width = new_width;
+        self.height = new_height;
+        self.board = vec![None; new_width * new_height];
+        for ant in &mut self.ants {
+            ant.x = ant.x.min(new_width.saturating_sub(1));
+            ant.y = ant.y.min(new_height.saturating_sub(1));
+        }
+    }
+
+    fn on_clear(&mut self, canvas: &mut Canvas) {
+        canvas.clear(self.bg_color());
+        self.board.fill(None);
+    }
+
+    fn bg_color(&self) -> Color {
+        let c = self.config.borrow();
+        Color::Rgb {
+            r: c.white_color_r.get(),
+            g: c.white_color_g.get(),
+            b: c.white_color_b.get(),
+        }
     }
 }
 
@@ -379,8 +303,8 @@ impl Ant {
 }
 
 fn hue_to_rgb(hue: f32, saturation: f32, lightness: f32) -> Color {
-    let s = saturation; // Saturation
-    let l = lightness; // Lightness
+    let s = saturation;
+    let l = lightness;
 
     let c = (1.0 - (2.0f32 * l - 1.0).abs()) * s;
     let h_prime = hue / 60.0;
@@ -400,7 +324,7 @@ fn hue_to_rgb(hue: f32, saturation: f32, lightness: f32) -> Color {
     } else if (5.0..=6.0).contains(&h_prime) {
         (c, 0.0, x)
     } else {
-        (0.0, 0.0, 0.0) // Should not happen with hue in 0-360
+        (0.0, 0.0, 0.0)
     };
 
     let r = ((r_temp + m) * 255.0).round() as u8;
@@ -408,26 +332,4 @@ fn hue_to_rgb(hue: f32, saturation: f32, lightness: f32) -> Color {
     let b = ((b_temp + m) * 255.0).round() as u8;
 
     Color::Rgb { r, g, b }
-}
-
-// Removed BoardState enum and its impl blocks
-
-impl Direction {
-    fn left(self) -> Self {
-        match self {
-            Direction::North => Direction::West,
-            Direction::Est => Self::North,
-            Direction::South => Self::Est,
-            Direction::West => Self::South,
-        }
-    }
-
-    fn right(self) -> Self {
-        match self {
-            Direction::North => Direction::Est,
-            Direction::Est => Direction::South,
-            Direction::South => Direction::West,
-            Direction::West => Direction::North,
-        }
-    }
 }

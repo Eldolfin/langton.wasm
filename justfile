@@ -7,54 +7,66 @@ DEPLOY_DIR := "deploy"
 help:
     just --list
 
-# Build langton-ant with wasm-pack for the web
+# Build app with wasm-pack for the web
 build-web *args:
-    cd crates/langton && rm -rf pkg && wasm-pack build --target web --no-typescript {{ args }}
+    cd crates/app && rm -rf pkg && wasm-pack build --target web --no-typescript {{ args }}
 
 # Build optimised wasm with debug symbols retained (for profiling)
 build-web-profiling:
-    cd crates/langton && rm -rf pkg && wasm-pack build --target web --no-typescript --profile=release-with-debug --no-opt
+    cd crates/app && rm -rf pkg && wasm-pack build --target web --no-typescript --profile=release-with-debug --no-opt
     ~/.cache/.wasm-pack/wasm-opt-*/bin/wasm-opt -O -g \
-        crates/langton/pkg/langton_bg.wasm \
-        -o crates/langton/pkg/langton_bg.wasm
+        crates/app/pkg/app_bg.wasm \
+        -o crates/app/pkg/app_bg.wasm
 
-# Build langton-ant with wasm-pack for the bundlers
+# Build app with wasm-pack for the bundlers
 build-pkg *args:
-    cd crates/langton && rm -rf pkg && wasm-pack build --target bundler --scope codeberg {{ args }}
+    cd crates/app && rm -rf pkg && wasm-pack build --target bundler --scope codeberg {{ args }}
 
 publish-pkg: build-pkg
-    cd crates/langton/pkg && npm publish --userconfig=../.npmrc
+    cd crates/app/pkg && npm publish --userconfig=../.npmrc
 
 # Run interleaved benchmark comparing current branch vs main
 benchmark main_ref="main" duration="5" iterations="2":
     #!/usr/bin/env bash
     set -euo pipefail
-    # Build current branch
+    rm -rf /tmp/pr-build /tmp/main-build
+    # Build current branch (PR)
     just build-web
-    cp -r crates/langton/pkg /tmp/pr-pkg
-    # Build main
+    mkdir -p /tmp/pr-build
+    cp crates/app/index.html /tmp/pr-build/index.html
+    cp -r crates/app/pkg /tmp/pr-build/pkg
+    # Build main (handles both old crates/langton and new crates/app layouts)
     current=$(git rev-parse HEAD)
     git stash --include-untracked -q || true
     git checkout "origin/{{ main_ref }}" -q
+    # Remove untracked crate dirs left from PR build (workspace glob would choke on them)
+    git clean -fdx crates/
     just build-web
-    cp -r crates/langton/pkg /tmp/main-pkg
+    mkdir -p /tmp/main-build
+    for crate_dir in crates/app crates/langton; do
+        if [ -d "$crate_dir/pkg" ]; then
+            cp "$crate_dir/index.html" /tmp/main-build/index.html
+            cp -r "$crate_dir/pkg" /tmp/main-build/pkg
+            break
+        fi
+    done
     git checkout "$current" -q
     git stash pop -q 2>/dev/null || true
     # Run interleaved benchmark
     uv run --project tests/ python tests/benchmark_interleaved.py \
-        --main-pkg /tmp/main-pkg \
-        --pr-pkg /tmp/pr-pkg \
+        --main-build /tmp/main-build \
+        --pr-build /tmp/pr-build \
         --duration "{{ duration }}" \
         --iterations "{{ iterations }}" \
         --main-output main-results.json \
         --pr-output pr-results.json
 
-# Run langton-ant and watch for changes
+# Run app and watch for changes
 dev:
     #!/bin/sh
     killall live-server entr
     git ls-files | entr -c just build-web --dev &
-    live-server --hard --open='{{ DEV_PARAMS }}' crates/langton &
+    live-server --hard --open='{{ DEV_PARAMS }}' crates/app &
 
 # Run end-to-end Playwright tests (Python)
 test-e2e *args: build-web
@@ -68,9 +80,9 @@ deploy: build-web
     git commit -am "$deploy_msg" || true
 
     mkdir -p {{ DEPLOY_DIR }}
-    cp src/langton/index.html  {{ DEPLOY_DIR }}
-    cp src/langton/favicon.png {{ DEPLOY_DIR }}
-    cp -r src/langton/pkg      {{ DEPLOY_DIR }}
+    cp crates/app/index.html  {{ DEPLOY_DIR }}
+    cp crates/app/favicon.png {{ DEPLOY_DIR }}
+    cp -r crates/app/pkg      {{ DEPLOY_DIR }}
     rm deploy/pkg/.gitignore
     git switch pages
     git ls-files ':!/.gitignore' -z | xargs -0 rm -f
