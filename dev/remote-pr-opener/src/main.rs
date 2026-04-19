@@ -64,19 +64,18 @@ impl<'r> FromRequest<'r> for IpHeader {
 
 impl PROpenerConfig {
     fn from_env() -> anyhow::Result<Self> {
-        let repo_url = std::env::var("PROPENER_REPO_URL")
-            .expect("PROPENER_REPO_URL should be set");
+        let repo_url = std::env::var("PROPENER_REPO_URL").expect("PROPENER_REPO_URL should be set");
         let repo_path = PathBuf::from(
             std::env::var("PROPENER_REPO_PATH").unwrap_or_else(|_| REPO_PATH.to_owned()),
         );
         let forgejo_url = std::env::var("PROPENER_FORGEJO_URL")
             .unwrap_or_else(|_| "https://codeberg.org".to_owned());
-        let forgejo_token = std::env::var("PROPENER_FORGEJO_TOKEN")
-            .expect("PROPENER_FORGEJO_TOKEN should be set");
-        let repo_owner = std::env::var("PROPENER_REPO_OWNER")
-            .expect("PROPENER_REPO_OWNER should be set");
-        let repo_name = std::env::var("PROPENER_REPO_NAME")
-            .expect("PROPENER_REPO_NAME should be set");
+        let forgejo_token =
+            std::env::var("PROPENER_FORGEJO_TOKEN").expect("PROPENER_FORGEJO_TOKEN should be set");
+        let repo_owner =
+            std::env::var("PROPENER_REPO_OWNER").expect("PROPENER_REPO_OWNER should be set");
+        let repo_name =
+            std::env::var("PROPENER_REPO_NAME").expect("PROPENER_REPO_NAME should be set");
 
         if repo_path.join(".git").exists() {
             info!("Repo exists at {repo_path:?}, fetching...");
@@ -86,7 +85,14 @@ impl PROpenerConfig {
             git::clone_repo(&repo_url, &repo_path).context("Failed to clone repo")?;
         }
 
-        Ok(Self { repo_url, repo_path, forgejo_url, forgejo_token, repo_owner, repo_name })
+        Ok(Self {
+            repo_url,
+            repo_path,
+            forgejo_url,
+            forgejo_token,
+            repo_owner,
+            repo_name,
+        })
     }
 }
 
@@ -172,6 +178,7 @@ async fn send_pr(
         &worktree_repo,
         form.name.as_deref(),
         form.email.as_deref(),
+        // FIXME: keep commit line at the top at least, don't add Declared name: None...
         |old_message| {
             format!(
                 indoc! {"
@@ -191,7 +198,9 @@ async fn send_pr(
     git::push_branch(&config.repo_path, &branch).context("Failed to push branch")?;
 
     info!("Opening PR via Forgejo API...");
-    let pr_link = open_pr(config, &branch).await.context("Failed to open PR")?;
+    let pr_link = open_pr(config, &branch)
+        .await
+        .context("Failed to open PR")?;
     info!("Opened PR: {pr_link}");
     Ok(pr_link)
 }
@@ -207,7 +216,11 @@ async fn get_or_create_label(
         .await
         .context("Failed to list labels")?;
 
-    if let Some(id) = labels.iter().find(|l| l.name.as_deref() == Some(name)).and_then(|l| l.id) {
+    if let Some(id) = labels
+        .iter()
+        .find(|l| l.name.as_deref() == Some(name))
+        .and_then(|l| l.id)
+    {
         return Ok(id);
     }
 
@@ -247,6 +260,7 @@ async fn open_pr(config: &PROpenerConfig, branch: &str) -> anyhow::Result<String
                 title: Some(branch.to_owned()),
                 head: Some(branch.to_owned()),
                 base: Some("main".to_owned()),
+                // FIXME commit message as body
                 body: None,
                 assignee: None,
                 assignees: None,

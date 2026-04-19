@@ -723,11 +723,8 @@ impl DebugUI {
             let btn = doc.create_element("button").unwrap();
             btn.set_inner_html(svg);
             btn.set_class_name("DebugUI-ai-btn");
-            btn.set_attribute(
-                "style",
-                &format!("--ai-color: {color}; --ai-glow: {glow}"),
-            )
-            .unwrap();
+            btn.set_attribute("style", &format!("--ai-color: {color}; --ai-glow: {glow}"))
+                .unwrap();
             btn
         };
 
@@ -762,8 +759,8 @@ impl DebugUI {
         {
             let prompt = PROMPT.to_owned();
             EventListener::new(&gemini_btn, "click", move |_| {
-                let mut u = url::Url::parse("https://gemini.google.com/app").unwrap();
-                u.query_pairs_mut().append_pair("q", &prompt);
+                let mut u = url::Url::parse("https://gemini.google.com/guided-learning").unwrap();
+                u.query_pairs_mut().append_pair("query", &prompt);
                 let _ = window().open_with_url_and_target(u.as_str(), "_blank");
             })
             .forget();
