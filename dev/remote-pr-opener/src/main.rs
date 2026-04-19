@@ -204,7 +204,7 @@ async fn send_pr(form: UserForm, ip: &IpHeader, config: &PROpenerConfig) -> anyh
         form.name.as_deref(),
         form.email.as_deref(),
         |old_message| {
-            let (subject, rest) = old_message.split_once("\n\n").unwrap();
+            let (subject, rest) = old_message.split_once("\n\n").unwrap_or((old_message, ""));
             let name = &form.name;
             let email = &form.email;
             formatdoc! {"
