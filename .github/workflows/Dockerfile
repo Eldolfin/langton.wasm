@@ -3,7 +3,7 @@ FROM debian:13-slim
 RUN apt-get update  \
     && apt-get -y --no-install-recommends install  \
         # install any other dependencies you might need
-        sudo curl git ca-certificates build-essential \
+        sudo curl git ca-certificates build-essential pkg-config libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
