@@ -1,5 +1,10 @@
 # Contributing to langton.wasm — AI Contributor Workflow
 
+> **⚠️ Work in progress notice**
+> The submission URL below points to `localhost` and the shell commands reference a feature branch.
+> This is because the submission feature is still being developed and has not yet merged to `main`.
+> This notice will be removed before the feature is released.
+
 You are helping a user contribute a bugfix, new feature, or new animation to **langton.wasm** — a parametrized [Langton's Ant](https://en.wikipedia.org/wiki/Langton%27s_ant) simulator written in Rust, compiled to WebAssembly, and running entirely in the browser.
 
 Follow every step below **in order**. Do not skip or reorder steps.
@@ -184,20 +189,33 @@ EOF
 )"
 PATCH="$(git format-patch HEAD~1 --stdout)"
 
-# Build JSON (jq preferred; python3 fallback)
+# Build JSON (jq preferred; python3 fallback; or write it out manually)
 if command -v jq >/dev/null 2>&1; then
   jq -n \
     --arg patch   "$PATCH" \
     --arg title   "$PR_TITLE" \
     --arg body    "$PR_BODY" \
     '{"patch": $patch, "pr-title": $title, "pr-body": $body}'
-else
+elif command -v python3 >/dev/null 2>&1; then
   python3 -c "
 import json, sys
 print(json.dumps({'patch': sys.argv[1], 'pr-title': sys.argv[2], 'pr-body': sys.argv[3]}))" \
     "$PATCH" "$PR_TITLE" "$PR_BODY"
+else
+  # No tools available — construct the JSON manually.
+  # Escape the patch: replace \ with \\, " with \", newlines with \n, then wrap.
+  # You can write the JSON by hand in the fenced block below if needed.
+  echo "No jq or python3 found — write the JSON manually (see instructions below)"
 fi
 ```
+
+If neither `jq` nor `python3` is available, write the JSON manually in the fenced code block. The format is:
+
+```
+{"patch":"<patch content with \\n for newlines and \\" for quotes>","pr-title":"<title>","pr-body":"<body with \\n for newlines>"}
+```
+
+Escape rules: every `\` → `\\`, every `"` → `\"`, every newline → `\n`. The result must be valid JSON on a single line.
 
 Present the **complete JSON output** in a single fenced code block using the `json` language tag:
 
@@ -218,6 +236,8 @@ After presenting the JSON payload, end your response with this block. Make it th
 ---
 
 ## ✅ Payload ready — submit it now
+
+> **⚠️ Work in progress:** The submission endpoint below runs on `localhost` because this feature is still being developed. This notice will be removed once the feature merges to `main`.
 
 1. **Copy the entire JSON block** above.
 2. **Open this URL in your browser:**
