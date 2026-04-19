@@ -11,6 +11,30 @@ use std::{
 pub use web_sys;
 use web_sys::{Document, Element, HtmlInputElement, KeyboardEvent, wasm_bindgen::JsCast as _};
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct DebugColor {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+impl DebugColor {
+    pub fn to_hex(self) -> String {
+        format!("#{:02X}{:02X}{:02X}", self.r, self.g, self.b)
+    }
+
+    pub fn from_hex(s: &str) -> Option<Self> {
+        let s = s.trim_start_matches('#');
+        if s.len() != 6 {
+            return None;
+        }
+        let r = u8::from_str_radix(&s[0..2], 16).ok()?;
+        let g = u8::from_str_radix(&s[2..4], 16).ok()?;
+        let b = u8::from_str_radix(&s[4..6], 16).ok()?;
+        Some(DebugColor { r, g, b })
+    }
+}
+
 #[macro_export]
 macro_rules! log {
     ( $( $t:tt )* ) => {
@@ -484,6 +508,91 @@ impl DebugUI {
         param_value
     }
 
+    pub fn color_param(&mut self, name: &str, default: DebugColor) -> Param<DebugColor> {
+        let key = name.replace(" ", "_");
+        let default_value = url()
+            .query_pairs()
+            .find(|(k, _)| k.as_ref() == key)
+            .and_then(|(_, v)| DebugColor::from_hex(v.as_ref()))
+            .unwrap_or(default);
+
+        let (writer, param_value) = Param::new(default_value);
+        let doc = self.document.clone();
+        let state = self.state.clone();
+        let mut state_match = state.borrow_mut();
+        match &mut *state_match {
+            DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => {
+                let container = doc.create_element("div").unwrap();
+                let label = doc.create_element("label").unwrap();
+                let preview = doc.create_element("div").unwrap();
+                let color_input = doc
+                    .create_element("input")
+                    .unwrap()
+                    .dyn_into::<HtmlInputElement>()
+                    .unwrap();
+
+                container.set_class_name("DebugUI-param-container");
+                label.set_class_name("DebugUI-param-label");
+                label.set_text_content(Some(name));
+                preview.set_class_name("DebugUI-color-preview");
+                preview
+                    .set_attribute(
+                        "style",
+                        &format!("background-color: {}", default_value.to_hex()),
+                    )
+                    .unwrap();
+                color_input.set_attribute("type", "color").unwrap();
+                color_input.set_class_name("DebugUI-color-input");
+                color_input.set_value(&default_value.to_hex());
+
+                container.append_child(&label).unwrap();
+                container.append_child(&preview).unwrap();
+                container.append_child(&color_input).unwrap();
+                root.append_child(&container).unwrap();
+
+                // Clicking the preview opens the hidden color input
+                {
+                    let color_input_clone = color_input.clone();
+                    EventListener::new(&preview, "click", move |_event| {
+                        color_input_clone.click();
+                    })
+                    .forget();
+                }
+
+                // On color input change, update preview + param + URL
+                {
+                    let preview = preview.clone();
+                    let writer = Arc::clone(&writer);
+                    let key = key.clone();
+                    EventListener::new(&color_input, "input", move |event| {
+                        let input = event
+                            .target()
+                            .unwrap()
+                            .dyn_into::<HtmlInputElement>()
+                            .unwrap();
+                        let hex = input.value();
+                        if let Some(color) = DebugColor::from_hex(&hex) {
+                            preview
+                                .set_attribute(
+                                    "style",
+                                    &format!("background-color: {}", color.to_hex()),
+                                )
+                                .unwrap();
+                            *writer.write().unwrap() = color;
+                            let key = key.clone();
+                            modify_url_params(|params| {
+                                params.retain(|k, _| k != &key);
+                                params.insert(key.clone(), color.to_hex());
+                            });
+                        }
+                    })
+                    .forget();
+                }
+            }
+        }
+        param_value
+    }
+
     fn set_needs_restart(state: &Rc<RefCell<DebugUIState>>) {
         if let DebugUIState::Enabled { needs_restart, .. } = &mut *state.borrow_mut() {
             *needs_restart = true;
@@ -735,7 +844,7 @@ impl Scale {
 
 #[cfg(test)]
 mod tests {
-    use super::{Scale, StepCounter};
+    use super::{DebugColor, Scale, StepCounter};
     use rstest::rstest;
 
     #[test]
@@ -768,6 +877,61 @@ mod tests {
         };
         counter.add_steps(0);
         assert_eq!(counter.get_count(), 10);
+    }
+
+    #[test]
+    fn debug_color_to_hex() {
+        let c = DebugColor {
+            r: 255,
+            g: 0,
+            b: 128,
+        };
+        assert_eq!(c.to_hex(), "#FF0080");
+    }
+
+    #[test]
+    fn debug_color_from_hex_with_hash() {
+        let c = DebugColor::from_hex("#FF0080").unwrap();
+        assert_eq!(
+            c,
+            DebugColor {
+                r: 255,
+                g: 0,
+                b: 128
+            }
+        );
+    }
+
+    #[test]
+    fn debug_color_from_hex_without_hash() {
+        let c = DebugColor::from_hex("FF0080").unwrap();
+        assert_eq!(
+            c,
+            DebugColor {
+                r: 255,
+                g: 0,
+                b: 128
+            }
+        );
+    }
+
+    #[test]
+    fn debug_color_from_hex_invalid() {
+        assert!(DebugColor::from_hex("#GGGGGG").is_none());
+        assert!(DebugColor::from_hex("#FFF").is_none());
+        assert!(DebugColor::from_hex("").is_none());
+    }
+
+    #[test]
+    fn debug_color_roundtrip() {
+        let original = DebugColor {
+            r: 12,
+            g: 34,
+            b: 56,
+        };
+        let hex = original.to_hex();
+        let recovered = DebugColor::from_hex(&hex).unwrap();
+        assert_eq!(original, recovered);
     }
 
     #[rstest]

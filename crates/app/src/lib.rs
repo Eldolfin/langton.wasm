@@ -134,10 +134,11 @@ async fn start_langton() {
     loop {
         {
             let c = config.borrow();
+            let bg = c.common_cell_color.get();
             let bg_color = canvas::Color::Rgb {
-                r: c.white_color_r.get(),
-                g: c.white_color_g.get(),
-                b: c.white_color_b.get(),
+                r: bg.r,
+                g: bg.g,
+                b: bg.b,
             };
             canvas.clear(bg_color);
         }
