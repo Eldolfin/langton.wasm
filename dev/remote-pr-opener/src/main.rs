@@ -4,17 +4,17 @@ use std::path::PathBuf;
 
 use anyhow::Context as _;
 use forgejo_api::{
-    Auth, Forgejo,
     structs::{CreateLabelOption, CreatePullRequestOption, IssueListLabelsQuery},
+    Auth, Forgejo,
 };
 use indoc::indoc;
 use log::info;
 use rocket::form::{Form, Strict};
-use rocket::http::Status;
+use rocket::http::{ContentType, Status};
 use rocket::request::{FromRequest, Outcome};
-use rocket::response::Redirect;
 use rocket::response::content::RawHtml;
-use rocket::{FromForm, Request, State, get, launch, post, routes};
+use rocket::response::Redirect;
+use rocket::{get, launch, post, routes, FromForm, Request, State};
 use serde::{Deserialize, Serialize};
 use serde_jsonlines::append_json_lines;
 use tempdir::TempDir;
@@ -104,12 +104,17 @@ impl PROpenerConfig {
     }
 }
 
+#[get("/assets/icon.png")]
+fn favicon() -> (ContentType, &'static [u8]) {
+    (ContentType::PNG, include_bytes!("../assets/icon.png"))
+}
+
 #[launch]
 fn rocket() -> _ {
     let config = PROpenerConfig::from_env().expect("Config is invalid");
     rocket::build()
         .manage(config)
-        .mount("/", routes![index_redirect, submit, submit_page])
+        .mount("/", routes![index_redirect, submit, submit_page, favicon])
 }
 
 #[get("/")]
