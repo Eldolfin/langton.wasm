@@ -235,6 +235,14 @@
     height: 14px;
 }
 
+.DebugUI-ai-btn svg {
+    width: 32px !important;
+    height: 32px !important;
+    max-width: 32px;
+    max-height: 32px;
+    flex-shrink: 0;
+}
+
 .DebugUI-ai-btn {
     width: 64px;
     height: 64px;
@@ -245,7 +253,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #aaa;
+    color: var(--ai-color, #aaa);
     transition: color 0.13s, border-color 0.13s, background 0.13s, transform 0.1s, box-shadow 0.13s;
 }
 
@@ -258,4 +266,42 @@
 
 .DebugUI-ai-btn:active {
     transform: scale(0.91);
+}
+
+.DebugUI-ai-btn--featured {
+    color: #d4702a;
+    border-color: rgba(212,112,42,0.55);
+    background: rgba(212,112,42,0.07);
+    box-shadow: 0 0 12px rgba(212,112,42,0.25), 0 0 28px rgba(212,112,42,0.1);
+}
+
+.DebugUI-ai-btn--featured:hover {
+    color: #d4702a;
+    border-color: #d4702a;
+    background: rgba(212,112,42,0.14);
+    box-shadow: 0 0 18px rgba(212,112,42,0.45), 0 0 40px rgba(212,112,42,0.2);
+}
+
+.DebugUI-ai-btn[data-tooltip] {
+    position: relative;
+}
+
+.DebugUI-ai-btn[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #222;
+    color: #eee;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 6px 9px;
+    border-radius: 7px;
+    white-space: normal;
+    width: 160px;
+    text-align: center;
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.25);
 }

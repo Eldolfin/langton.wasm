@@ -689,9 +689,9 @@ impl DebugUI {
     pub fn ai_impl_dropdown(&mut self) {
         const PROMPT: &str = include_str!("../../../prompts/FETCH-APPLY-CHANGES.md");
 
-        const CHATGPT_SVG: &str = r#"<svg width="26" height="26" viewBox="0 0 41 41" fill="currentColor"><path d="M37.532 16.87a9.963 9.963 0 0 0-.856-8.184 10.078 10.078 0 0 0-10.855-4.835 9.964 9.964 0 0 0-6.212-2.854A10.079 10.079 0 0 0 9.116 5.97a9.964 9.964 0 0 0-6.664 4.834 10.079 10.079 0 0 0 1.24 11.817 9.965 9.965 0 0 0 .856 8.185 10.079 10.079 0 0 0 10.855 4.835 9.965 9.965 0 0 0 6.212 2.854 10.079 10.079 0 0 0 10.514-4.963 9.964 9.964 0 0 0 6.663-4.834 10.079 10.079 0 0 0-1.24-11.817zM22.498 37.886a7.474 7.474 0 0 1-4.799-1.735c.061-.033.168-.091.237-.134l7.964-4.6a1.294 1.294 0 0 0 .655-1.134V19.054l3.366 1.944a.12.12 0 0 1 .066.092v9.299a7.505 7.505 0 0 1-7.49 7.496zM6.392 31.006a7.471 7.471 0 0 1-.894-5.023c.06.036.162.099.237.141l7.964 4.6a1.297 1.297 0 0 0 1.308 0l9.724-5.614v3.888a.12.12 0 0 1-.048.103l-8.051 4.649a7.504 7.504 0 0 1-10.24-2.744zM4.297 13.62A7.469 7.469 0 0 1 8.2 10.333c0 .068-.004.19-.004.274v9.201a1.294 1.294 0 0 0 .654 1.132l9.723 5.614-3.366 1.944a.12.12 0 0 1-.114.012L6.044 23.86a7.504 7.504 0 0 1-1.747-10.24zm27.658 6.437l-9.724-5.615 3.367-1.943a.121.121 0 0 1 .114-.012l9.048 5.228a7.498 7.498 0 0 1-1.158 13.528v-9.476a1.293 1.293 0 0 0-.647-1.71zm3.35-5.043c-.059-.037-.162-.099-.236-.141l-7.965-4.6a1.298 1.298 0 0 0-1.308 0l-9.723 5.614v-3.888a.12.12 0 0 1 .048-.103l8.05-4.645a7.497 7.497 0 0 1 11.135 7.763zm-21.063 6.929l-3.367-1.944a.12.12 0 0 1-.065-.092v-9.299a7.497 7.497 0 0 1 12.293-5.756 6.94 6.94 0 0 0-.236.134l-7.965 4.6a1.294 1.294 0 0 0-.654 1.132l-.006 11.225zm1.829-3.943l4.33-2.501 4.332 2.498v4.993l-4.331 2.5-4.331-2.5V18z"/></svg>"#;
-        const CLAUDE_SVG: &str = r#"<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M13.827 3.52h3.603L24 20.32h-3.603l-6.57-16.8zm-3.654 0H6.57L0 20.32h3.603l1.498-3.87h6.89l1.498 3.87h3.604l-6.57-16.8h-.15zm-1.177 9.836 2.274-5.89 2.275 5.89H8.996z"/></svg>"#;
-        const GEMINI_SVG: &str = r##"<svg width="26" height="26" viewBox="0 0 28 28" fill="none"><defs><linearGradient id="gg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#4285F4"/><stop offset="50%" stop-color="#9B72CB"/><stop offset="100%" stop-color="#EA4335"/></linearGradient></defs><path d="M14 28C14 26.0633 13.6267 24.2433 12.88 22.54C12.1567 20.8367 11.165 19.355 9.905 18.095C8.645 16.835 7.16333 15.8433 5.46 15.12C3.75667 14.3733 1.93667 14 0 14C1.93667 14 3.75667 13.6383 5.46 12.915C7.16333 12.1683 8.645 11.165 9.905 9.905C11.165 8.645 12.1567 7.16333 12.88 5.46C13.6267 3.75667 14 1.93667 14 0C14 1.93667 14.3617 3.75667 15.085 5.46C15.8317 7.16333 16.835 8.645 18.095 9.905C19.355 11.165 20.8367 12.1683 22.54 12.915C24.2433 13.6383 26.0633 14 28 14C26.0633 14 24.2433 14.3733 22.54 15.12C20.8367 15.8433 19.355 16.835 18.095 18.095C16.835 19.355 15.8317 20.8367 15.085 22.54C14.3617 24.2433 14 26.0633 14 28Z" fill="url(#gg)"/></svg>"##;
+        const CHATGPT_SVG: &str = include_str!("../../../assets/openai-icon-logo.svg");
+        const CLAUDE_SVG: &str = include_str!("../../../assets/claude-icon-logo.svg");
+        const GEMINI_SVG: &str = include_str!("../../../assets/google-gemini-logo.svg");
         const COPY_SVG: &str = r#"<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>"#;
         const CHECK_SVG: &str = r#"<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>"#;
 
@@ -728,21 +728,14 @@ impl DebugUI {
             btn
         };
 
-        // ChatGPT
-        let chatgpt_btn = make_btn(&doc, CHATGPT_SVG, "#10a37f", "rgba(16,163,127,0.1)");
-        {
-            let prompt = PROMPT.to_owned();
-            EventListener::new(&chatgpt_btn, "click", move |_| {
-                let mut u = url::Url::parse("https://chat.openai.com/").unwrap();
-                u.query_pairs_mut().append_pair("q", &prompt);
-                let _ = window().open_with_url_and_target(u.as_str(), "_blank");
-            })
-            .forget();
-        }
-        menu.append_child(&chatgpt_btn).unwrap();
+        const UNAVAILABLE_TOOLTIP: &str =
+            "Only Claude is currently powerful enough to execute the needed operations";
 
-        // Claude
+        // Claude — first and featured
         let claude_btn = make_btn(&doc, CLAUDE_SVG, "#d4702a", "rgba(212,112,42,0.1)");
+        claude_btn
+            .set_attribute("class", "DebugUI-ai-btn DebugUI-ai-btn--featured")
+            .unwrap();
         {
             let prompt = PROMPT.to_owned();
             EventListener::new(&claude_btn, "click", move |_| {
@@ -754,8 +747,27 @@ impl DebugUI {
         }
         menu.append_child(&claude_btn).unwrap();
 
+        // ChatGPT
+        let chatgpt_btn = make_btn(&doc, CHATGPT_SVG, "#10a37f", "rgba(16,163,127,0.1)");
+        chatgpt_btn
+            .set_attribute("data-tooltip", UNAVAILABLE_TOOLTIP)
+            .unwrap();
+        {
+            let prompt = PROMPT.to_owned();
+            EventListener::new(&chatgpt_btn, "click", move |_| {
+                let mut u = url::Url::parse("https://chat.openai.com/").unwrap();
+                u.query_pairs_mut().append_pair("q", &prompt);
+                let _ = window().open_with_url_and_target(u.as_str(), "_blank");
+            })
+            .forget();
+        }
+        menu.append_child(&chatgpt_btn).unwrap();
+
         // Gemini
         let gemini_btn = make_btn(&doc, GEMINI_SVG, "#4285F4", "rgba(66,133,244,0.1)");
+        gemini_btn
+            .set_attribute("data-tooltip", UNAVAILABLE_TOOLTIP)
+            .unwrap();
         {
             let prompt = PROMPT.to_owned();
             EventListener::new(&gemini_btn, "click", move |_| {
