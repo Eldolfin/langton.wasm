@@ -9,6 +9,5 @@ body {
 
 canvas {
   position: absolute;
-  width: 100%;
   image-rendering: pixelated;
 }
