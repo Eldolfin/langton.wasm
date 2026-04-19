@@ -146,7 +146,7 @@ Fix all issues before generating the patch.
 
 ---
 
-## Step 8 — Commit and produce the patch
+## Step 8 — Commit and produce the JSON payload
 
 Write a commit message following [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
 - `feat: add X` for new features
@@ -162,7 +162,7 @@ Set commit authorship based on what the user provided in Step 4:
 | Name only | `User Name <unknown@noreply.example>` | `Co-Authored-By: Claude <noreply@anthropic.com>` |
 | Nothing | `Claude <noreply@anthropic.com>` | *(no extra lines)* |
 
-Generate the patch:
+Commit, then build a JSON payload containing the patch and PR metadata. Use `jq` if available, otherwise fall back to `python3`:
 
 ```bash
 git add -A
@@ -171,20 +171,39 @@ git commit --author="Name <email>" -m "feat: short description
 Longer explanation if needed.
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
-git format-patch HEAD~1 --stdout
+
+# Variables — set these to match your commit
+PR_TITLE="feat: short description"
+PR_BODY="$(cat <<'EOF'
+## Summary
+- ...
+
+## Changes
+- ...
+EOF
+)"
+PATCH="$(git format-patch HEAD~1 --stdout)"
+
+# Build JSON (jq preferred; python3 fallback)
+if command -v jq >/dev/null 2>&1; then
+  jq -n \
+    --arg patch   "$PATCH" \
+    --arg title   "$PR_TITLE" \
+    --arg body    "$PR_BODY" \
+    '{"patch": $patch, "pr-title": $title, "pr-body": $body}'
+else
+  python3 -c "
+import json, sys
+print(json.dumps({'patch': sys.argv[1], 'pr-title': sys.argv[2], 'pr-body': sys.argv[3]}))" \
+    "$PATCH" "$PR_TITLE" "$PR_BODY"
+fi
 ```
 
-Present the **complete output of `git format-patch`** in a single fenced code block using the `patch` language tag:
+Present the **complete JSON output** in a single fenced code block using the `json` language tag:
 
 ````
-```patch
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: ...
-Date: ...
-Subject: [PATCH] feat: ...
-
----
-...
+```json
+{"patch":"From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001\n...","pr-title":"feat: ...","pr-body":"## Summary\n..."}
 ```
 ````
 
@@ -194,18 +213,18 @@ The block must be complete and self-contained — the user will copy-paste it di
 
 ## Step 9 — Submission
 
-After presenting the patch, end your response with this block. Make it the last thing in your message, formatted exactly as shown so it cannot be missed:
+After presenting the JSON payload, end your response with this block. Make it the last thing in your message, formatted exactly as shown so it cannot be missed:
 
 ---
 
-## ✅ Patch ready — submit it now
+## ✅ Payload ready — submit it now
 
-1. **Copy the entire patch block** above (from `From 000...` to the final `--` line).
+1. **Copy the entire JSON block** above.
 2. **Open this URL in your browser:**
 
 ### 👉 [http://localhost:3000/submit](http://localhost:3000/submit)
 
-3. Paste the patch into the form and follow the instructions on the page.
+3. Paste the JSON into the **"JSON payload"** field and follow the instructions on the page.
 
 The page will handle the rest of the submission process.
 

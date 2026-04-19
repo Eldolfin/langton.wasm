@@ -15,7 +15,7 @@ use rocket::request::{FromRequest, Outcome};
 use rocket::response::Redirect;
 use rocket::response::content::RawHtml;
 use rocket::{FromForm, Request, State, get, launch, post, routes};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_jsonlines::append_json_lines;
 use tempdir::TempDir;
 
@@ -26,12 +26,19 @@ const REPO_PATH: &str = "/var/lib/propener/repo";
 struct UserForm {
     email: Option<String>,
     name: Option<String>,
+    payload: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+struct Payload {
     patch: String,
+    pr_title: String,
+    pr_body: String,
 }
 
 #[derive(Debug)]
 struct PROpenerConfig {
-    repo_url: String,
     repo_path: PathBuf,
     forgejo_url: String,
     forgejo_token: String,
@@ -48,6 +55,8 @@ struct IpHeader {
 struct PRLog<'a> {
     form: &'a UserForm,
     ip: &'a IpHeader,
+    pr_title: &'a str,
+    pr_body: &'a str,
 }
 
 #[rocket::async_trait]
@@ -86,7 +95,6 @@ impl PROpenerConfig {
         }
 
         Ok(Self {
-            repo_url,
             repo_path,
             forgejo_url,
             forgejo_token,
@@ -132,7 +140,7 @@ async fn submit(
     if form.name.as_ref().is_some_and(|n| n.trim().is_empty()) {
         form.name = None;
     }
-    let res = match send_pr(&form, &ip, config.inner()).await {
+    let res = match send_pr(form, &ip, config.inner()).await {
         Ok(pr_link) => Ok(Redirect::to(pr_link)),
         Err(err) => Err(format!("{err:#?}")),
     };
@@ -140,17 +148,24 @@ async fn submit(
     res
 }
 
-async fn send_pr(
-    form: &UserForm,
-    ip: &IpHeader,
-    config: &PROpenerConfig,
-) -> anyhow::Result<String> {
+async fn send_pr(form: UserForm, ip: &IpHeader, config: &PROpenerConfig) -> anyhow::Result<String> {
+    let payload: Payload = serde_json::from_str(&form.payload)
+        .context("Failed to parse payload JSON — expected {\"patch\": ..., \"pr-title\": ..., \"pr-body\": ...}")?;
+
     info!(
-        "PR submitted name={:?} email={:?} ip={}",
-        form.name, form.email, ip.ip
+        "PR submitted name={:?} email={:?} ip={} pr_title={:?}",
+        form.name, form.email, ip.ip, payload.pr_title
     );
-    append_json_lines(LOGS_PATH, &[PRLog { form, ip }])
-        .with_context(|| format!("LOG_FILE={LOGS_PATH} is not writable"))?;
+    append_json_lines(
+        LOGS_PATH,
+        &[PRLog {
+            form: &form,
+            ip,
+            pr_title: &payload.pr_title,
+            pr_body: &payload.pr_body,
+        }],
+    )
+    .with_context(|| format!("LOG_FILE={LOGS_PATH} is not writable"))?;
 
     info!("Fetching latest main...");
     git::fetch_main(&config.repo_path).context("Failed to fetch latest main")?;
@@ -170,7 +185,7 @@ async fn send_pr(
         .context("Failed to create worktree")?;
 
     info!("Applying patch...");
-    git::apply_patch(&worktree_path, &form.patch).context("Failed to apply patch")?;
+    git::apply_patch(&worktree_path, &payload.patch).context("Failed to apply patch")?;
 
     info!("Amending commit...");
     let worktree_repo = gix::open(&worktree_path).context("Failed to open worktree as repo")?;
@@ -178,7 +193,6 @@ async fn send_pr(
         &worktree_repo,
         form.name.as_deref(),
         form.email.as_deref(),
-        // FIXME: keep commit line at the top at least, don't add Declared name: None...
         |old_message| {
             format!(
                 indoc! {"
@@ -198,7 +212,7 @@ async fn send_pr(
     git::push_branch(&config.repo_path, &branch).context("Failed to push branch")?;
 
     info!("Opening PR via Forgejo API...");
-    let pr_link = open_pr(config, &branch)
+    let pr_link = open_pr(config, &branch, &payload.pr_title, &payload.pr_body)
         .await
         .context("Failed to open PR")?;
     info!("Opened PR: {pr_link}");
@@ -242,7 +256,12 @@ async fn get_or_create_label(
     label.id.context("Created label has no ID")
 }
 
-async fn open_pr(config: &PROpenerConfig, branch: &str) -> anyhow::Result<String> {
+async fn open_pr(
+    config: &PROpenerConfig,
+    branch: &str,
+    pr_title: &str,
+    pr_body: &str,
+) -> anyhow::Result<String> {
     let api = Forgejo::new(
         Auth::Token(&config.forgejo_token),
         config.forgejo_url.parse().context("Invalid forgejo URL")?,
@@ -257,11 +276,10 @@ async fn open_pr(config: &PROpenerConfig, branch: &str) -> anyhow::Result<String
             &config.repo_owner,
             &config.repo_name,
             CreatePullRequestOption {
-                title: Some(branch.to_owned()),
+                title: Some(pr_title.to_owned()),
                 head: Some(branch.to_owned()),
                 base: Some("main".to_owned()),
-                // FIXME commit message as body
-                body: None,
+                body: Some(pr_body.to_owned()),
                 assignee: None,
                 assignees: None,
                 due_date: None,

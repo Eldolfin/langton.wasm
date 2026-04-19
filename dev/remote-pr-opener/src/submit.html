@@ -48,14 +48,9 @@
     <label for="email">Email (optional; used for git author)</label>
     <input type="email" id="email" name="email" placeholder="you@example.com">
 
-    <label for="patch">Patch</label>
-    <textarea id="patch" name="patch" placeholder="diff --git a/Cargo.lock b/Cargo.lock
-index b22ff83..e62a254 100644
---- a/Cargo.lock
-+++ b/Cargo.lock
-@@ -11,18 +11,96 @@ dependencies = [
-...
-"></textarea>
+    <label for="payload">JSON payload (patch + PR metadata)</label>
+    <textarea id="payload" name="payload" placeholder='{"patch": "From 0000... Mon Sep 17 00:00:00 2001\n...", "pr-title": "feat: ...", "pr-body": "## Summary\n..."}
+'></textarea>
 
     <button type="submit">Submit PR!</button>
 
