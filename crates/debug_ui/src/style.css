@@ -137,3 +137,125 @@
     margin-top: 8px;
     padding: 4px 0;
 }
+
+.DebugUI-link {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #007acc;
+    text-decoration: none;
+}
+
+.DebugUI-link:hover {
+    text-decoration: underline;
+}
+
+.DebugUI-ai-launcher {
+    position: relative;
+    display: inline-block;
+    margin-top: 8px;
+}
+
+.DebugUI-ai-trigger-wrap {
+    position: relative;
+    display: inline-block;
+}
+
+.DebugUI-ai-halo {
+    position: absolute;
+    inset: -10px;
+    border-radius: 999px;
+    background: radial-gradient(ellipse at center, rgba(109,40,217,0.55) 0%, rgba(109,40,217,0.18) 55%, transparent 75%);
+    opacity: 0.65;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+    filter: blur(6px);
+}
+
+.DebugUI-ai-launcher:hover .DebugUI-ai-halo {
+    opacity: 1;
+}
+
+.DebugUI-ai-trigger {
+    position: relative;
+    padding: 8px 18px 8px 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(167,139,250,0.35);
+    background: linear-gradient(160deg, #5b21b6 0%, #4c1d95 100%);
+    color: #ede9fe;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    box-shadow: 0 0 10px rgba(109,40,217,0.4), 0 0 24px rgba(109,40,217,0.18), inset 0 1px 0 rgba(255,255,255,0.10);
+}
+
+.DebugUI-ai-launcher:hover .DebugUI-ai-trigger {
+    background: linear-gradient(160deg, #6d28d9 0%, #5b21b6 100%);
+    box-shadow: 0 0 18px rgba(109,40,217,0.7), 0 0 40px rgba(109,40,217,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.DebugUI-ai-menu {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(6px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 50;
+    display: grid;
+    grid-template-columns: 64px 64px;
+    gap: 5px;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+}
+
+.DebugUI-ai-launcher:hover .DebugUI-ai-menu {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(-50%) translateY(0);
+}
+
+.DebugUI-ai-menu::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 14px;
+}
+
+.DebugUI-ai-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 9px;
+    border: 1px solid #ddd;
+    background: #f7f7f7;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    transition: color 0.13s, border-color 0.13s, background 0.13s, transform 0.1s, box-shadow 0.13s;
+}
+
+.DebugUI-ai-btn:hover {
+    color: var(--ai-color, #10a37f);
+    border-color: var(--ai-color, #10a37f);
+    background: var(--ai-glow, rgba(16,163,127,0.08));
+    box-shadow: 0 0 10px var(--ai-glow, rgba(16,163,127,0.12));
+}
+
+.DebugUI-ai-btn:active {
+    transform: scale(0.91);
+}

@@ -120,10 +120,7 @@ async fn start_langton() {
         ..Default::default()
     });
 
-    debug_ui.link(
-        "About this animation",
-        "https://codeberg.org/eldolfin/langton.wasm",
-    );
+    debug_ui.add_footer();
 
     let config = Rc::new(RefCell::new(game_config));
     let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
@@ -193,6 +190,7 @@ async fn start_blinker() {
         range: 0..=255,
         ..Default::default()
     });
+    debug_ui.add_footer();
 
     let cell_size = Rc::new(RefCell::new(cell_size));
     let cell_border_size = Rc::new(RefCell::new(cell_border_size));

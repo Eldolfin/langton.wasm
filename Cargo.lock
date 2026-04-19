@@ -1735,6 +1735,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc13cc21c3835347855fd83900414d94716adc1e332f09f7fba56f21be127214"
 dependencies = [
  "gloo-events",
+ "gloo-timers",
 ]
 
 [[package]]
@@ -1745,6 +1746,16 @@ checksum = "8c6a94fa8cd88bea0babf8a27fe9abbcdece831fd1c3c84dd5c231fab4685ec7"
 dependencies = [
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "gloo-timers"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "482ce8a491a501da4cd806bd190275363d674f2845005c6ddbd5d3e1dd54495d"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
 ]
 
 [[package]]

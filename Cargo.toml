@@ -27,6 +27,8 @@ features = [
   "HtmlSelectElement",
   "KeyboardEvent",
   "Location",
+  "Navigator",
+  "Clipboard",
   "console",
 ]
 version = "0.3.77"

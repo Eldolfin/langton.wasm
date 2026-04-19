@@ -555,16 +555,12 @@ impl DebugUI {
     }
 
     pub fn link(&mut self, text: &str, href: &str) {
-        let state = self.state.borrow();
-        let root = match &*state {
-            DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => root,
-        };
         let a = self.document.create_element("a").unwrap();
         a.set_text_content(Some(text));
         a.set_attribute("href", href).unwrap();
         a.set_attribute("target", "_blank").unwrap();
         a.set_class_name("DebugUI-link");
-        root.append_child(&a).unwrap();
+        self.root().append_child(&a).unwrap();
     }
 
     pub fn should_restart(&mut self) -> bool {
@@ -679,6 +675,127 @@ impl DebugUI {
             root,
             next_uid: 0,
             needs_restart: false,
+        }
+    }
+
+    pub fn add_footer(&mut self) {
+        self.link(
+            "About this animation",
+            "https://codeberg.org/eldolfin/langton.wasm",
+        );
+        self.ai_impl_dropdown();
+    }
+
+    pub fn ai_impl_dropdown(&mut self) {
+        const PROMPT: &str = include_str!("../../../prompts/FETCH-APPLY-CHANGES.md");
+
+        const CHATGPT_SVG: &str = r#"<svg width="26" height="26" viewBox="0 0 41 41" fill="currentColor"><path d="M37.532 16.87a9.963 9.963 0 0 0-.856-8.184 10.078 10.078 0 0 0-10.855-4.835 9.964 9.964 0 0 0-6.212-2.854A10.079 10.079 0 0 0 9.116 5.97a9.964 9.964 0 0 0-6.664 4.834 10.079 10.079 0 0 0 1.24 11.817 9.965 9.965 0 0 0 .856 8.185 10.079 10.079 0 0 0 10.855 4.835 9.965 9.965 0 0 0 6.212 2.854 10.079 10.079 0 0 0 10.514-4.963 9.964 9.964 0 0 0 6.663-4.834 10.079 10.079 0 0 0-1.24-11.817zM22.498 37.886a7.474 7.474 0 0 1-4.799-1.735c.061-.033.168-.091.237-.134l7.964-4.6a1.294 1.294 0 0 0 .655-1.134V19.054l3.366 1.944a.12.12 0 0 1 .066.092v9.299a7.505 7.505 0 0 1-7.49 7.496zM6.392 31.006a7.471 7.471 0 0 1-.894-5.023c.06.036.162.099.237.141l7.964 4.6a1.297 1.297 0 0 0 1.308 0l9.724-5.614v3.888a.12.12 0 0 1-.048.103l-8.051 4.649a7.504 7.504 0 0 1-10.24-2.744zM4.297 13.62A7.469 7.469 0 0 1 8.2 10.333c0 .068-.004.19-.004.274v9.201a1.294 1.294 0 0 0 .654 1.132l9.723 5.614-3.366 1.944a.12.12 0 0 1-.114.012L6.044 23.86a7.504 7.504 0 0 1-1.747-10.24zm27.658 6.437l-9.724-5.615 3.367-1.943a.121.121 0 0 1 .114-.012l9.048 5.228a7.498 7.498 0 0 1-1.158 13.528v-9.476a1.293 1.293 0 0 0-.647-1.71zm3.35-5.043c-.059-.037-.162-.099-.236-.141l-7.965-4.6a1.298 1.298 0 0 0-1.308 0l-9.723 5.614v-3.888a.12.12 0 0 1 .048-.103l8.05-4.645a7.497 7.497 0 0 1 11.135 7.763zm-21.063 6.929l-3.367-1.944a.12.12 0 0 1-.065-.092v-9.299a7.497 7.497 0 0 1 12.293-5.756 6.94 6.94 0 0 0-.236.134l-7.965 4.6a1.294 1.294 0 0 0-.654 1.132l-.006 11.225zm1.829-3.943l4.33-2.501 4.332 2.498v4.993l-4.331 2.5-4.331-2.5V18z"/></svg>"#;
+        const CLAUDE_SVG: &str = r#"<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M13.827 3.52h3.603L24 20.32h-3.603l-6.57-16.8zm-3.654 0H6.57L0 20.32h3.603l1.498-3.87h6.89l1.498 3.87h3.604l-6.57-16.8h-.15zm-1.177 9.836 2.274-5.89 2.275 5.89H8.996z"/></svg>"#;
+        const GEMINI_SVG: &str = r##"<svg width="26" height="26" viewBox="0 0 28 28" fill="none"><defs><linearGradient id="gg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#4285F4"/><stop offset="50%" stop-color="#9B72CB"/><stop offset="100%" stop-color="#EA4335"/></linearGradient></defs><path d="M14 28C14 26.0633 13.6267 24.2433 12.88 22.54C12.1567 20.8367 11.165 19.355 9.905 18.095C8.645 16.835 7.16333 15.8433 5.46 15.12C3.75667 14.3733 1.93667 14 0 14C1.93667 14 3.75667 13.6383 5.46 12.915C7.16333 12.1683 8.645 11.165 9.905 9.905C11.165 8.645 12.1567 7.16333 12.88 5.46C13.6267 3.75667 14 1.93667 14 0C14 1.93667 14.3617 3.75667 15.085 5.46C15.8317 7.16333 16.835 8.645 18.095 9.905C19.355 11.165 20.8367 12.1683 22.54 12.915C24.2433 13.6383 26.0633 14 28 14C26.0633 14 24.2433 14.3733 22.54 15.12C20.8367 15.8433 19.355 16.835 18.095 18.095C16.835 19.355 15.8317 20.8367 15.085 22.54C14.3617 24.2433 14 26.0633 14 28Z" fill="url(#gg)"/></svg>"##;
+        const COPY_SVG: &str = r#"<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>"#;
+        const CHECK_SVG: &str = r#"<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>"#;
+
+        let doc = self.document.clone();
+        let root = self.root().clone();
+
+        const SPARKLE_SVG: &str = r##"<svg width="15" height="15" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><path d="M10 1C10 1 11.2 7 16 8C11.2 9 10 15 10 15C10 15 8.8 9 4 8C8.8 7 10 1 10 1Z" fill="#c4b5fd"/><path d="M16.5 12.5C16.5 12.5 17.1 14.9 19 15.5C17.1 16.1 16.5 18.5 16.5 18.5C16.5 18.5 15.9 16.1 14 15.5C15.9 14.9 16.5 12.5 16.5 12.5Z" fill="#c4b5fd" opacity="0.75"/><path d="M4 1.5C4 1.5 4.5 3.5 6 4C4.5 4.5 4 6.5 4 6.5C4 6.5 3.5 4.5 2 4C3.5 3.5 4 1.5 4 1.5Z" fill="#c4b5fd" opacity="0.6"/></svg>Bugfix / new feature idea ?"##;
+
+        let wrapper = doc.create_element("div").unwrap();
+        wrapper.set_class_name("DebugUI-ai-launcher");
+
+        let trigger_wrap = doc.create_element("div").unwrap();
+        trigger_wrap.set_class_name("DebugUI-ai-trigger-wrap");
+
+        let halo = doc.create_element("div").unwrap();
+        halo.set_class_name("DebugUI-ai-halo");
+        trigger_wrap.append_child(&halo).unwrap();
+
+        let trigger = doc.create_element("button").unwrap();
+        trigger.set_inner_html(SPARKLE_SVG);
+        trigger.set_class_name("DebugUI-ai-trigger");
+        trigger_wrap.append_child(&trigger).unwrap();
+        wrapper.append_child(&trigger_wrap).unwrap();
+
+        let menu = doc.create_element("div").unwrap();
+        menu.set_class_name("DebugUI-ai-menu");
+
+        let make_btn = |doc: &Document, svg: &str, color: &str, glow: &str| -> Element {
+            let btn = doc.create_element("button").unwrap();
+            btn.set_inner_html(svg);
+            btn.set_class_name("DebugUI-ai-btn");
+            btn.set_attribute(
+                "style",
+                &format!("--ai-color: {color}; --ai-glow: {glow}"),
+            )
+            .unwrap();
+            btn
+        };
+
+        // ChatGPT
+        let chatgpt_btn = make_btn(&doc, CHATGPT_SVG, "#10a37f", "rgba(16,163,127,0.1)");
+        {
+            let prompt = PROMPT.to_owned();
+            EventListener::new(&chatgpt_btn, "click", move |_| {
+                let mut u = url::Url::parse("https://chat.openai.com/").unwrap();
+                u.query_pairs_mut().append_pair("q", &prompt);
+                let _ = window().open_with_url_and_target(u.as_str(), "_blank");
+            })
+            .forget();
+        }
+        menu.append_child(&chatgpt_btn).unwrap();
+
+        // Claude
+        let claude_btn = make_btn(&doc, CLAUDE_SVG, "#d4702a", "rgba(212,112,42,0.1)");
+        {
+            let prompt = PROMPT.to_owned();
+            EventListener::new(&claude_btn, "click", move |_| {
+                let mut u = url::Url::parse("https://claude.ai/new").unwrap();
+                u.query_pairs_mut().append_pair("q", &prompt);
+                let _ = window().open_with_url_and_target(u.as_str(), "_blank");
+            })
+            .forget();
+        }
+        menu.append_child(&claude_btn).unwrap();
+
+        // Gemini
+        let gemini_btn = make_btn(&doc, GEMINI_SVG, "#4285F4", "rgba(66,133,244,0.1)");
+        {
+            let prompt = PROMPT.to_owned();
+            EventListener::new(&gemini_btn, "click", move |_| {
+                let mut u = url::Url::parse("https://gemini.google.com/app").unwrap();
+                u.query_pairs_mut().append_pair("q", &prompt);
+                let _ = window().open_with_url_and_target(u.as_str(), "_blank");
+            })
+            .forget();
+        }
+        menu.append_child(&gemini_btn).unwrap();
+
+        // Copy
+        let copy_btn = make_btn(&doc, COPY_SVG, "#888", "rgba(160,160,180,0.1)");
+        {
+            let copy_btn_clone = copy_btn.clone();
+            EventListener::new(&copy_btn, "click", move |_| {
+                let _ = window().navigator().clipboard().write_text(PROMPT);
+                copy_btn_clone.set_inner_html(CHECK_SVG);
+                let btn = copy_btn_clone.clone();
+                gloo::timers::callback::Timeout::new(2000, move || {
+                    btn.set_inner_html(COPY_SVG);
+                })
+                .forget();
+            })
+            .forget();
+        }
+        menu.append_child(&copy_btn).unwrap();
+
+        wrapper.append_child(&menu).unwrap();
+        root.append_child(&wrapper).unwrap();
+    }
+
+    fn root(&self) -> Element {
+        match &*self.state.borrow() {
+            DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => {
+                root.clone()
+            }
         }
     }
 }
