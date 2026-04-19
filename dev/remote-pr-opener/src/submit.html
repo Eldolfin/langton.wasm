@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit a PR</title>
+  <meta name="description" content="Submit a patch as a pull request to the langton.wasm repository.">
+  <link rel="icon" href="/assets/icon.png">
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 40px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      max-width: 400px;
+    }
+
+    label {
+      margin-top: 10px;
+    }
+
+    input,
+    textarea,
+    button {
+      margin-top: 5px;
+      padding: 8px;
+      font-size: 1rem;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: both;
+      font-family: monospace;
+    }
+
+    button {
+      margin-top: 15px;
+      cursor: pointer;
+    }
+
+    #toast {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 14px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 9999;
+      max-width: 280px;
+    }
+
+    #toast.visible {
+      display: block;
+      animation: fadein 0.3s ease;
+    }
+
+    @keyframes fadein {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    details {
+      max-width: 400px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+
+    details summary {
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Submit a PR</h1>
+
+  <details>
+    <summary>How do I get the payload?</summary>
+    <p>
+      Visit the <a href="https://eldolfin.codeberg.page/langton.wasm/?animation=langton&debug">langton.wasm
+        simulator</a>
+      and click the <strong>"Bugfix / new feature idea"</strong> button.
+      This opens an AI chatbot that will implement your idea and generate the JSON payload to paste below.
+    </p>
+  </details>
+
+  <form action="/submit" method="POST" enctype="multipart/form-data">
+    <label for="name">Name (optional; used for git author)</label>
+    <input type="text" id="name" name="name" placeholder="Your name" autocomplete="name">
+
+    <label for="email">Email (optional; used for git author)</label>
+    <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email">
+
+    <label for="payload">JSON payload (patch + PR metadata)</label>
+    <textarea id="payload" name="payload"
+      placeholder='{"patch": "From 0000... Mon Sep 17 00:00:00 2001\n...", "pr-title": "feat: ...", "pr-body": "## Summary\n..."}'
+      spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+
+    <button type="submit">Submit PR!</button>
+
+    <small>Your IP address (<<USER_IP>>) will be logged for abuse prevention.</small>
+  </form>
+
+  <div id="toast">PR is being created — you'll be redirected once it's ready.</div>
+
+  <script>
+    document.querySelector('form').addEventListener('submit', function () {
+      document.getElementById('toast').classList.add('visible');
+    });
+  </script>
+</body>
+
+</html>

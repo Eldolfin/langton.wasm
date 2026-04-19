@@ -119,3 +119,21 @@ ci:
 fix:
     cargo fmt
     cargo clippy --fix --allow-dirty --allow-staged
+
+# Open remote-pr-opener submit page with hot reload
+dev-remote-pr-opener:
+    #!/usr/bin/sh
+    cd dev/remote-pr-opener
+    xdg-open localhost:$PROPENER_PORT/submit &
+    export RUST_BACKTRACE=1
+    export RUST_LOG=debug
+    git ls-files | entr -cr cargo r
+
+# Open remote-pr-opener submit page with docker compose
+docker-remote-pr-opener:
+    #!/usr/bin/sh
+    cd dev/remote-pr-opener
+    xdg-open localhost:$PROPENER_PORT/submit &
+    export RUST_BACKTRACE=1
+    export RUST_LOG=debug
+    docker compose up -d --build

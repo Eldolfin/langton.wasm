@@ -1,0 +1,22 @@
+services:
+  pr-opener:
+    volumes:
+      - ./mnt/repo-cache:/var/lib/propener/repo
+      - ./mnt/logs.jsonl:/var/log/propener/logs.jsonl
+      - ./.ssh:/root/.ssh:ro
+    build:
+      context: ../..
+      dockerfile: dev/remote-pr-opener/Dockerfile
+    ports:
+      - ${PROPENER_PORT}:3000
+    environment:
+      PROPENER_REPO_URL: "${PROPENER_REPO_URL}"
+      PROPENER_PORT: "${PROPENER_PORT}"
+      ROCKET_ADDRESS: "0.0.0.0"
+      RUST_LOG: "debug" # TODO: change this
+      RUST_BACKTRACE: 1
+      PROPENER_FORGEJO_TOKEN: "${PROPENER_FORGEJO_TOKEN}"
+      PROPENER_FORGEJO_URL: "${PROPENER_FORGEJO_URL:-https://codeberg.org}"
+      PROPENER_REPO_OWNER: "${PROPENER_REPO_OWNER}"
+      PROPENER_REPO_NAME: "${PROPENER_REPO_NAME}"
+    restart: unless-stopped

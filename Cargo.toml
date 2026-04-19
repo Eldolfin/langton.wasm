@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/*", "dev/*"]
 
 [workspace.dependencies]
 canvas = { version = "0.1.0", path = "./crates/canvas" }
@@ -27,6 +27,8 @@ features = [
   "HtmlSelectElement",
   "KeyboardEvent",
   "Location",
+  "Navigator",
+  "Clipboard",
   "console",
 ]
 version = "0.3.77"

@@ -2,7 +2,6 @@ name: Mirror to GitHub
 
 on:
   push:
-    branches: ["main"]
 
 jobs:
   mirror:
@@ -20,4 +19,4 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/mirror_key
           chmod 600 ~/.ssh/mirror_key
           ssh-keyscan github.com >> ~/.ssh/known_hosts
-          GIT_SSH_COMMAND="ssh -i ~/.ssh/mirror_key" git push --force git@github.com:Eldolfin/langton.wasm.git HEAD:main
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/mirror_key" git push --force git@github.com:Eldolfin/langton.wasm.git HEAD:refs/heads/${GITHUB_REF#refs/heads/}
