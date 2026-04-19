@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use canvas::{Canvas, Color};
-use debug_ui::{DebugUI, Param};
+use debug_ui::{DebugColor, DebugUI, Param};
 use engine::Simulation;
 use engine_macros::SimulationConfig;
 #[derive(SimulationConfig)]
@@ -54,12 +54,12 @@ pub struct GameConfig {
     pub cell_size: Param<usize>,
     #[param(name = "cell border size", default = "1", range = "0..=5")]
     pub cell_border_size: Param<usize>,
-    #[param(name = "white color red", default = "30", range = "0..=255")]
-    pub white_color_r: Param<u8>,
-    #[param(name = "white color green", default = "30", range = "0..=255")]
-    pub white_color_g: Param<u8>,
-    #[param(name = "white color blue", default = "30", range = "0..=255")]
-    pub white_color_b: Param<u8>,
+    #[param(
+        name = "common cell color",
+        default = "DebugColor { r: 30, g: 30, b: 30 }",
+        color
+    )]
+    pub common_cell_color: Param<DebugColor>,
     #[param(
         section = "Advanced",
         name = "seed",
@@ -85,7 +85,7 @@ pub const LANGTON_PRESETS: &[(&str, &str)] = &[
     ),
     (
         "Flies",
-        "alpha_retention=0&ant_color_brightness=0.3&ant_color_saturation=0&cell_border_size=0&cell_size=6&final_speed=1&number_of_ants=500&speedup_frames=120&start_x=0.5&start_y=0.5&white_color_blue=0&white_color_green=0&white_color_red=0",
+        "alpha_retention=0&ant_color_brightness=0.3&ant_color_saturation=0&cell_border_size=0&cell_size=6&final_speed=1&number_of_ants=500&speedup_frames=120&start_x=0.5&start_y=0.5&common_cell_color=%23000000",
     ),
     (
         "Chaos",
@@ -93,11 +93,11 @@ pub const LANGTON_PRESETS: &[(&str, &str)] = &[
     ),
     (
         "Small grid",
-        "alpha_retention=254&ant_color_brightness=0.65&ant_color_saturation=1&cell_border_size=0&cell_size=5&final_speed=25&number_of_ants=4&speedup_frames=1200&start_x=0.5&start_y=0.5&white_color_blue=227&white_color_green=227&white_color_red=227",
+        "alpha_retention=254&ant_color_brightness=0.65&ant_color_saturation=1&cell_border_size=0&cell_size=5&final_speed=25&number_of_ants=4&speedup_frames=1200&start_x=0.5&start_y=0.5&common_cell_color=%23E3E3E3",
     ),
     (
         "1px grid",
-        "alpha_retention=255&ant_color_brightness=0&ant_color_saturation=0.5&cell_border_size=0&cell_size=1&final_speed=5000&number_of_ants=1&speedup_frames=0&white_color_blue=255&white_color_green=255&white_color_red=255",
+        "alpha_retention=255&ant_color_brightness=0&ant_color_saturation=0.5&cell_border_size=0&cell_size=1&final_speed=5000&number_of_ants=1&speedup_frames=0&common_cell_color=%23FFFFFF",
     ),
 ];
 
@@ -230,10 +230,11 @@ impl Simulation for Game {
                 Some(_) => {
                     ant.direction = ant.direction.left();
                     self.board[ant.x * canvas_size.0 + ant.y] = None;
+                    let bg = config.common_cell_color.get();
                     new_cell_color = Color::Rgb {
-                        r: config.white_color_r.get(),
-                        g: config.white_color_g.get(),
-                        b: config.white_color_b.get(),
+                        r: bg.r,
+                        g: bg.g,
+                        b: bg.b,
                     };
                 }
             }
@@ -259,10 +260,11 @@ impl Simulation for Game {
 
     fn bg_color(&self) -> Color {
         let c = self.config.borrow();
+        let bg = c.common_cell_color.get();
         Color::Rgb {
-            r: c.white_color_r.get(),
-            g: c.white_color_g.get(),
-            b: c.white_color_b.get(),
+            r: bg.r,
+            g: bg.g,
+            b: bg.b,
         }
     }
 }

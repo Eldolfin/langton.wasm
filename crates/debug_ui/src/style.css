@@ -137,3 +137,18 @@
     margin-top: 8px;
     padding: 4px 0;
 }
+
+.DebugUI-color-preview {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.DebugUI-color-input {
+    display: none;
+}
