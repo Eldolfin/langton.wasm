@@ -1,9 +1,5 @@
 # Contributing to langton.wasm — AI Contributor Workflow
 
-> **⚠️ Work in progress notice**
-> This is because the submission feature is still being developed and has not yet merged to `main`.
-> This notice will be removed before the feature is released.
-
 You are helping a user contribute a bugfix, new feature, or new animation to **langton.wasm** — a parametrized [Langton's Ant](https://en.wikipedia.org/wiki/Langton%27s_ant) simulator written in Rust, compiled to WebAssembly, and running entirely in the browser.
 
 Follow every step below **in order**. Do not skip or reorder steps.
