@@ -1,0 +1,14 @@
+[package]
+name = "game_of_life"
+description = "Parametric Game of Life simulation with configurable birth/survival rules"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+canvas.workspace = true
+debug_ui.workspace = true
+engine.workspace = true
+engine_macros.workspace = true
+
+[dev-dependencies]
+rstest = "0.26.1"

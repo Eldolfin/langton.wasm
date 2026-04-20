@@ -4,6 +4,7 @@ use canvas::Canvas;
 use debug_ui::{DebugUI, Param, ParamParam};
 use engine::{RenderConfig, Simulation, SimulationRunner, SpeedConfig};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast as _;
 
 // --- Registry -----------------------------------------------------------
 
@@ -29,6 +30,12 @@ fn blinker_start() -> StartFuture {
 fn blinker_preview(el: web_sys::HtmlCanvasElement) -> StartFuture {
     Box::pin(run_preview_blinker(el))
 }
+fn gol_start() -> StartFuture {
+    Box::pin(start_game_of_life())
+}
+fn gol_preview(el: web_sys::HtmlCanvasElement) -> StartFuture {
+    Box::pin(run_preview_game_of_life(el))
+}
 
 /// Single source of truth: add one entry here to register a new animation.
 const REGISTRY: &[AnimationEntry] = &[
@@ -43,6 +50,12 @@ const REGISTRY: &[AnimationEntry] = &[
         name: "Blinker",
         start_fn: blinker_start,
         preview_fn: blinker_preview,
+    },
+    AnimationEntry {
+        id: "game_of_life",
+        name: "Game of Life",
+        start_fn: gol_start,
+        preview_fn: gol_preview,
     },
 ];
 
@@ -266,4 +279,112 @@ async fn run_preview_blinker(canvas_element: web_sys::HtmlCanvasElement) {
     let w = canvas_element.width() as usize;
     let h = canvas_element.height() as usize;
     run_preview(canvas_element, dummy::BlinkingSim::new(w, h), 10, 1.0, 255).await;
+}
+
+async fn start_game_of_life() {
+    let mut debug_ui = DebugUI::new("Game of Life parameters");
+    debug_ui.presets(game_of_life::GOL_PRESETS);
+    let game_config = game_of_life::GameOfLifeConfig::new(&mut debug_ui);
+    let cell_size = Rc::new(RefCell::new(game_config.cell_size.clone()));
+    let cell_border_size = Rc::new(RefCell::new(game_config.cell_border_size.clone()));
+
+    debug_ui.start_section("Animation Speed");
+    let final_steps_per_frame = debug_ui.param(ParamParam {
+        name: "final speed",
+        default_value: 5.0,
+        range: 0.01..=1000.0,
+        scale: debug_ui::Scale::Logarithmic,
+        ..Default::default()
+    });
+    let alpha_retention_factor = debug_ui.param(ParamParam {
+        name: "alpha retention",
+        default_value: 255,
+        range: 0..=255,
+        ..Default::default()
+    });
+
+    debug_ui.add_footer();
+
+    let config = Rc::new(RefCell::new(game_config));
+    let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
+    let debug_ui = Rc::new(RefCell::new(debug_ui));
+    let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+    let needs_clear = debug_ui.borrow().needs_clear();
+
+    let click_queue: Rc<RefCell<Vec<(usize, usize)>>> = Rc::new(RefCell::new(vec![]));
+
+    {
+        let document = web_sys::window().unwrap().document().unwrap();
+        if let Some(canvas_el) = document.query_selector("canvas").unwrap() {
+            let click_queue = click_queue.clone();
+            let cell_size = cell_size.clone();
+            let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+                let cs = cell_size.borrow().get();
+                if cs == 0 {
+                    return;
+                }
+                let x = event.offset_x() as usize / cs;
+                let y = event.offset_y() as usize / cs;
+                click_queue.borrow_mut().push((x, y));
+            }) as Box<dyn FnMut(_)>);
+            canvas_el
+                .add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref())
+                .unwrap();
+            closure.forget();
+        }
+    }
+
+    loop {
+        {
+            let c = config.borrow();
+            let bg = c.dead_color.get();
+            let bg_color = canvas::Color::Rgb {
+                r: bg.r,
+                g: bg.g,
+                b: bg.b,
+            };
+            canvas.clear(bg_color);
+        }
+
+        step_counter.borrow_mut().reset();
+        let debug_ui_ref = debug_ui.clone();
+        let should_restart = Box::new(move || debug_ui_ref.borrow_mut().should_restart());
+
+        let game = game_of_life::GameOfLife::new(
+            config.clone(),
+            canvas.width(),
+            canvas.height(),
+            click_queue.clone(),
+        );
+        let speed_config = SpeedConfig {
+            final_steps_per_frame: final_steps_per_frame.clone(),
+            speedup_frames: Param::fixed(0usize),
+            speed_ease_in_power: Param::fixed(1.0f64),
+        };
+        let render_config = RenderConfig {
+            alpha_retention_factor: alpha_retention_factor.clone(),
+        };
+        let runner = SimulationRunner::new(
+            game,
+            speed_config,
+            render_config,
+            needs_clear.clone(),
+            step_counter.clone(),
+        );
+        runner.run(&mut canvas, should_restart).await;
+    }
+}
+
+async fn run_preview_game_of_life(canvas_element: web_sys::HtmlCanvasElement) {
+    let cell_size = 3;
+    let w = (canvas_element.width() as f64 / cell_size as f64).ceil() as usize;
+    let h = (canvas_element.height() as f64 / cell_size as f64).ceil() as usize;
+    run_preview(
+        canvas_element,
+        game_of_life::GameOfLife::preview(w, h),
+        cell_size,
+        5.0,
+        255,
+    )
+    .await;
 }

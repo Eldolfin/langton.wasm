@@ -9,6 +9,7 @@ engine = { version = "0.1.0", path = "./crates/engine" }
 engine_macros = { version = "0.1.0", path = "./crates/engine_macros" }
 langton = { version = "0.1.4", path = "./crates/langton" }
 dummy = { version = "0.1.0", path = "./crates/dummy" }
+game_of_life = { version = "0.1.0", path = "./crates/game_of_life" }
 console_error_panic_hook = "0.1.7"
 js-sys = "0.3.77"
 wasm-bindgen = "0.2.103"
@@ -19,6 +20,7 @@ features = [
   "CanvasRenderingContext2d",
   "Document",
   "Element",
+  "EventTarget",
   "HtmlCanvasElement",
   "Window",
   "History",
@@ -26,6 +28,7 @@ features = [
   "HtmlInputElement",
   "HtmlSelectElement",
   "KeyboardEvent",
+  "MouseEvent",
   "Location",
   "Navigator",
   "Clipboard",
