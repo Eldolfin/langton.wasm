@@ -29,6 +29,12 @@ fn blinker_start() -> StartFuture {
 fn blinker_preview(el: web_sys::HtmlCanvasElement) -> StartFuture {
     Box::pin(run_preview_blinker(el))
 }
+fn cube_start() -> StartFuture {
+    Box::pin(start_cube())
+}
+fn cube_preview(el: web_sys::HtmlCanvasElement) -> StartFuture {
+    Box::pin(run_preview_cube(el))
+}
 
 /// Single source of truth: add one entry here to register a new animation.
 const REGISTRY: &[AnimationEntry] = &[
@@ -43,6 +49,12 @@ const REGISTRY: &[AnimationEntry] = &[
         name: "Blinker",
         start_fn: blinker_start,
         preview_fn: blinker_preview,
+    },
+    AnimationEntry {
+        id: "cube",
+        name: "Rotating Cube",
+        start_fn: cube_start,
+        preview_fn: cube_preview,
     },
 ];
 
@@ -266,4 +278,89 @@ async fn run_preview_blinker(canvas_element: web_sys::HtmlCanvasElement) {
     let w = canvas_element.width() as usize;
     let h = canvas_element.height() as usize;
     run_preview(canvas_element, dummy::BlinkingSim::new(w, h), 10, 1.0, 255).await;
+}
+
+async fn start_cube() {
+    let mut debug_ui = DebugUI::new("Rotating Cube parameters");
+    debug_ui.presets(cube::CUBE_PRESETS);
+    let cube_config = cube::CubeConfig::new(&mut debug_ui);
+    let cell_size = Rc::new(RefCell::new(cube_config.cell_size.clone()));
+    let cell_border_size = Rc::new(RefCell::new(cube_config.cell_border_size.clone()));
+
+    debug_ui.start_section("Animation Speed");
+    let final_steps_per_frame = debug_ui.param(ParamParam {
+        name: "final speed",
+        default_value: 1.0,
+        range: 0.01..=100.0,
+        scale: debug_ui::Scale::Logarithmic,
+        ..Default::default()
+    });
+    let speedup_frames = debug_ui.param(ParamParam {
+        name: "speedup frames",
+        default_value: 0,
+        range: 0..=1500,
+        ..Default::default()
+    });
+    let speed_ease_in_power = debug_ui.param(ParamParam {
+        name: "speed ease-in power",
+        default_value: 2.5,
+        range: 1.0..=10.0,
+        step_size: 0.1,
+        ..Default::default()
+    });
+    let alpha_retention_factor = debug_ui.param(ParamParam {
+        name: "alpha retention",
+        default_value: 220,
+        range: 0..=255,
+        ..Default::default()
+    });
+
+    debug_ui.add_footer();
+
+    let config = Rc::new(RefCell::new(cube_config));
+    let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
+    let debug_ui = Rc::new(RefCell::new(debug_ui));
+    let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+    let needs_clear = debug_ui.borrow().needs_clear();
+
+    loop {
+        {
+            let c = config.borrow();
+            let bg = c.background_color.get();
+            let bg_color = canvas::Color::Rgb {
+                r: bg.r,
+                g: bg.g,
+                b: bg.b,
+            };
+            canvas.clear(bg_color);
+        }
+
+        step_counter.borrow_mut().reset();
+        let debug_ui_ref = debug_ui.clone();
+        let should_restart = Box::new(move || debug_ui_ref.borrow_mut().should_restart());
+
+        let sim = cube::CubeSim::new(config.clone(), canvas.width(), canvas.height());
+        let speed_config = SpeedConfig {
+            final_steps_per_frame: final_steps_per_frame.clone(),
+            speedup_frames: speedup_frames.clone(),
+            speed_ease_in_power: speed_ease_in_power.clone(),
+        };
+        let render_config = RenderConfig {
+            alpha_retention_factor: alpha_retention_factor.clone(),
+        };
+        let runner = SimulationRunner::new(
+            sim,
+            speed_config,
+            render_config,
+            needs_clear.clone(),
+            step_counter.clone(),
+        );
+        runner.run(&mut canvas, should_restart).await;
+    }
+}
+
+async fn run_preview_cube(canvas_element: web_sys::HtmlCanvasElement) {
+    let w = canvas_element.width() as usize;
+    let h = canvas_element.height() as usize;
+    run_preview(canvas_element, cube::CubeSim::preview(w, h), 4, 1.0, 220).await;
 }

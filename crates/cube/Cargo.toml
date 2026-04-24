@@ -1,0 +1,11 @@
+[package]
+name = "cube"
+description = "Rotating pixelated cube simulation with beautiful colors"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+canvas.workspace = true
+debug_ui.workspace = true
+engine.workspace = true
+engine_macros.workspace = true
