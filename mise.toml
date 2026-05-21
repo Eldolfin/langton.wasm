@@ -1,5 +1,5 @@
 [tools]
-python = "3.14.4"
+python = "3.14.5"
 rust = {version = "1.95.0", targets = "wasm32-unknown-unknown"}
 # "cargo:live-server" = "latest"
 node = "latest"
