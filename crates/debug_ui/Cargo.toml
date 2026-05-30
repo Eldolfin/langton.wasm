@@ -8,6 +8,7 @@ gloo = { version = "0.12.0", default-features = false, features = ["events", "ti
 num-traits = { version = "0.2.19", default-features = false }
 url = { version = "2.5.4", default-features = false, features = ["std"] }
 web-sys.workspace = true
+js-sys = "0.3.77"
 
 [dev-dependencies]
 rstest = "0.26.1"

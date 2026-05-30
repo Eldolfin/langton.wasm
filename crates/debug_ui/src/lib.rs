@@ -13,7 +13,10 @@ use std::{
 #[cfg(target_arch = "wasm32")]
 pub use web_sys;
 #[cfg(target_arch = "wasm32")]
-use web_sys::{Document, Element, HtmlInputElement, KeyboardEvent, wasm_bindgen::JsCast as _};
+use web_sys::{
+    Blob, BlobEvent, BlobPropertyBag, Document, Element, HtmlAnchorElement, HtmlInputElement,
+    KeyboardEvent, MediaRecorder, MediaRecorderOptions, Url, wasm_bindgen::JsCast as _,
+};
 
 const URL_TAG_DEBUG: &str = "debug";
 const URL_TAG_ANIMATION: &str = "animation";
@@ -23,6 +26,13 @@ const DEBUG_UI_URL_TAGS: &[&str] = &[URL_TAG_DEBUG, URL_TAG_ANIMATION];
 pub type Element = ();
 #[cfg(not(target_arch = "wasm32"))]
 pub type Document = ();
+
+#[cfg(target_arch = "wasm32")]
+struct RecorderState {
+    recorder: MediaRecorder,
+    _data_listener: EventListener,
+    _stop_listener: EventListener,
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct DebugColor {
@@ -51,7 +61,7 @@ impl DebugColor {
 #[macro_export]
 macro_rules! log {
     ( $( $t:tt )* ) => {
-        debug_ui::web_sys::console::log_1(&format!( $( $t )* ).into())
+        $crate::web_sys::console::log_1(&format!( $( $t )* ).into())
     }
 }
 
@@ -87,6 +97,10 @@ pub struct DebugUI {
     state: Rc<RefCell<DebugUIState>>,
     #[cfg(target_arch = "wasm32")]
     _shortcut_listener: EventListener,
+    #[cfg(target_arch = "wasm32")]
+    _recorder: Rc<RefCell<Option<RecorderState>>>,
+    #[cfg(target_arch = "wasm32")]
+    _stopping_recorder: Rc<RefCell<Option<RecorderState>>>,
     #[cfg(target_arch = "wasm32")]
     document: Document,
     needs_clear_shared: Rc<RefCell<bool>>,
@@ -292,7 +306,11 @@ fn remove_all_url_params_except(keys: &[&str]) {
 
 impl DebugUI {
     #[cfg(target_arch = "wasm32")]
-    fn register_shortcut(state: Rc<RefCell<DebugUIState>>) -> EventListener {
+    fn register_shortcut(
+        state: Rc<RefCell<DebugUIState>>,
+        recorder: Rc<RefCell<Option<RecorderState>>>,
+        stopping_recorder: Rc<RefCell<Option<RecorderState>>>,
+    ) -> EventListener {
         let doc = document();
         EventListener::new(&doc, "keydown", move |event| {
             let Some(key_event) = event.dyn_ref::<KeyboardEvent>() else {
@@ -325,6 +343,114 @@ impl DebugUI {
                 };
                 *state.borrow_mut() = new_state;
             }
+
+            if key_event.shift_key() && key_event.key() == "R" {
+                let mut recorder_state = recorder.borrow_mut();
+                if let Some(state_to_stop) = recorder_state.take() {
+                    state_to_stop.recorder.stop().unwrap();
+                    // Move to stopping_recorder to keep listeners alive until onstop fires
+                    *stopping_recorder.borrow_mut() = Some(state_to_stop);
+                } else {
+                    pub const CANVAS_HTML_ID: &str = "langtonrs-canvas-parent";
+                    let doc = document();
+                    let parent = doc.get_element_by_id(CANVAS_HTML_ID).unwrap();
+                    let _ = parent.request_fullscreen();
+
+                    remove_url_param(URL_TAG_DEBUG);
+                    let (root, next_uid) = {
+                        let s = state.borrow();
+                        match &*s {
+                            DebugUIState::Enabled { root, next_uid, .. } => {
+                                (root.clone(), *next_uid)
+                            }
+                            DebugUIState::Disabled { root, next_uid } => {
+                                (root.clone(), *next_uid)
+                            }
+                        }
+                    };
+                    root.set_attribute("style", "display: none").unwrap();
+                    *state.borrow_mut() = DebugUIState::Disabled { root, next_uid };
+
+                    // Restart with delay to let resize settle
+                    let state_clone = state.clone();
+                    gloo::timers::callback::Timeout::new(200, move || {
+                        state_clone.borrow_mut().set_needs_restart();
+                    })
+                    .forget();
+
+                    // Capture stream from canvas
+                    let canvas_el = parent.query_selector("canvas").unwrap().unwrap();
+                    let canvas = canvas_el.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
+                    let stream = match canvas.capture_stream() {
+                        Ok(s) => s,
+                        Err(_) => {
+                            return;
+                        }
+                    };
+
+                    let options = MediaRecorderOptions::new();
+                    options.set_video_bits_per_second(8_000_000);
+                    options.set_mime_type("video/webm;codecs=vp9");
+
+                    let recorder_inst =
+                        match MediaRecorder::new_with_media_stream_and_media_recorder_options(&stream, &options) {
+                            Ok(r) => r,
+                            Err(_) => {
+                                // Fallback to default options if VP9 is not supported
+                                MediaRecorder::new_with_media_stream(&stream).unwrap()
+                            }
+                        };
+
+                    let chunks = Rc::new(RefCell::new(Vec::new()));
+                    let data_chunks = chunks.clone();
+                    let data_listener = EventListener::new(&recorder_inst, "dataavailable", move |e| {
+                        let event = e.dyn_ref::<BlobEvent>().unwrap();
+                        data_chunks.borrow_mut().push(event.data().unwrap());
+                    });
+
+                    let stop_chunks = chunks.clone();
+                    let stopping_recorder_done = stopping_recorder.clone();
+                    let stop_listener = EventListener::new(&recorder_inst, "stop", move |_e| {
+                        let array = js_sys::Array::new();
+                        for chunk in stop_chunks.borrow().iter() {
+                            array.push(chunk);
+                        }
+                        let options = BlobPropertyBag::new();
+                        let blob =
+                            Blob::new_with_blob_sequence_and_options(&array, &options).unwrap();
+                        let url = Url::create_object_url_with_blob(&blob).unwrap();
+
+                        let doc = document();
+                        let a = doc
+                            .create_element("a")
+                            .unwrap()
+                            .dyn_into::<HtmlAnchorElement>()
+                            .unwrap();
+                        a.set_href(&url);
+                        a.set_download("langton-recording.webm");
+                        a.click();
+                        
+                        let url_to_revoke = url.clone();
+                        gloo::timers::callback::Timeout::new(1000, move || {
+                            let _ = Url::revoke_object_url(&url_to_revoke);
+                        })
+                        .forget();
+                        
+                        // Clear stopping state
+                        *stopping_recorder_done.borrow_mut() = None;
+                    });
+
+                    if let Err(_) = recorder_inst.start() {
+                        return;
+                    }
+
+                    *recorder_state = Some(RecorderState {
+                        recorder: recorder_inst,
+                        _data_listener: data_listener,
+                        _stop_listener: stop_listener,
+                    });
+                }
+            }
         })
     }
 
@@ -341,6 +467,8 @@ impl DebugUI {
                 root: document.create_element("div").unwrap(),
                 next_uid: 0,
             }));
+            let recorder = Rc::new(RefCell::new(None));
+            let stopping_recorder = Rc::new(RefCell::new(None));
 
             let initial_state =
                 match Self::enable(&title, needs_clear_shared.clone(), Some(state.clone())) {
@@ -352,10 +480,13 @@ impl DebugUI {
                 };
             *state.borrow_mut() = initial_state;
 
-            let shortcut_listener = Self::register_shortcut(state.clone());
+            let shortcut_listener =
+                Self::register_shortcut(state.clone(), recorder.clone(), stopping_recorder.clone());
             Self {
                 state,
                 _shortcut_listener: shortcut_listener,
+                _recorder: recorder,
+                _stopping_recorder: stopping_recorder,
                 document,
                 needs_clear_shared,
             }
@@ -378,10 +509,15 @@ impl DebugUI {
                 root: document.create_element("div").unwrap(),
                 next_uid: 0,
             }));
-            let shortcut_listener = Self::register_shortcut(state.clone());
+            let recorder = Rc::new(RefCell::new(None));
+            let stopping_recorder = Rc::new(RefCell::new(None));
+            let shortcut_listener =
+                Self::register_shortcut(state.clone(), recorder.clone(), stopping_recorder.clone());
             Self {
                 state,
                 _shortcut_listener: shortcut_listener,
+                _recorder: recorder,
+                _stopping_recorder: stopping_recorder,
                 document,
                 needs_clear_shared: Rc::new(RefCell::new(false)),
             }
@@ -866,7 +1002,12 @@ impl DebugUI {
         root.append_child(&title_line).unwrap();
         root.append_child(&reset_btn).unwrap();
         root.append_child(&clear_btn).unwrap();
-        body.append_child(&root).unwrap();
+
+        pub const CANVAS_HTML_ID: &str = "langtonrs-canvas-parent";
+        let container = document
+            .get_element_by_id(CANVAS_HTML_ID)
+            .unwrap_or_else(|| body.clone().into());
+        container.append_child(&root).unwrap();
 
         let style = document.create_element("style").unwrap();
         style.set_text_content(Some(include_str!("./style.css")));

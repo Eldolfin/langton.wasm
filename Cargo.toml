@@ -32,6 +32,15 @@ features = [
   "Navigator",
   "Clipboard",
   "console",
+  "MediaRecorder",
+  "MediaRecorderOptions",
+  "MediaStream",
+  "Blob",
+  "BlobPropertyBag",
+  "Url",
+  "HtmlAnchorElement",
+  "BlobEvent",
+  "Event",
 ]
 version = "0.3.77"
 

@@ -380,6 +380,7 @@ name = "debug_ui"
 version = "0.1.0"
 dependencies = [
  "gloo",
+ "js-sys",
  "num-traits",
  "rstest",
  "url",
