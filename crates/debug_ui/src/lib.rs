@@ -72,22 +72,37 @@ macro_rules! warn {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RestartMode {
+    Reload,
+    Full,
+}
+
 pub enum DebugUIState {
     Enabled {
         root: Element,
         next_uid: u32,
-        needs_restart: bool,
+        restart_mode: Option<RestartMode>,
     },
     Disabled {
         root: Element,
         next_uid: u32,
+        restart_mode: Option<RestartMode>,
     },
 }
 
 impl DebugUIState {
-    fn set_needs_restart(&mut self) {
-        if let DebugUIState::Enabled { needs_restart, .. } = self {
-            *needs_restart = true
+    fn set_restart_mode(&mut self, mode: RestartMode) {
+        match self {
+            DebugUIState::Enabled { restart_mode, .. } => *restart_mode = Some(mode),
+            DebugUIState::Disabled { restart_mode, .. } => *restart_mode = Some(mode),
+        }
+    }
+
+    fn take_restart_mode(&mut self) -> Option<RestartMode> {
+        match self {
+            DebugUIState::Enabled { restart_mode, .. } => restart_mode.take(),
+            DebugUIState::Disabled { restart_mode, .. } => restart_mode.take(),
         }
     }
 }
@@ -312,85 +327,103 @@ impl DebugUI {
         stopping_recorder: Rc<RefCell<Option<RecorderState>>>,
     ) -> EventListener {
         let doc = document();
+        let state_captured = state.clone();
+        let recorder_captured = recorder.clone();
+        let stopping_recorder_captured = stopping_recorder.clone();
+
         EventListener::new(&doc, "keydown", move |event| {
             let Some(key_event) = event.dyn_ref::<KeyboardEvent>() else {
                 return;
             };
             if key_event.shift_key() && key_event.key() == "I" {
                 let (was_enabled, root, next_uid) = {
-                    let s = state.borrow();
+                    let s = state_captured.borrow();
                     match &*s {
-                        DebugUIState::Enabled { root, next_uid, .. } => {
-                            (true, root.clone(), *next_uid)
-                        }
-                        DebugUIState::Disabled { root, next_uid } => {
-                            (false, root.clone(), *next_uid)
-                        }
+                        DebugUIState::Enabled { root, next_uid, .. }
+                        | DebugUIState::Disabled {
+                            root,
+                            next_uid,
+                            ..
+                        } => (matches!(&*s, DebugUIState::Enabled { .. }), root.clone(), *next_uid),
                     }
                 };
                 let new_state = if was_enabled {
                     remove_url_param(URL_TAG_DEBUG);
                     root.set_attribute("style", "display: none").unwrap();
-                    DebugUIState::Disabled { root, next_uid }
+                    DebugUIState::Disabled {
+                        root,
+                        next_uid,
+                        restart_mode: None,
+                    }
                 } else {
                     add_debug_url_param();
                     root.remove_attribute("style").unwrap();
                     DebugUIState::Enabled {
                         root,
                         next_uid,
-                        needs_restart: false,
+                        restart_mode: None,
                     }
                 };
-                *state.borrow_mut() = new_state;
+                *state_captured.borrow_mut() = new_state;
             }
 
             if key_event.shift_key() && key_event.key() == "R" {
-                let mut recorder_state = recorder.borrow_mut();
+                let mut recorder_state = recorder_captured.borrow_mut();
                 if let Some(state_to_stop) = recorder_state.take() {
                     state_to_stop.recorder.stop().unwrap();
                     // Move to stopping_recorder to keep listeners alive until onstop fires
-                    *stopping_recorder.borrow_mut() = Some(state_to_stop);
+                    *stopping_recorder_captured.borrow_mut() = Some(state_to_stop);
                 } else {
-                    let doc = document();
-                    let parent = common::get_canvas_parent().unwrap();
-                    let _ = parent.request_fullscreen();
+                    let _doc = document();
+                    let _parent = common::get_canvas_parent().expect("canvas parent should exist");
+                    let _ = _parent.request_fullscreen();
 
                     remove_url_param(URL_TAG_DEBUG);
                     let (root, next_uid) = {
-                        let s = state.borrow();
+                        let s = state_captured.borrow();
                         match &*s {
-                            DebugUIState::Enabled { root, next_uid, .. } => {
-                                (root.clone(), *next_uid)
-                            }
-                            DebugUIState::Disabled { root, next_uid } => (root.clone(), *next_uid),
+                            DebugUIState::Enabled { root, next_uid, .. }
+                            | DebugUIState::Disabled {
+                                root,
+                                next_uid,
+                                ..
+                            } => (root.clone(), *next_uid),
                         }
                     };
                     root.set_attribute("style", "display: none").unwrap();
-                    *state.borrow_mut() = DebugUIState::Disabled { root, next_uid };
+                    *state_captured.borrow_mut() = DebugUIState::Disabled {
+                        root,
+                        next_uid,
+                        restart_mode: None,
+                    };
 
                     // Restart with delay to let resize settle
-                    let state_clone = state.clone();
+                    let state_clone = state_captured.clone();
                     gloo::timers::callback::Timeout::new(200, move || {
-                        state_clone.borrow_mut().set_needs_restart();
+                        state_clone.borrow_mut().set_restart_mode(RestartMode::Full);
                     })
                     .forget();
 
-                    // Capture stream from canvas
-                    let canvas_el = parent.query_selector("canvas").unwrap().unwrap();
-                    let canvas = canvas_el.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
-                    let stream = match canvas.capture_stream() {
-                        Ok(s) => s,
-                        Err(_) => {
-                            return;
-                        }
-                    };
+                    // Delay recording start so the Full restart has time to recreate the Canvas!
+                    let recorder_clone = recorder_captured.clone();
+                    let stopping_recorder_clone = stopping_recorder_captured.clone();
+                    gloo::timers::callback::Timeout::new(600, move || {
+                        let doc = document();
+                        let _parent = common::get_canvas_parent().unwrap();
+                        let canvas_el = doc.query_selector("canvas").unwrap().unwrap();
+                        let canvas = canvas_el.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
+                        let stream = match canvas.capture_stream() {
+                            Ok(s) => s,
+                            Err(_) => {
+                                return;
+                            }
+                        };
 
-                    let options = MediaRecorderOptions::new();
-                    options.set_video_bits_per_second(8_000_000);
-                    options.set_mime_type("video/webm;codecs=vp9");
+                        let options = MediaRecorderOptions::new();
+                        options.set_video_bits_per_second(8_000_000);
+                        options.set_mime_type("video/webm;codecs=vp9");
 
-                    let recorder_inst =
-                        match MediaRecorder::new_with_media_stream_and_media_recorder_options(
+                        let recorder_inst = match MediaRecorder::new_with_media_stream_and_media_recorder_options(
                             &stream, &options,
                         ) {
                             Ok(r) => r,
@@ -400,55 +433,57 @@ impl DebugUI {
                             }
                         };
 
-                    let chunks = Rc::new(RefCell::new(Vec::new()));
-                    let data_chunks = chunks.clone();
-                    let data_listener =
-                        EventListener::new(&recorder_inst, "dataavailable", move |e| {
-                            let event = e.dyn_ref::<BlobEvent>().unwrap();
-                            data_chunks.borrow_mut().push(event.data().unwrap());
+                        let chunks = Rc::new(RefCell::new(Vec::new()));
+                        let data_chunks = chunks.clone();
+                        let data_listener =
+                            EventListener::new(&recorder_inst, "dataavailable", move |e| {
+                                let event = e.dyn_ref::<BlobEvent>().unwrap();
+                                data_chunks.borrow_mut().push(event.data().unwrap());
+                            });
+
+                        let stop_chunks = chunks.clone();
+                        let stopping_recorder_done = stopping_recorder_clone.clone();
+                        let stop_listener = EventListener::new(&recorder_inst, "stop", move |_e| {
+                            let array = js_sys::Array::new();
+                            for chunk in stop_chunks.borrow().iter() {
+                                array.push(chunk);
+                            }
+                            let options = BlobPropertyBag::new();
+                            let blob = Blob::new_with_blob_sequence_and_options(&array, &options)
+                                .unwrap();
+                            let url = Url::create_object_url_with_blob(&blob).unwrap();
+
+                            let doc = document();
+                            let a = doc
+                                .create_element("a")
+                                .unwrap()
+                                .dyn_into::<HtmlAnchorElement>()
+                                .unwrap();
+                            a.set_href(&url);
+                            a.set_download("langton-recording.webm");
+                            a.click();
+
+                            let url_to_revoke = url.clone();
+                            gloo::timers::callback::Timeout::new(1000, move || {
+                                let _ = Url::revoke_object_url(&url_to_revoke);
+                            })
+                            .forget();
+
+                            // Clear stopping state
+                            *stopping_recorder_done.borrow_mut() = None;
                         });
 
-                    let stop_chunks = chunks.clone();
-                    let stopping_recorder_done = stopping_recorder.clone();
-                    let stop_listener = EventListener::new(&recorder_inst, "stop", move |_e| {
-                        let array = js_sys::Array::new();
-                        for chunk in stop_chunks.borrow().iter() {
-                            array.push(chunk);
+                        if let Err(_) = recorder_inst.start() {
+                            return;
                         }
-                        let options = BlobPropertyBag::new();
-                        let blob =
-                            Blob::new_with_blob_sequence_and_options(&array, &options).unwrap();
-                        let url = Url::create_object_url_with_blob(&blob).unwrap();
 
-                        let doc = document();
-                        let a = doc
-                            .create_element("a")
-                            .unwrap()
-                            .dyn_into::<HtmlAnchorElement>()
-                            .unwrap();
-                        a.set_href(&url);
-                        a.set_download("langton-recording.webm");
-                        a.click();
-
-                        let url_to_revoke = url.clone();
-                        gloo::timers::callback::Timeout::new(1000, move || {
-                            let _ = Url::revoke_object_url(&url_to_revoke);
-                        })
-                        .forget();
-
-                        // Clear stopping state
-                        *stopping_recorder_done.borrow_mut() = None;
-                    });
-
-                    if let Err(_) = recorder_inst.start() {
-                        return;
-                    }
-
-                    *recorder_state = Some(RecorderState {
-                        recorder: recorder_inst,
-                        _data_listener: data_listener,
-                        _stop_listener: stop_listener,
-                    });
+                        *recorder_clone.borrow_mut() = Some(RecorderState {
+                            recorder: recorder_inst,
+                            _data_listener: data_listener,
+                            _stop_listener: stop_listener,
+                        });
+                    })
+                    .forget();
                 }
             }
         })
@@ -466,6 +501,7 @@ impl DebugUI {
             let state = Rc::new(RefCell::new(DebugUIState::Disabled {
                 root: document.create_element("div").unwrap(),
                 next_uid: 0,
+                restart_mode: None,
             }));
             let recorder = Rc::new(RefCell::new(None));
             let stopping_recorder = Rc::new(RefCell::new(None));
@@ -474,7 +510,11 @@ impl DebugUI {
                 match Self::enable(&title, needs_clear_shared.clone(), Some(state.clone())) {
                     DebugUIState::Enabled { root, next_uid, .. } if !debug_enabled => {
                         root.set_attribute("style", "display: none").unwrap();
-                        DebugUIState::Disabled { root, next_uid }
+                        DebugUIState::Disabled {
+                            root,
+                            next_uid,
+                            restart_mode: None,
+                        }
                     }
                     s => s,
                 };
@@ -508,6 +548,7 @@ impl DebugUI {
             let state = Rc::new(RefCell::new(DebugUIState::Disabled {
                 root: document.create_element("div").unwrap(),
                 next_uid: 0,
+                restart_mode: None,
             }));
             let recorder = Rc::new(RefCell::new(None));
             let stopping_recorder = Rc::new(RefCell::new(None));
@@ -585,7 +626,11 @@ impl DebugUI {
             let mut state_match = state.borrow_mut();
             match &mut *state_match {
                 DebugUIState::Enabled { root, next_uid, .. }
-                | DebugUIState::Disabled { root, next_uid } => {
+                | DebugUIState::Disabled {
+                    root,
+                    next_uid,
+                    restart_mode: _,
+                } => {
                     let container = doc.create_element("div").unwrap();
                     let label = doc.create_element("label").unwrap();
                     let slider = doc
@@ -674,7 +719,7 @@ impl DebugUI {
 
                             *writer.write().unwrap() = value;
                             if p.needs_restart {
-                                Self::set_needs_restart(&state);
+                                Self::set_restart_mode(&state, RestartMode::Reload);
                             }
                         })
                         .forget();
@@ -713,7 +758,7 @@ impl DebugUI {
 
                             *writer.write().unwrap() = value;
                             if p.needs_restart {
-                                Self::set_needs_restart(&state);
+                                Self::set_restart_mode(&state, RestartMode::Reload);
                             }
                         })
                         .forget();
@@ -824,10 +869,8 @@ impl DebugUI {
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn set_needs_restart(state: &Rc<RefCell<DebugUIState>>) {
-        if let DebugUIState::Enabled { needs_restart, .. } = &mut *state.borrow_mut() {
-            *needs_restart = true;
-        }
+    fn set_restart_mode(state: &Rc<RefCell<DebugUIState>>, mode: RestartMode) {
+        state.borrow_mut().set_restart_mode(mode);
     }
 
     pub fn presets(&mut self, presets: &[(&'static str, &'static str)]) {
@@ -917,23 +960,13 @@ impl DebugUI {
         }
     }
 
-    pub fn should_restart(&mut self) -> bool {
+    pub fn take_restart_mode(&mut self) -> Option<RestartMode> {
         #[cfg(target_arch = "wasm32")]
         {
-            let mut state = self.state.borrow_mut();
-            match &mut *state {
-                DebugUIState::Enabled { needs_restart, .. } => {
-                    let result = *needs_restart;
-                    *needs_restart = false;
-                    result
-                }
-                DebugUIState::Disabled { .. } => false,
-            }
+            self.state.borrow_mut().take_restart_mode()
         }
         #[cfg(not(target_arch = "wasm32"))]
-        {
-            false
-        }
+        None
     }
 
     pub fn needs_clear(&self) -> Rc<RefCell<bool>> {
@@ -975,7 +1008,6 @@ impl DebugUI {
         use common::get_canvas_parent;
 
         let document = document();
-        let body = document.body().expect("document should have a body");
         let root = document.create_element("div").unwrap();
         let title_line = document.create_element("div").unwrap();
         let title_elt = document.create_element("h2").unwrap();
@@ -1020,10 +1052,33 @@ impl DebugUI {
                 container.request_fullscreen().unwrap();
 
                 remove_url_param(URL_TAG_DEBUG);
+                let (root, next_uid) = if let Some(state) = state.as_ref() {
+                    let s = state.borrow();
+                    match &*s {
+                        DebugUIState::Enabled { root, next_uid, .. }
+                        | DebugUIState::Disabled {
+                            root,
+                            next_uid,
+                            restart_mode: _,
+                        } => (root.clone(), *next_uid),
+                    }
+                } else {
+                    (root.clone(), 0)
+                };
                 root.set_attribute("style", "display: none").unwrap();
-                let mut state = state.clone();
+                if let Some(state) = state.as_ref() {
+                    *state.borrow_mut() = DebugUIState::Disabled {
+                        root,
+                        next_uid,
+                        restart_mode: None,
+                    };
+                }
+
+                let state_clone = state.clone();
                 gloo::timers::callback::Timeout::new(2, move || {
-                    state.as_mut().unwrap().borrow_mut().set_needs_restart();
+                    if let Some(state) = state_clone {
+                        state.borrow_mut().set_restart_mode(RestartMode::Full);
+                    }
                 })
                 .forget();
             })
@@ -1054,7 +1109,7 @@ impl DebugUI {
         DebugUIState::Enabled {
             root,
             next_uid: 0,
-            needs_restart: false,
+            restart_mode: None,
         }
     }
 
@@ -1214,6 +1269,7 @@ fn close_debug_ui(root: &Element, state: &Option<Rc<RefCell<DebugUIState>>>) {
             *s = DebugUIState::Disabled {
                 root: r.clone(),
                 next_uid: *next_uid,
+                restart_mode: None,
             };
         }
     }

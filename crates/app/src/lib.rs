@@ -153,38 +153,54 @@ async fn start_langton() {
 
     loop {
         let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
-        {
-            let c = config.borrow();
-            let bg = c.common_cell_color.get();
-            let bg_color = canvas::Color::Rgb {
-                r: bg.r,
-                g: bg.g,
-                b: bg.b,
+        loop {
+            {
+                let c = config.borrow();
+                let bg = c.common_cell_color.get();
+                let bg_color = canvas::Color::Rgb {
+                    r: bg.r,
+                    g: bg.g,
+                    b: bg.b,
+                };
+                canvas.clear(bg_color);
+            }
+
+            step_counter.borrow_mut().reset();
+            let debug_ui_ref = debug_ui.clone();
+            let stop_mode = Rc::new(RefCell::new(None));
+            let stop_mode_clone = stop_mode.clone();
+
+            let should_restart = Box::new(move || {
+                if let Some(mode) = debug_ui_ref.borrow_mut().take_restart_mode() {
+                    *stop_mode_clone.borrow_mut() = Some(mode);
+                    true
+                } else {
+                    false
+                }
+            });
+
+            let game = langton::Game::new(config.clone(), canvas.width(), canvas.height());
+            let speed_config = SpeedConfig {
+                final_steps_per_frame: final_steps_per_frame.clone(),
+                speedup_frames: speedup_frames.clone(),
+                speed_ease_in_power: speed_ease_in_power.clone(),
             };
-            canvas.clear(bg_color);
+            let render_config = RenderConfig {
+                alpha_retention_factor: alpha_retention_factor.clone(),
+            };
+            let runner = SimulationRunner::new(
+                game,
+                speed_config,
+                render_config,
+                needs_clear.clone(),
+                step_counter.clone(),
+            );
+            runner.run(&mut canvas, should_restart).await;
+
+            if *stop_mode.borrow() == Some(debug_ui::RestartMode::Full) {
+                break;
+            }
         }
-
-        step_counter.borrow_mut().reset();
-        let debug_ui_ref = debug_ui.clone();
-        let should_restart = Box::new(move || debug_ui_ref.borrow_mut().should_restart());
-
-        let game = langton::Game::new(config.clone(), canvas.width(), canvas.height());
-        let speed_config = SpeedConfig {
-            final_steps_per_frame: final_steps_per_frame.clone(),
-            speedup_frames: speedup_frames.clone(),
-            speed_ease_in_power: speed_ease_in_power.clone(),
-        };
-        let render_config = RenderConfig {
-            alpha_retention_factor: alpha_retention_factor.clone(),
-        };
-        let runner = SimulationRunner::new(
-            game,
-            speed_config,
-            render_config,
-            needs_clear.clone(),
-            step_counter.clone(),
-        );
-        runner.run(&mut canvas, should_restart).await;
     }
 }
 
@@ -221,36 +237,52 @@ async fn start_blinker() {
     let cell_border_size = Rc::new(RefCell::new(cell_border_size));
     let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
     let debug_ui = Rc::new(RefCell::new(debug_ui));
-    let mut canvas = Canvas::new(cell_border_size, cell_size);
     let needs_clear = debug_ui.borrow().needs_clear();
 
     loop {
-        canvas.clear(canvas::Color::Rgb {
-            r: 30,
-            g: 30,
-            b: 30,
-        });
-        step_counter.borrow_mut().reset();
-        let debug_ui_ref = debug_ui.clone();
-        let should_restart = Box::new(move || debug_ui_ref.borrow_mut().should_restart());
+        let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+        loop {
+            canvas.clear(canvas::Color::Rgb {
+                r: 30,
+                g: 30,
+                b: 30,
+            });
+            step_counter.borrow_mut().reset();
+            let debug_ui_ref = debug_ui.clone();
+            let stop_mode = Rc::new(RefCell::new(None));
+            let stop_mode_clone = stop_mode.clone();
 
-        let sim = dummy::BlinkingSim::new(canvas.width(), canvas.height());
-        let speed_config = SpeedConfig {
-            final_steps_per_frame: final_steps_per_frame.clone(),
-            speedup_frames: Param::fixed(0),
-            speed_ease_in_power: Param::fixed(1.0),
-        };
-        let render_config = RenderConfig {
-            alpha_retention_factor: alpha_retention_factor.clone(),
-        };
-        let runner = SimulationRunner::new(
-            sim,
-            speed_config,
-            render_config,
-            needs_clear.clone(),
-            step_counter.clone(),
-        );
-        runner.run(&mut canvas, should_restart).await;
+            let should_restart = Box::new(move || {
+                if let Some(mode) = debug_ui_ref.borrow_mut().take_restart_mode() {
+                    *stop_mode_clone.borrow_mut() = Some(mode);
+                    true
+                } else {
+                    false
+                }
+            });
+
+            let sim = dummy::BlinkingSim::new(canvas.width(), canvas.height());
+            let speed_config = SpeedConfig {
+                final_steps_per_frame: final_steps_per_frame.clone(),
+                speedup_frames: Param::fixed(0),
+                speed_ease_in_power: Param::fixed(1.0),
+            };
+            let render_config = RenderConfig {
+                alpha_retention_factor: alpha_retention_factor.clone(),
+            };
+            let runner = SimulationRunner::new(
+                sim,
+                speed_config,
+                render_config,
+                needs_clear.clone(),
+                step_counter.clone(),
+            );
+            runner.run(&mut canvas, should_restart).await;
+
+            if *stop_mode.borrow() == Some(debug_ui::RestartMode::Full) {
+                break;
+            }
+        }
     }
 }
 
@@ -332,42 +364,58 @@ async fn start_cube() {
     let config = Rc::new(RefCell::new(cube_config));
     let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
     let debug_ui = Rc::new(RefCell::new(debug_ui));
-    let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
     let needs_clear = debug_ui.borrow().needs_clear();
 
     loop {
-        {
-            let c = config.borrow();
-            let bg = c.background_color.get();
-            let bg_color = canvas::Color::Rgb {
-                r: bg.r,
-                g: bg.g,
-                b: bg.b,
+        let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+        loop {
+            {
+                let c = config.borrow();
+                let bg = c.background_color.get();
+                let bg_color = canvas::Color::Rgb {
+                    r: bg.r,
+                    g: bg.g,
+                    b: bg.b,
+                };
+                canvas.clear(bg_color);
+            }
+
+            step_counter.borrow_mut().reset();
+            let debug_ui_ref = debug_ui.clone();
+            let stop_mode = Rc::new(RefCell::new(None));
+            let stop_mode_clone = stop_mode.clone();
+
+            let should_restart = Box::new(move || {
+                if let Some(mode) = debug_ui_ref.borrow_mut().take_restart_mode() {
+                    *stop_mode_clone.borrow_mut() = Some(mode);
+                    true
+                } else {
+                    false
+                }
+            });
+
+            let sim = cube::CubeSim::new(config.clone(), canvas.width(), canvas.height());
+            let speed_config = SpeedConfig {
+                final_steps_per_frame: final_steps_per_frame.clone(),
+                speedup_frames: speedup_frames.clone(),
+                speed_ease_in_power: speed_ease_in_power.clone(),
             };
-            canvas.clear(bg_color);
+            let render_config = RenderConfig {
+                alpha_retention_factor: alpha_retention_factor.clone(),
+            };
+            let runner = SimulationRunner::new(
+                sim,
+                speed_config,
+                render_config,
+                needs_clear.clone(),
+                step_counter.clone(),
+            );
+            runner.run(&mut canvas, should_restart).await;
+
+            if *stop_mode.borrow() == Some(debug_ui::RestartMode::Full) {
+                break;
+            }
         }
-
-        step_counter.borrow_mut().reset();
-        let debug_ui_ref = debug_ui.clone();
-        let should_restart = Box::new(move || debug_ui_ref.borrow_mut().should_restart());
-
-        let sim = cube::CubeSim::new(config.clone(), canvas.width(), canvas.height());
-        let speed_config = SpeedConfig {
-            final_steps_per_frame: final_steps_per_frame.clone(),
-            speedup_frames: speedup_frames.clone(),
-            speed_ease_in_power: speed_ease_in_power.clone(),
-        };
-        let render_config = RenderConfig {
-            alpha_retention_factor: alpha_retention_factor.clone(),
-        };
-        let runner = SimulationRunner::new(
-            sim,
-            speed_config,
-            render_config,
-            needs_clear.clone(),
-            step_counter.clone(),
-        );
-        runner.run(&mut canvas, should_restart).await;
     }
 }
 
@@ -417,42 +465,58 @@ async fn start_sierpinski() {
     let config = Rc::new(RefCell::new(sierpinski_config));
     let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
     let debug_ui = Rc::new(RefCell::new(debug_ui));
-    let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
     let needs_clear = debug_ui.borrow().needs_clear();
 
     loop {
-        {
-            let c = config.borrow();
-            let bg = c.background_color.get();
-            let bg_color = canvas::Color::Rgb {
-                r: bg.r,
-                g: bg.g,
-                b: bg.b,
+        let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+        loop {
+            {
+                let c = config.borrow();
+                let bg = c.background_color.get();
+                let bg_color = canvas::Color::Rgb {
+                    r: bg.r,
+                    g: bg.g,
+                    b: bg.b,
+                };
+                canvas.clear(bg_color);
+            }
+
+            step_counter.borrow_mut().reset();
+            let debug_ui_ref = debug_ui.clone();
+            let stop_mode = Rc::new(RefCell::new(None));
+            let stop_mode_clone = stop_mode.clone();
+
+            let should_restart = Box::new(move || {
+                if let Some(mode) = debug_ui_ref.borrow_mut().take_restart_mode() {
+                    *stop_mode_clone.borrow_mut() = Some(mode);
+                    true
+                } else {
+                    false
+                }
+            });
+
+            let sim = sierpinski::SierpinskiSim::new(config.clone(), canvas.width(), canvas.height());
+            let speed_config = SpeedConfig {
+                final_steps_per_frame: final_steps_per_frame.clone(),
+                speedup_frames: speedup_frames.clone(),
+                speed_ease_in_power: speed_ease_in_power.clone(),
             };
-            canvas.clear(bg_color);
+            let render_config = RenderConfig {
+                alpha_retention_factor: alpha_retention_factor.clone(),
+            };
+            let runner = SimulationRunner::new(
+                sim,
+                speed_config,
+                render_config,
+                needs_clear.clone(),
+                step_counter.clone(),
+            );
+            runner.run(&mut canvas, should_restart).await;
+
+            if *stop_mode.borrow() == Some(debug_ui::RestartMode::Full) {
+                break;
+            }
         }
-
-        step_counter.borrow_mut().reset();
-        let debug_ui_ref = debug_ui.clone();
-        let should_restart = Box::new(move || debug_ui_ref.borrow_mut().should_restart());
-
-        let sim = sierpinski::SierpinskiSim::new(config.clone(), canvas.width(), canvas.height());
-        let speed_config = SpeedConfig {
-            final_steps_per_frame: final_steps_per_frame.clone(),
-            speedup_frames: speedup_frames.clone(),
-            speed_ease_in_power: speed_ease_in_power.clone(),
-        };
-        let render_config = RenderConfig {
-            alpha_retention_factor: alpha_retention_factor.clone(),
-        };
-        let runner = SimulationRunner::new(
-            sim,
-            speed_config,
-            render_config,
-            needs_clear.clone(),
-            step_counter.clone(),
-        );
-        runner.run(&mut canvas, should_restart).await;
     }
 }
 
