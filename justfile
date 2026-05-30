@@ -2,6 +2,7 @@ set dotenv-load := true
 
 DEV_PARAMS := "?debug&alpha_retention=255&final_speed=5&number_of_ants=1&speedup_frames=0&start_x=0.5&start_y=0.5"
 DEPLOY_DIR := "deploy"
+export CARGO_TERM_COLOR := "always"
 
 # Shows this help
 help:
@@ -66,7 +67,7 @@ dev:
     #!/bin/sh
     killall live-server entr
     git ls-files | entr -c just build-web --dev &
-    live-server --hard --open='{{ DEV_PARAMS }}' crates/app &
+    live-server --hard --host 127.0.0.1 --open='{{ DEV_PARAMS }}' crates/app &
 
 # Run end-to-end Playwright tests (Python)
 test-e2e *args: build-web

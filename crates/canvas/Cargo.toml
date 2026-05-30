@@ -11,6 +11,7 @@ js-sys.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
+common.workspace = true
 
 [dev-dependencies]
 rstest = "0.26.1"

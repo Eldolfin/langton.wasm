@@ -351,9 +351,8 @@ impl DebugUI {
                     // Move to stopping_recorder to keep listeners alive until onstop fires
                     *stopping_recorder.borrow_mut() = Some(state_to_stop);
                 } else {
-                    pub const CANVAS_HTML_ID: &str = "langtonrs-canvas-parent";
                     let doc = document();
-                    let parent = doc.get_element_by_id(CANVAS_HTML_ID).unwrap();
+                    let parent = common::get_canvas_parent().unwrap();
                     let _ = parent.request_fullscreen();
 
                     remove_url_param(URL_TAG_DEBUG);
@@ -363,9 +362,7 @@ impl DebugUI {
                             DebugUIState::Enabled { root, next_uid, .. } => {
                                 (root.clone(), *next_uid)
                             }
-                            DebugUIState::Disabled { root, next_uid } => {
-                                (root.clone(), *next_uid)
-                            }
+                            DebugUIState::Disabled { root, next_uid } => (root.clone(), *next_uid),
                         }
                     };
                     root.set_attribute("style", "display: none").unwrap();
@@ -393,7 +390,9 @@ impl DebugUI {
                     options.set_mime_type("video/webm;codecs=vp9");
 
                     let recorder_inst =
-                        match MediaRecorder::new_with_media_stream_and_media_recorder_options(&stream, &options) {
+                        match MediaRecorder::new_with_media_stream_and_media_recorder_options(
+                            &stream, &options,
+                        ) {
                             Ok(r) => r,
                             Err(_) => {
                                 // Fallback to default options if VP9 is not supported
@@ -403,10 +402,11 @@ impl DebugUI {
 
                     let chunks = Rc::new(RefCell::new(Vec::new()));
                     let data_chunks = chunks.clone();
-                    let data_listener = EventListener::new(&recorder_inst, "dataavailable", move |e| {
-                        let event = e.dyn_ref::<BlobEvent>().unwrap();
-                        data_chunks.borrow_mut().push(event.data().unwrap());
-                    });
+                    let data_listener =
+                        EventListener::new(&recorder_inst, "dataavailable", move |e| {
+                            let event = e.dyn_ref::<BlobEvent>().unwrap();
+                            data_chunks.borrow_mut().push(event.data().unwrap());
+                        });
 
                     let stop_chunks = chunks.clone();
                     let stopping_recorder_done = stopping_recorder.clone();
@@ -429,13 +429,13 @@ impl DebugUI {
                         a.set_href(&url);
                         a.set_download("langton-recording.webm");
                         a.click();
-                        
+
                         let url_to_revoke = url.clone();
                         gloo::timers::callback::Timeout::new(1000, move || {
                             let _ = Url::revoke_object_url(&url_to_revoke);
                         })
                         .forget();
-                        
+
                         // Clear stopping state
                         *stopping_recorder_done.borrow_mut() = None;
                     });
@@ -972,6 +972,8 @@ impl DebugUI {
         needs_clear: Rc<RefCell<bool>>,
         state: Option<Rc<RefCell<DebugUIState>>>,
     ) -> DebugUIState {
+        use common::get_canvas_parent;
+
         let document = document();
         let body = document.body().expect("document should have a body");
         let root = document.create_element("div").unwrap();
@@ -1003,10 +1005,7 @@ impl DebugUI {
         root.append_child(&reset_btn).unwrap();
         root.append_child(&clear_btn).unwrap();
 
-        pub const CANVAS_HTML_ID: &str = "langtonrs-canvas-parent";
-        let container = document
-            .get_element_by_id(CANVAS_HTML_ID)
-            .unwrap_or_else(|| body.clone().into());
+        let container = get_canvas_parent().unwrap();
         container.append_child(&root).unwrap();
 
         let style = document.create_element("style").unwrap();
@@ -1016,13 +1015,9 @@ impl DebugUI {
         {
             let root = root.clone();
             let state = state.clone();
+            let container = container.clone();
             EventListener::new(&fullscreen_btn, "click", move |_event| {
-                pub const CANVAS_HTML_ID: &str = "langtonrs-canvas-parent";
-                document
-                    .get_element_by_id(CANVAS_HTML_ID)
-                    .unwrap()
-                    .request_fullscreen()
-                    .unwrap();
+                container.request_fullscreen().unwrap();
 
                 remove_url_param(URL_TAG_DEBUG);
                 root.set_attribute("style", "display: none").unwrap();
