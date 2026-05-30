@@ -15,11 +15,7 @@ pub struct CubeConfig {
         step = 0.01
     )]
     pub cube_size: Param<f32>,
-    #[param(
-        name = "rotation axis",
-        default = "6",
-        range = "0..=6"
-    )]
+    #[param(name = "rotation axis", default = "6", range = "0..=6")]
     pub rotation_axis: Param<usize>,
     #[param(
         name = "rotation speed",
@@ -50,19 +46,9 @@ pub struct CubeConfig {
         step = 0.1
     )]
     pub color_cycle_speed: Param<f32>,
-    #[param(
-        name = "saturation",
-        default = "0.8",
-        range = "0.0..=1.0",
-        step = 0.01
-    )]
+    #[param(name = "saturation", default = "0.8", range = "0.0..=1.0", step = 0.01)]
     pub saturation: Param<f32>,
-    #[param(
-        name = "brightness",
-        default = "0.7",
-        range = "0.0..=1.0",
-        step = 0.01
-    )]
+    #[param(name = "brightness", default = "0.7", range = "0.0..=1.0", step = 0.01)]
     pub brightness: Param<f32>,
     #[param(
         name = "face color spread",
@@ -324,8 +310,8 @@ fn point_in_quad(px: f32, py: f32, quad: &[(f32, f32); 4]) -> bool {
     let mut sign = None;
     for i in 0..4 {
         let j = (i + 1) % 4;
-        let cross = (quad[j].0 - quad[i].0) * (py - quad[i].1)
-            - (quad[j].1 - quad[i].1) * (px - quad[i].0);
+        let cross =
+            (quad[j].0 - quad[i].0) * (py - quad[i].1) - (quad[j].1 - quad[i].1) * (px - quad[i].0);
         let s = cross >= 0.0;
         match sign {
             None => sign = Some(s),

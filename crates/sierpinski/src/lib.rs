@@ -124,8 +124,7 @@ impl SierpinskiSim {
         let cy = self.height as f32 / 2.0;
         // 0.92 leaves a thin margin so the outermost points stay inside the grid.
         let r = cx.min(cy) * 0.92;
-        let theta = (idx as f32 / n as f32) * std::f32::consts::TAU
-            - std::f32::consts::FRAC_PI_2;
+        let theta = (idx as f32 / n as f32) * std::f32::consts::TAU - std::f32::consts::FRAC_PI_2;
         let (sin_t, cos_t) = theta.sin_cos();
         (cx + r * cos_t, cy + r * sin_t)
     }
