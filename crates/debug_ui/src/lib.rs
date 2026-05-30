@@ -988,7 +988,8 @@ impl DebugUI {
             {
                 let prompt = PROMPT.to_owned();
                 EventListener::new(&gemini_btn, "click", move |_| {
-                    let mut u = url::Url::parse("https://gemini.google.com/guided-learning").unwrap();
+                    let mut u =
+                        url::Url::parse("https://gemini.google.com/guided-learning").unwrap();
                     u.query_pairs_mut().append_pair("query", &prompt);
                     let _ = window().open_with_url_and_target(u.as_str(), "_blank");
                 })
