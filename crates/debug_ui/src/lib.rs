@@ -14,6 +14,11 @@ use std::{
 pub use web_sys;
 #[cfg(target_arch = "wasm32")]
 use web_sys::{Document, Element, HtmlInputElement, KeyboardEvent, wasm_bindgen::JsCast as _};
+
+const URL_TAG_DEBUG: &str = "debug";
+const URL_TAG_ANIMATION: &str = "animation";
+const DEBUG_UI_URL_TAGS: &[&str] = &[URL_TAG_DEBUG, URL_TAG_ANIMATION];
+
 #[cfg(not(target_arch = "wasm32"))]
 pub type Element = ();
 #[cfg(not(target_arch = "wasm32"))]
@@ -67,6 +72,14 @@ pub enum DebugUIState {
         root: Element,
         next_uid: u32,
     },
+}
+
+impl DebugUIState {
+    fn set_needs_restart(&mut self) {
+        if let DebugUIState::Enabled { needs_restart, .. } = self {
+            *needs_restart = true
+        }
+    }
 }
 
 pub struct DebugUI {
@@ -250,12 +263,17 @@ fn add_url_param<T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 's
         params.insert(key.into(), value.to_string());
     });
 }
+#[cfg(target_arch = "wasm32")]
+fn add_url_param_empty(key: &str) {
+    modify_url_params(|params| {
+        params.retain(|k, _| k != key);
+        params.insert(key.into(), String::new());
+    });
+}
 
 #[cfg(target_arch = "wasm32")]
 fn add_debug_url_param() {
-    modify_url_params(|params| {
-        params.insert("debug".into(), String::new());
-    });
+    add_url_param_empty(URL_TAG_DEBUG);
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -293,7 +311,7 @@ impl DebugUI {
                     }
                 };
                 let new_state = if was_enabled {
-                    remove_url_param("debug");
+                    remove_url_param(URL_TAG_DEBUG);
                     root.set_attribute("style", "display: none").unwrap();
                     DebugUIState::Disabled { root, next_uid }
                 } else {
@@ -315,7 +333,7 @@ impl DebugUI {
         {
             let document = document();
             let title = title.as_ref().to_owned();
-            let debug_enabled = url().query_pairs().any(|param| param.0 == "debug");
+            let debug_enabled = has_url_tag(URL_TAG_DEBUG);
             let needs_clear_shared = Rc::new(RefCell::new(false));
 
             // Create state placeholder before enable() so event handlers can reference it
@@ -709,7 +727,7 @@ impl DebugUI {
                     // Keep only animation and debug params
                     let kept: Vec<(String, String)> = new_url
                         .query_pairs()
-                        .filter(|(k, _)| k == "animation" || k == "debug")
+                        .filter(|(k, _)| DEBUG_UI_URL_TAGS.contains(&k.as_ref()))
                         .map(|(k, v)| (k.to_string(), v.to_string()))
                         .collect();
                     // Parse preset query string params
@@ -823,23 +841,27 @@ impl DebugUI {
         let root = document.create_element("div").unwrap();
         let title_line = document.create_element("div").unwrap();
         let title_elt = document.create_element("h2").unwrap();
+        let fullscreen_btn = document.create_element("button").unwrap();
         let close_btn = document.create_element("button").unwrap();
         let reset_btn = document.create_element("button").unwrap();
         let clear_btn = document.create_element("button").unwrap();
 
         title_elt.set_text_content(Some(title.as_ref()));
-        close_btn.set_text_content(Some("🗙"));
+        fullscreen_btn.set_text_content(Some("🎦"));
+        close_btn.set_text_content(Some("❌"));
         reset_btn.set_text_content(Some("Reset params"));
         clear_btn.set_text_content(Some("Clear canvas"));
 
         root.set_class_name("DebugUI-root-box");
         title_elt.set_class_name("DebugUI-title");
         title_line.set_class_name("DebugUI-title-line");
+        fullscreen_btn.set_class_name("DebugUI-fullscreen-btn");
         close_btn.set_class_name("DebugUI-close-btn");
         reset_btn.set_class_name("DebugUI-reset-btn");
         clear_btn.set_class_name("DebugUI-clear-btn");
 
         title_line.append_child(&title_elt).unwrap();
+        title_line.append_child(&fullscreen_btn).unwrap();
         title_line.append_child(&close_btn).unwrap();
         root.append_child(&title_line).unwrap();
         root.append_child(&reset_btn).unwrap();
@@ -853,27 +875,35 @@ impl DebugUI {
         {
             let root = root.clone();
             let state = state.clone();
-            EventListener::new(&close_btn, "click", move |_event| {
-                remove_url_param("debug");
+            EventListener::new(&fullscreen_btn, "click", move |_event| {
+                pub const CANVAS_HTML_ID: &str = "langtonrs-canvas-parent";
+                document
+                    .get_element_by_id(CANVAS_HTML_ID)
+                    .unwrap()
+                    .request_fullscreen()
+                    .unwrap();
+
+                remove_url_param(URL_TAG_DEBUG);
                 root.set_attribute("style", "display: none").unwrap();
-                if let Some(ref s) = state {
-                    let mut s = s.borrow_mut();
-                    if let DebugUIState::Enabled {
-                        root: r, next_uid, ..
-                    } = &*s
-                    {
-                        *s = DebugUIState::Disabled {
-                            root: r.clone(),
-                            next_uid: *next_uid,
-                        };
-                    }
-                }
+                let mut state = state.clone();
+                gloo::timers::callback::Timeout::new(2, move || {
+                    state.as_mut().unwrap().borrow_mut().set_needs_restart();
+                })
+                .forget();
+            })
+            .forget();
+        }
+        {
+            let root = root.clone();
+            let state = state.clone();
+            EventListener::new(&close_btn, "click", move |_event| {
+                close_debug_ui(&root, &state);
             })
             .forget();
         }
         {
             EventListener::new(&reset_btn, "click", move |_event| {
-                remove_all_url_params_except(&["debug", "animation"]);
+                remove_all_url_params_except(DEBUG_UI_URL_TAGS);
                 window().location().reload().unwrap();
             })
             .forget();
@@ -885,7 +915,6 @@ impl DebugUI {
             })
             .forget();
         }
-
         DebugUIState::Enabled {
             root,
             next_uid: 0,
@@ -1029,6 +1058,27 @@ impl DebugUI {
             DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => {
                 root.clone()
             }
+        }
+    }
+}
+
+fn has_url_tag(tag: &str) -> bool {
+    url().query_pairs().any(|param| param.0 == tag)
+}
+
+fn close_debug_ui(root: &Element, state: &Option<Rc<RefCell<DebugUIState>>>) {
+    remove_url_param(URL_TAG_DEBUG);
+    root.set_attribute("style", "display: none").unwrap();
+    if let Some(s) = state {
+        let mut s = s.borrow_mut();
+        if let DebugUIState::Enabled {
+            root: r, next_uid, ..
+        } = &*s
+        {
+            *s = DebugUIState::Disabled {
+                root: r.clone(),
+                next_uid: *next_uid,
+            };
         }
     }
 }

@@ -149,10 +149,10 @@ async fn start_langton() {
     let config = Rc::new(RefCell::new(game_config));
     let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
     let debug_ui = Rc::new(RefCell::new(debug_ui));
-    let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
     let needs_clear = debug_ui.borrow().needs_clear();
 
     loop {
+        let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
         {
             let c = config.borrow();
             let bg = c.common_cell_color.get();

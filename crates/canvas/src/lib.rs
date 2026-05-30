@@ -122,6 +122,9 @@ struct DrawCall {
 }
 
 impl Canvas {
+    pub const HTML_ID_PARENT: &str = "langtonrs-canvas-parent";
+    pub const HTML_ID_SELF: &str = "langtonrs-canvas";
+
     pub fn new(
         cell_border_size: Rc<RefCell<Param<usize>>>,
         cell_size: Rc<RefCell<Param<usize>>>,
@@ -401,15 +404,25 @@ impl Canvas {
     fn create_canvas() -> Option<web_sys::HtmlCanvasElement> {
         let document = web_sys::window()?.document()?;
         let body = document.body().unwrap();
+        let parent_el = match document.get_element_by_id(Self::HTML_ID_PARENT) {
+            Some(parent) => parent,
+            None => {
+                let new_parent = document.create_element("div").unwrap();
+                new_parent.set_id(Self::HTML_ID_PARENT);
+                body.prepend_with_node_1(&new_parent).unwrap();
+                let style = document.create_element("style").unwrap();
+                style.set_text_content(Some(include_str!("./style.css")));
+                document.head().unwrap().append_child(&style).unwrap();
+                new_parent
+            }
+        };
         let canvas = document
             .create_element("canvas")
             .unwrap()
             .dyn_into::<web_sys::HtmlCanvasElement>()
             .ok()?;
-        body.prepend_with_node_1(&canvas).unwrap();
-        let style = document.create_element("style").unwrap();
-        style.set_text_content(Some(include_str!("./style.css")));
-        document.head().unwrap().append_child(&style).unwrap();
+        canvas.set_id(Self::HTML_ID_SELF);
+        parent_el.prepend_with_node_1(&canvas).unwrap();
         let scroll_height = body.scroll_height() as u32;
         let canvas_height = if scroll_height > 0 {
             scroll_height
