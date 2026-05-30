@@ -64,7 +64,7 @@ pub struct CubeConfig {
         range = "1..=50"
     )]
     pub cell_size: Param<usize>,
-    #[param(name = "cell border size", default = "1", range = "0..=5")]
+    #[param(name = "cell border size", default = "0", range = "0..=5")]
     pub cell_border_size: Param<usize>,
     #[param(
         name = "background color",
@@ -81,7 +81,7 @@ pub const CUBE_PRESETS: &[(&str, &str)] = &[
     ),
     (
         "Slow Spin",
-        "cube_size=0.5&rotation_axis=1&rotation_speed=1&perspective=5&base_hue=200&color_cycle_speed=0.3&saturation=0.6&brightness=0.65&face_color_spread=40&cell_size=10&cell_border_size=1&alpha_retention=255&final_speed=1&background_color=%23141414",
+        "cube_size=0.5&rotation_axis=1&rotation_speed=1&perspective=5&base_hue=200&color_cycle_speed=0.3&saturation=0.6&brightness=0.65&face_color_spread=40&cell_size=10&cell_border_size=0&alpha_retention=255&final_speed=1&background_color=%23141414",
     ),
     (
         "Neon Trails",
@@ -89,7 +89,7 @@ pub const CUBE_PRESETS: &[(&str, &str)] = &[
     ),
     (
         "Pastel Tumble",
-        "cube_size=0.45&rotation_axis=3&rotation_speed=1.5&perspective=6&base_hue=30&color_cycle_speed=0.5&saturation=0.45&brightness=0.85&face_color_spread=50&cell_size=12&cell_border_size=1&alpha_retention=255&final_speed=1&background_color=%23F0F0F0",
+        "cube_size=0.45&rotation_axis=3&rotation_speed=1.5&perspective=6&base_hue=30&color_cycle_speed=0.5&saturation=0.45&brightness=0.85&face_color_spread=50&cell_size=12&cell_border_size=0&alpha_retention=255&final_speed=1&background_color=%23F0F0F0",
     ),
 ];
 
