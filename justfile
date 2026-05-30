@@ -9,7 +9,7 @@ help:
 
 # Build app with wasm-pack for the web
 build-web *args:
-    cd crates/app && rm -rf pkg && wasm-pack build --target web --no-typescript {{ args }}
+    cd crates/app && wasm-pack build --target web --no-typescript {{ args }}
 
 # Build optimised wasm with debug symbols retained (for profiling)
 build-web-profiling:

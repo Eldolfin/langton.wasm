@@ -29,10 +29,12 @@ version = "0.1.0"
 dependencies = [
  "canvas",
  "console_error_panic_hook",
+ "cube",
  "debug_ui",
  "dummy",
  "engine",
  "langton",
+ "sierpinski",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -380,6 +382,16 @@ checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
 dependencies = [
  "generic-array",
  "typenum",
+]
+
+[[package]]
+name = "cube"
+version = "0.1.0"
+dependencies = [
+ "canvas",
+ "debug_ui",
+ "engine",
+ "engine_macros",
 ]
 
 [[package]]
@@ -3619,6 +3631,17 @@ name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
+
+[[package]]
+name = "sierpinski"
+version = "0.1.0"
+dependencies = [
+ "canvas",
+ "debug_ui",
+ "engine",
+ "engine_macros",
+ "rstest",
+]
 
 [[package]]
 name = "signal-hook"
