@@ -1,7 +1,7 @@
-#[cfg(target_arch = "wasm32")]
+use common::document;
+use common::window;
 use gloo::events::EventListener;
 use num_traits::{FromPrimitive, Num, ToPrimitive};
-#[cfg(target_arch = "wasm32")]
 use std::collections::HashMap;
 use std::{
     cell::RefCell,
@@ -10,9 +10,7 @@ use std::{
     str::FromStr,
     sync::{Arc, RwLock},
 };
-#[cfg(target_arch = "wasm32")]
 pub use web_sys;
-#[cfg(target_arch = "wasm32")]
 use web_sys::{
     Blob, BlobEvent, BlobPropertyBag, Document, Element, HtmlAnchorElement, HtmlInputElement,
     KeyboardEvent, MediaRecorder, MediaRecorderOptions, Url, wasm_bindgen::JsCast as _,
@@ -22,12 +20,6 @@ const URL_TAG_DEBUG: &str = "debug";
 const URL_TAG_ANIMATION: &str = "animation";
 const DEBUG_UI_URL_TAGS: &[&str] = &[URL_TAG_DEBUG, URL_TAG_ANIMATION];
 
-#[cfg(not(target_arch = "wasm32"))]
-pub type Element = ();
-#[cfg(not(target_arch = "wasm32"))]
-pub type Document = ();
-
-#[cfg(target_arch = "wasm32")]
 struct RecorderState {
     recorder: MediaRecorder,
     _data_listener: EventListener,
@@ -108,15 +100,10 @@ impl DebugUIState {
 }
 
 pub struct DebugUI {
-    #[cfg(target_arch = "wasm32")]
     state: Rc<RefCell<DebugUIState>>,
-    #[cfg(target_arch = "wasm32")]
     _shortcut_listener: EventListener,
-    #[cfg(target_arch = "wasm32")]
     _recorder: Rc<RefCell<Option<RecorderState>>>,
-    #[cfg(target_arch = "wasm32")]
     _stopping_recorder: Rc<RefCell<Option<RecorderState>>>,
-    #[cfg(target_arch = "wasm32")]
     document: Document,
     needs_clear_shared: Rc<RefCell<bool>>,
 }
@@ -192,7 +179,6 @@ impl<T: Copy> Clone for Param<T> {
 }
 
 pub struct StepCounter {
-    #[cfg(target_arch = "wasm32")]
     element: Option<Element>,
     count: u64,
 }
@@ -200,7 +186,6 @@ pub struct StepCounter {
 impl StepCounter {
     pub fn disabled() -> Self {
         Self {
-            #[cfg(target_arch = "wasm32")]
             element: None,
             count: 0,
         }
@@ -208,7 +193,6 @@ impl StepCounter {
 
     pub fn add_steps(&mut self, n: u64) {
         self.count += n;
-        #[cfg(target_arch = "wasm32")]
         if let Some(el) = &self.element {
             el.set_text_content(Some(&format!("Steps: {}", self.count)));
         }
@@ -216,7 +200,6 @@ impl StepCounter {
 
     pub fn reset(&mut self) {
         self.count = 0;
-        #[cfg(target_arch = "wasm32")]
         if let Some(el) = &self.element {
             el.set_text_content(Some("Steps: 0"));
         }
@@ -227,30 +210,12 @@ impl StepCounter {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-pub fn window() -> web_sys::Window {
-    web_sys::window().expect("no global `window` exists")
-}
-
-#[cfg(target_arch = "wasm32")]
-fn document() -> Document {
-    window()
-        .document()
-        .expect("should have a document on window")
-}
-
-#[cfg(target_arch = "wasm32")]
-fn url() -> url::Url {
-    document().url().unwrap().parse().unwrap()
-}
-
-#[cfg(target_arch = "wasm32")]
 thread_local! {
     static HISTORY_PUSHED: RefCell<bool> = const { RefCell::new(false) };
 }
 
-#[cfg(target_arch = "wasm32")]
 fn push_or_replace_url(new_url: &str) {
+    use common::window;
     use web_sys::wasm_bindgen::JsValue;
     let history = window().history().unwrap();
     HISTORY_PUSHED.with(|pushed| {
@@ -267,9 +232,8 @@ fn push_or_replace_url(new_url: &str) {
     });
 }
 
-#[cfg(target_arch = "wasm32")]
 fn modify_url_params(f: impl FnOnce(&mut HashMap<String, String>)) {
-    let mut new_url = url();
+    let mut new_url = common::url();
     let mut params: HashMap<String, String> = new_url
         .query_pairs()
         .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -282,7 +246,6 @@ fn modify_url_params(f: impl FnOnce(&mut HashMap<String, String>)) {
     push_or_replace_url(new_url.as_str());
 }
 
-#[cfg(target_arch = "wasm32")]
 fn add_url_param<T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 'static>(
     key: &str,
     value: T,
@@ -292,7 +255,6 @@ fn add_url_param<T: Copy + ToString + FromStr + ToPrimitive + FromPrimitive + 's
         params.insert(key.into(), value.to_string());
     });
 }
-#[cfg(target_arch = "wasm32")]
 fn add_url_param_empty(key: &str) {
     modify_url_params(|params| {
         params.retain(|k, _| k != key);
@@ -300,19 +262,16 @@ fn add_url_param_empty(key: &str) {
     });
 }
 
-#[cfg(target_arch = "wasm32")]
 fn add_debug_url_param() {
     add_url_param_empty(URL_TAG_DEBUG);
 }
 
-#[cfg(target_arch = "wasm32")]
 fn remove_url_param(key: &str) {
     modify_url_params(|params| {
         params.retain(|k, _| k != key);
     });
 }
 
-#[cfg(target_arch = "wasm32")]
 fn remove_all_url_params_except(keys: &[&str]) {
     modify_url_params(|params| {
         params.retain(|k, _| keys.contains(&k.as_str()));
@@ -320,7 +279,6 @@ fn remove_all_url_params_except(keys: &[&str]) {
 }
 
 impl DebugUI {
-    #[cfg(target_arch = "wasm32")]
     fn register_shortcut(
         state: Rc<RefCell<DebugUIState>>,
         recorder: Rc<RefCell<Option<RecorderState>>>,
@@ -340,11 +298,11 @@ impl DebugUI {
                     let s = state_captured.borrow();
                     match &*s {
                         DebugUIState::Enabled { root, next_uid, .. }
-                        | DebugUIState::Disabled {
-                            root,
-                            next_uid,
-                            ..
-                        } => (matches!(&*s, DebugUIState::Enabled { .. }), root.clone(), *next_uid),
+                        | DebugUIState::Disabled { root, next_uid, .. } => (
+                            matches!(&*s, DebugUIState::Enabled { .. }),
+                            root.clone(),
+                            *next_uid,
+                        ),
                     }
                 };
                 let new_state = if was_enabled {
@@ -383,11 +341,9 @@ impl DebugUI {
                         let s = state_captured.borrow();
                         match &*s {
                             DebugUIState::Enabled { root, next_uid, .. }
-                            | DebugUIState::Disabled {
-                                root,
-                                next_uid,
-                                ..
-                            } => (root.clone(), *next_uid),
+                            | DebugUIState::Disabled { root, next_uid, .. } => {
+                                (root.clone(), *next_uid)
+                            }
                         }
                     };
                     root.set_attribute("style", "display: none").unwrap();
@@ -423,15 +379,16 @@ impl DebugUI {
                         options.set_video_bits_per_second(8_000_000);
                         options.set_mime_type("video/webm;codecs=vp9");
 
-                        let recorder_inst = match MediaRecorder::new_with_media_stream_and_media_recorder_options(
-                            &stream, &options,
-                        ) {
-                            Ok(r) => r,
-                            Err(_) => {
-                                // Fallback to default options if VP9 is not supported
-                                MediaRecorder::new_with_media_stream(&stream).unwrap()
-                            }
-                        };
+                        let recorder_inst =
+                            match MediaRecorder::new_with_media_stream_and_media_recorder_options(
+                                &stream, &options,
+                            ) {
+                                Ok(r) => r,
+                                Err(_) => {
+                                    // Fallback to default options if VP9 is not supported
+                                    MediaRecorder::new_with_media_stream(&stream).unwrap()
+                                }
+                            };
 
                         let chunks = Rc::new(RefCell::new(Vec::new()));
                         let data_chunks = chunks.clone();
@@ -449,8 +406,8 @@ impl DebugUI {
                                 array.push(chunk);
                             }
                             let options = BlobPropertyBag::new();
-                            let blob = Blob::new_with_blob_sequence_and_options(&array, &options)
-                                .unwrap();
+                            let blob =
+                                Blob::new_with_blob_sequence_and_options(&array, &options).unwrap();
                             let url = Url::create_object_url_with_blob(&blob).unwrap();
 
                             let doc = document();
@@ -473,7 +430,7 @@ impl DebugUI {
                             *stopping_recorder_done.borrow_mut() = None;
                         });
 
-                        if let Err(_) = recorder_inst.start() {
+                        if recorder_inst.start().is_err() {
                             return;
                         }
 
@@ -490,7 +447,6 @@ impl DebugUI {
     }
 
     pub fn new(title: impl AsRef<str>) -> Self {
-        #[cfg(target_arch = "wasm32")]
         {
             let document = document();
             let title = title.as_ref().to_owned();
@@ -531,18 +487,10 @@ impl DebugUI {
                 needs_clear_shared,
             }
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let _ = title;
-            Self {
-                needs_clear_shared: Rc::new(RefCell::new(false)),
-            }
-        }
     }
 
     /// Headless instance: no DOM elements created. For use in previews and tests.
     pub fn headless() -> Self {
-        #[cfg(target_arch = "wasm32")]
         {
             let document = document();
             let state = Rc::new(RefCell::new(DebugUIState::Disabled {
@@ -563,27 +511,13 @@ impl DebugUI {
                 needs_clear_shared: Rc::new(RefCell::new(false)),
             }
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            Self {
-                needs_clear_shared: Rc::new(RefCell::new(false)),
-            }
-        }
     }
 
     pub fn is_enabled(&self) -> bool {
-        #[cfg(target_arch = "wasm32")]
-        {
-            matches!(*self.state.borrow(), DebugUIState::Enabled { .. })
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            false
-        }
+        matches!(*self.state.borrow(), DebugUIState::Enabled { .. })
     }
 
     pub fn start_section<S: AsRef<str>>(&mut self, title: S) {
-        #[cfg(target_arch = "wasm32")]
         {
             let state = self.state.borrow();
             let root = match &*state {
@@ -595,10 +529,6 @@ impl DebugUI {
             el.set_class_name("DebugUI-section-title");
             root.append_child(&el).unwrap();
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let _ = title;
-        }
     }
 
     pub fn param<
@@ -608,10 +538,9 @@ impl DebugUI {
         &mut self,
         p: ParamParam<T, S>,
     ) -> Param<T> {
-        #[cfg(target_arch = "wasm32")]
         {
             let key = p.name.as_ref().replace(" ", "_");
-            let default_value = url()
+            let default_value = common::url()
                 .query_pairs()
                 .find(|(k, _)| k.as_ref() == key)
                 .map(|(_, v)| v.parse())
@@ -767,18 +696,12 @@ impl DebugUI {
             }
             param_value
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let (_, param_value) = Param::new(p.default_value);
-            param_value
-        }
     }
 
     pub fn color_param(&mut self, name: &str, default: DebugColor) -> Param<DebugColor> {
-        #[cfg(target_arch = "wasm32")]
         {
             let key = name.replace(" ", "_");
-            let default_value = url()
+            let default_value = common::url()
                 .query_pairs()
                 .find(|(k, _)| k.as_ref() == key)
                 .and_then(|(_, v)| DebugColor::from_hex(v.as_ref()))
@@ -860,21 +783,13 @@ impl DebugUI {
             }
             param_value
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let _ = name;
-            let (_, param_value) = Param::new(default);
-            param_value
-        }
     }
 
-    #[cfg(target_arch = "wasm32")]
     fn set_restart_mode(state: &Rc<RefCell<DebugUIState>>, mode: RestartMode) {
         state.borrow_mut().set_restart_mode(mode);
     }
 
     pub fn presets(&mut self, presets: &[(&'static str, &'static str)]) {
-        #[cfg(target_arch = "wasm32")]
         {
             let state = self.state.borrow();
             let root = match &*state {
@@ -901,34 +816,21 @@ impl DebugUI {
                 use web_sys::HtmlSelectElement;
                 let select_clone = select.clone().dyn_into::<HtmlSelectElement>().unwrap();
                 EventListener::new(&select, "change", move |_event| {
+                    use common::console_log;
+
                     let value = select_clone.value();
-                    let mut new_url = url();
+                    let mut new_url = common::url();
                     // Keep only animation and debug params
                     let kept: Vec<(String, String)> = new_url
                         .query_pairs()
                         .filter(|(k, _)| DEBUG_UI_URL_TAGS.contains(&k.as_ref()))
                         .map(|(k, v)| (k.to_string(), v.to_string()))
                         .collect();
-                    // Parse preset query string params
-                    let preset_params: Vec<(String, String)> = value
-                        .split('&')
-                        .filter_map(|pair: &str| {
-                            let mut parts = pair.splitn(2, '=');
-                            let k = parts.next()?;
-                            let v = parts.next().unwrap_or("");
-                            if k.is_empty() {
-                                None
-                            } else {
-                                Some((k.to_string(), v.to_string()))
-                            }
-                        })
-                        .collect();
                     new_url.query_pairs_mut().clear();
-                    let mut all_params: Vec<(String, String)> = kept;
-                    all_params.extend(preset_params);
-                    all_params.sort();
-                    new_url.query_pairs_mut().extend_pairs(&all_params);
-                    window().location().assign(new_url.as_str()).unwrap();
+                    new_url.query_pairs_mut().extend_pairs(&kept);
+                    let url = format!("{}&{}", new_url.as_str(), value);
+                    console_log!("{url:?}");
+                    window().location().assign(&url).unwrap();
                 })
                 .forget();
             }
@@ -938,14 +840,9 @@ impl DebugUI {
             root.insert_before(&select, reset_btn.as_ref().map(|e| e as &web_sys::Node))
                 .unwrap();
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let _ = presets;
-        }
     }
 
     pub fn link(&mut self, text: &str, href: &str) {
-        #[cfg(target_arch = "wasm32")]
         {
             let a = self.document.create_element("a").unwrap();
             a.set_text_content(Some(text));
@@ -954,19 +851,10 @@ impl DebugUI {
             a.set_class_name("DebugUI-link");
             self.root().append_child(&a).unwrap();
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let _ = (text, href);
-        }
     }
 
     pub fn take_restart_mode(&mut self) -> Option<RestartMode> {
-        #[cfg(target_arch = "wasm32")]
-        {
-            self.state.borrow_mut().take_restart_mode()
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        None
+        self.state.borrow_mut().take_restart_mode()
     }
 
     pub fn needs_clear(&self) -> Rc<RefCell<bool>> {
@@ -974,7 +862,6 @@ impl DebugUI {
     }
 
     pub fn step_counter(&mut self) -> StepCounter {
-        #[cfg(target_arch = "wasm32")]
         {
             match &*self.state.borrow() {
                 DebugUIState::Enabled { root, .. } => {
@@ -994,12 +881,7 @@ impl DebugUI {
                 },
             }
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            StepCounter::disabled()
-        }
     }
-    #[cfg(target_arch = "wasm32")]
     fn enable(
         title: impl AsRef<str>,
         needs_clear: Rc<RefCell<bool>>,
@@ -1122,7 +1004,6 @@ impl DebugUI {
     }
 
     pub fn ai_impl_dropdown(&mut self) {
-        #[cfg(target_arch = "wasm32")]
         {
             const PROMPT: &str = include_str!("../../../prompts/FETCH-APPLY-CHANGES.md");
 
@@ -1237,13 +1118,8 @@ impl DebugUI {
             wrapper.append_child(&menu).unwrap();
             root.append_child(&wrapper).unwrap();
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            // no-op
-        }
     }
 
-    #[cfg(target_arch = "wasm32")]
     fn root(&self) -> Element {
         match &*self.state.borrow() {
             DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => {
@@ -1254,7 +1130,7 @@ impl DebugUI {
 }
 
 fn has_url_tag(tag: &str) -> bool {
-    url().query_pairs().any(|param| param.0 == tag)
+    common::url().query_pairs().any(|param| param.0 == tag)
 }
 
 fn close_debug_ui(root: &Element, state: &Option<Rc<RefCell<DebugUIState>>>) {
@@ -1277,7 +1153,6 @@ fn close_debug_ui(root: &Element, state: &Option<Rc<RefCell<DebugUIState>>>) {
 
 impl Drop for DebugUI {
     fn drop(&mut self) {
-        #[cfg(target_arch = "wasm32")]
         {
             let root = match &*self.state.borrow() {
                 DebugUIState::Enabled { root, .. } | DebugUIState::Disabled { root, .. } => {
@@ -1295,7 +1170,6 @@ impl Scale {
     /// - input: a float in the range 0..1
     /// - min: minimum output value
     /// - max: maximum output value
-    #[cfg(any(target_arch = "wasm32", test))]
     fn scale<T: ToPrimitive>(self, input: f64, range: &RangeInclusive<T>) -> f64 {
         match self {
             Scale::Linear => input,
@@ -1315,7 +1189,6 @@ impl Scale {
     ///
     /// Result:
     /// a float in the range 0..1
-    #[cfg(any(target_arch = "wasm32", test))]
     fn unscale<T1: ToPrimitive, T2: ToPrimitive>(
         self,
         input: T2,
