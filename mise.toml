@@ -1,6 +1,6 @@
 [tools]
-python = "3.14.4"
-rust = {version = "1.95.0", targets = "wasm32-unknown-unknown"}
+python = "3.14.5"
+rust = {version = "1.96.0", targets = "wasm32-unknown-unknown"}
 # "cargo:live-server" = "latest"
 node = "latest"
 uv = "latest"
