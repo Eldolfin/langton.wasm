@@ -495,7 +495,8 @@ async fn start_sierpinski() {
                 }
             });
 
-            let sim = sierpinski::SierpinskiSim::new(config.clone(), canvas.width(), canvas.height());
+            let sim =
+                sierpinski::SierpinskiSim::new(config.clone(), canvas.width(), canvas.height());
             let speed_config = SpeedConfig {
                 final_steps_per_frame: final_steps_per_frame.clone(),
                 speedup_frames: speedup_frames.clone(),
