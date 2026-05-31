@@ -29,8 +29,8 @@ def set_param_value(page: Page, label_text: str, value: float | int) -> None:
         ".DebugUI-param-container", has=page.locator(f"text={label_text}")
     )
     number_input = container.locator("input[type=number]")
-    number_input.click(click_count=3)
-    number_input.fill(str(value))
+    number_input.click(click_count=3, force=True)
+    number_input.fill(str(value), force=True)
     number_input.dispatch_event("change")
 
 
@@ -132,6 +132,38 @@ def test_shift_i_toggles_panel_after_close(page: Page):
     # Show with shift+I
     page.keyboard.press("Shift+I")
     expect(panel).not_to_have_css("display", "none")
+
+
+def test_shift_r_downloads_recording(page: Page):
+    """Pressing Shift+R starts a recording, tweaking params works, and second Shift+R downloads it."""
+    from pathlib import Path
+    load_and_wait(page)
+
+    # Start recording
+    page.keyboard.press("Shift+R")
+    page.wait_for_timeout(1000)
+
+    # Re-enable UI so we can tweak params (Shift+R hides it)
+    page.keyboard.press("Shift+I")
+    page.wait_for_timeout(500)
+
+    # Tweak a parameter during recording
+    set_param_value(page, "alpha retention", 100)
+    page.wait_for_timeout(1000)
+
+    # Stop recording and expect download
+    videos_dir = Path(__file__).parent / "videos"
+    videos_dir.mkdir(exist_ok=True)
+    video_path = videos_dir / "test_recording.webm"
+
+    with page.expect_download() as download_info:
+        page.keyboard.press("Shift+R")
+
+    download = download_info.value
+    assert download.suggested_filename.endswith(".webm")
+    download.save_as(str(video_path))
+    assert video_path.exists()
+    assert video_path.stat().st_size > 0
 
 
 def test_url_updated_on_param_change(page: Page):

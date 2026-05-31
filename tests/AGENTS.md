@@ -24,6 +24,7 @@ tests/
 | Task | File | Notes |
 |------|------|-------|
 | Add a test | test_langton.py | Use `load_and_wait(page)`, helpers at top of file |
+| Add video proof | test_langton.py | Use `Shift+R` logic to record ~10s of param tweaking |
 | Add benchmark scenario | benchmark_scenarios.py | Add entry to SCENARIOS dict — auto-picked up everywhere |
 | Change test fixtures | conftest.py | Session-scoped server/browser, function-scoped page |
 | Modify CI comment format | ci_comment.py / benchmark_comment.py | Forgejo API, marker-based upsert |

@@ -60,6 +60,13 @@ impl<S: Simulation> SimulationRunner<S> {
     pub async fn run(mut self, canvas: &mut Canvas, should_stop: Box<dyn Fn() -> bool>) {
         // Tuple is (height, width) to match canvas API order; on_canvas_resize takes (width, height).
         let mut prev_canvas_size = (canvas.height(), canvas.width());
+        // common::get_canvas_parent().unwrap().set_attribute("style", format!("background-cololll"));
+        let style = common::get_canvas_parent().unwrap().style();
+        style
+            .set_property("background-color", &self.sim.bg_color().to_css_color())
+            .unwrap();
+        self.sim.on_clear(canvas);
+
         let animation = move |canvas: &mut Canvas| {
             if *self.needs_clear.borrow() {
                 self.sim.on_clear(canvas);

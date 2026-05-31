@@ -99,6 +99,10 @@ pub const LANGTON_PRESETS: &[(&str, &str)] = &[
         "1px grid",
         "alpha_retention=255&ant_color_brightness=0&ant_color_saturation=0.5&cell_border_size=0&cell_size=1&final_speed=5000&number_of_ants=1&speedup_frames=0&common_cell_color=%23FFFFFF",
     ),
+    (
+        "Github",
+        "alpha_retention=255&cell_border_size=0&cell_size=4&common_cell_color=%230D1117&debug=&final_speed=90&number_of_ants=3&speedup_frames=1222&start_x=0.5&start_y=0.5",
+    ),
 ];
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -216,28 +220,27 @@ impl Simulation for Game {
         let config = self.config.borrow();
         // (height, width) — indices are swapped when passing to board/move APIs
         let canvas_size = (self.height, self.width);
+        assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");
+        assert!(canvas_size.1 > 0, "Can't draw on a canvas of width 0 !");
         for ant in &mut self.ants {
-            assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");
-            assert!(canvas_size.1 > 0, "Can't draw on a canvas of width 0 !");
             let current_cell_state = self.board[ant.x * canvas_size.0 + ant.y];
-            let new_cell_color;
-            match current_cell_state {
+            let new_cell_color = match current_cell_state {
                 None => {
                     ant.direction = ant.direction.right();
                     self.board[ant.x * canvas_size.0 + ant.y] = Some(ant.id);
-                    new_cell_color = ant.color;
+                    ant.color
                 }
                 Some(_) => {
                     ant.direction = ant.direction.left();
                     self.board[ant.x * canvas_size.0 + ant.y] = None;
                     let bg = config.common_cell_color.get();
-                    new_cell_color = Color::Rgb {
+                    Color::Rgb {
                         r: bg.r,
                         g: bg.g,
                         b: bg.b,
-                    };
+                    }
                 }
-            }
+            };
             canvas.fill_rect(ant.x, ant.y, new_cell_color);
             ant.move_forward(canvas_size.1, canvas_size.0);
         }

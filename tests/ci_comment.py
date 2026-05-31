@@ -15,6 +15,7 @@ REPO = os.environ["GITHUB_REPOSITORY"]  # e.g. eldolfin/langton.wasm
 PR_NUMBER = os.environ["PR_NUMBER"]
 JUNIT_PATH = Path("test-results/junit.xml")
 SCREENSHOTS_DIR = Path("tests/screenshots")
+VIDEOS_DIR = Path("tests/videos")
 
 API = f"{FORGEJO_URL}/api/v1"
 HEADERS = {"Authorization": f"token {TOKEN}", "Content-Type": "application/json"}
@@ -121,7 +122,7 @@ def parse_junit(path: Path) -> dict:
     }
 
 
-def build_comment(results: dict, screenshot_urls: dict[str, str]) -> str:
+def build_comment(results: dict, screenshot_urls: dict[str, str], video_urls: dict[str, str]) -> str:
     total = results["total"]
     passed = results["passed"]
     failed = results["failed"]
@@ -166,6 +167,14 @@ def build_comment(results: dict, screenshot_urls: dict[str, str]) -> str:
             lines.append(f"![{label}]({url})")
             lines.append("")
 
+    if video_urls:
+        lines += ["", "### Recorded Videos", ""]
+        for name, url in sorted(video_urls.items()):
+            label = name.replace("_", " ").title()
+            lines.append(f"**{label}**")
+            lines.append(f"[Download / View {label}]({url})")
+            lines.append("")
+
     return "\n".join(lines)
 
 
@@ -189,7 +198,16 @@ def main() -> None:
             if url:
                 screenshot_urls[png.stem] = url
 
-    body = build_comment(results, screenshot_urls)
+    # Upload videos
+    video_urls: dict[str, str] = {}
+    if VIDEOS_DIR.exists():
+        for webm in sorted(VIDEOS_DIR.glob("*.webm")):
+            print(f"Uploading {webm.name}...")
+            url = upload_attachment(PR_NUMBER, webm)
+            if url:
+                video_urls[webm.stem] = url
+
+    body = build_comment(results, screenshot_urls, video_urls)
 
     # Delete stale bot comment, then post fresh one
     delete_bot_comments(PR_NUMBER)
