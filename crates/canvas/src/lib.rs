@@ -81,7 +81,7 @@ impl Color {
     pub fn to_css_color(self) -> String {
         match self {
             Color::Rgb { r, g, b } => format!("#{r:0>2X}{g:0>2X}{b:0>2X}"),
-            Color::Rgba { r, g, b, a } => format!("#{r:0>2X}{g:0>2X}{b:0>2X}{a:0>2X}"),
+            Color::Rgba { r, g, b, a } => format!("rgba({r}, {g}, {b}, {})", a as f32 / 255.0),
             Color::Named(named_color) => format!("{named_color:?}").to_lowercase(),
         }
     }
@@ -450,7 +450,7 @@ mod tests {
     #[case(Color::Rgb{r: 255, g: 255, b: 255}, "#FFFFFF")]
     #[case(Color::Rgb{r: 1, g: 2, b: 3}, "#010203")]
     #[case(Color::Rgb{r: 0, g: 0, b: 0}, "#000000")]
-    #[case(Color::Rgba{r: 1, g: 2, b: 3, a: 4}, "#01020304")]
+    #[case(Color::Rgba{r: 1, g: 2, b: 3, a: 255}, "rgba(1, 2, 3, 1)")]
     pub fn test_color_to_css_string(#[case] color: Color, #[case] expected_str: &str) {
         assert_eq!(color.to_css_color(), expected_str);
     }

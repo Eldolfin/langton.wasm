@@ -26,7 +26,7 @@ pub struct SierpinskiConfig {
     #[param(
         section = "Visual",
         name = "cell size",
-        default = "2",
+        default = "1",
         range = "1..=20"
     )]
     pub cell_size: Param<usize>,
@@ -40,7 +40,7 @@ pub struct SierpinskiConfig {
     pub point_color: Param<DebugColor>,
     #[param(
         name = "background color",
-        default = "DebugColor { r: 12, g: 12, b: 24 }",
+        default = "DebugColor { r: 13, g: 17, b: 23 }",
         color
     )]
     pub background_color: Param<DebugColor>,
@@ -57,19 +57,19 @@ pub struct SierpinskiConfig {
 pub const SIERPINSKI_PRESETS: &[(&str, &str)] = &[
     (
         "Classic triangle",
-        "vertices=3&jump_ratio=0.5&cell_size=2&cell_border_size=0&point_color=%23F0F0F0&background_color=%230C0C18&seed=1&final_speed=50&speedup_frames=0&alpha_retention=255",
+        "vertices=3&jump_ratio=0.5&point_color=%23F0F0F0&seed=1&final_speed=3000&&alpha_retention=255",
     ),
     (
         "Sierpinski pentagon",
-        "vertices=5&jump_ratio=0.5&cell_size=2&cell_border_size=0&point_color=%23FFC8A0&background_color=%23101020&seed=1&final_speed=80&speedup_frames=0&alpha_retention=255",
+        "alpha_retention=255&debug=&final_speed=3000&jump_ratio=0.621&point_color=%23FFC8A0&seed=1&vertices=5",
     ),
     (
-        "Hexagon swirl",
-        "vertices=6&jump_ratio=0.38&cell_size=2&cell_border_size=0&point_color=%23A0E0FF&background_color=%23080814&seed=1&final_speed=80&speedup_frames=0&alpha_retention=255",
+        "Donut",
+        "alpha_retention=255&final_speed=300&jump_ratio=0.97&point_color=%23A0E0FF&vertices=190",
     ),
     (
         "Fading drift",
-        "vertices=4&jump_ratio=0.45&cell_size=2&cell_border_size=0&point_color=%23FFFFFF&background_color=%23000000&seed=42&final_speed=200&speedup_frames=300&alpha_retention=240",
+        "vertices=4&jump_ratio=0.45&point_color=%23FFFFFF&seed=42&final_speed=3000&alpha_retention=240",
     ),
 ];
 

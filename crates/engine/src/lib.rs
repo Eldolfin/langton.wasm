@@ -69,6 +69,10 @@ impl<S: Simulation> SimulationRunner<S> {
 
         let animation = move |canvas: &mut Canvas| {
             if *self.needs_clear.borrow() {
+                let style = common::get_canvas_parent().unwrap().style();
+                style
+                    .set_property("background-color", &self.sim.bg_color().to_css_color())
+                    .unwrap();
                 self.sim.on_clear(canvas);
                 *self.needs_clear.borrow_mut() = false;
             }

@@ -68,7 +68,7 @@ pub struct CubeConfig {
     pub cell_border_size: Param<usize>,
     #[param(
         name = "background color",
-        default = "DebugColor { r: 10, g: 10, b: 20 }",
+        default = "DebugColor { r: 13, g: 17, b: 23 }",
         color
     )]
     pub background_color: Param<DebugColor>,
@@ -85,7 +85,7 @@ pub const CUBE_PRESETS: &[(&str, &str)] = &[
     ),
     (
         "Neon Trails",
-        "alpha_retention=252&background_color=%23050510&base_hue=280&brightness=0.8&cell_border_size=0&cell_size=4&color_cycle_speed=5&cube_size=0.35&debug=&face_color_spread=90&final_speed=2&perspective=3&rotation_axis=6&rotation_speed=3&saturation=1",
+        "alpha_retention=252&background_color=%23050510&base_hue=280&brightness=0.8&cell_border_size=0&cell_size=4&color_cycle_speed=5&cube_size=0.35&face_color_spread=90&final_speed=2&perspective=3&rotation_axis=6&rotation_speed=3&saturation=1",
     ),
     (
         "Pastel Tumble",
