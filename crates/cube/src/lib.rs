@@ -93,7 +93,7 @@ pub const CUBE_PRESETS: &[(&str, &str)] = &[
     ),
     (
         "Github",
-        "alpha_retention=240&background_color=%230D1117&base_hue=10&cell_size=12&cube_size=0.45&final_speed=1&speedup_frames=0",
+        "alpha_retention=245&background_color=%230D1117&base_hue=10&cell_size=8&cube_size=0.45&debug=&final_speed=1&speedup_frames=0",
     ),
 ];
 

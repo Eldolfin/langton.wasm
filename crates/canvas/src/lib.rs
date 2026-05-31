@@ -262,7 +262,7 @@ impl Canvas {
         self.queue.clear();
     }
 
-    pub fn fill_canvas(&mut self, retention_factor: u8) {
+    pub fn fill_canvas(&mut self, retention_factor: u8, bg_color: Option<Color>) {
         // 1. Get and store the current globalCompositeOperation.
         let original_gco = self
             .context
@@ -275,7 +275,7 @@ impl Canvas {
             .set_global_composite_operation("destination-in");
 
         // 3. Construct the color for fading. This will make existing content fade to transparent black.
-        let color = Color::Rgba {
+        let fade_color = Color::Rgba {
             r: 0,
             g: 0,
             b: 0,
@@ -283,7 +283,7 @@ impl Canvas {
         };
 
         // 4. Set fill style and draw the rectangle.
-        self.context.set_fill_style_str(&color.to_css_color());
+        self.context.set_fill_style_str(&fade_color.to_css_color());
         self.context.fill_rect(
             0.0,
             0.0,
@@ -291,7 +291,21 @@ impl Canvas {
             self.canvas_height as f64,
         );
 
-        // 5. Restore the original globalCompositeOperation.
+        // 5. Optionally draw the background behind.
+        if let Some(bg_color) = bg_color {
+            let _ = self
+                .context
+                .set_global_composite_operation("destination-over");
+            self.context.set_fill_style_str(&bg_color.to_css_color());
+            self.context.fill_rect(
+                0.0,
+                0.0,
+                self.canvas_width as f64,
+                self.canvas_height as f64,
+            );
+        }
+
+        // 6. Restore the original globalCompositeOperation.
         let _ = self.context.set_global_composite_operation(&original_gco);
     }
 

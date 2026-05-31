@@ -57,23 +57,22 @@ impl<S: Simulation> SimulationRunner<S> {
         }
     }
 
-    pub async fn run(mut self, canvas: &mut Canvas, should_stop: Box<dyn Fn() -> bool>) {
-        // Tuple is (height, width) to match canvas API order; on_canvas_resize takes (width, height).
-        let mut prev_canvas_size = (canvas.height(), canvas.width());
-        // common::get_canvas_parent().unwrap().set_attribute("style", format!("background-cololll"));
+    fn apply_background_and_clear(&mut self, canvas: &mut Canvas) {
         let style = common::get_canvas_parent().unwrap().style();
         style
             .set_property("background-color", &self.sim.bg_color().to_css_color())
             .unwrap();
         self.sim.on_clear(canvas);
+    }
+
+    pub async fn run(mut self, canvas: &mut Canvas, should_stop: Box<dyn Fn() -> bool>) {
+        // Tuple is (height, width) to match canvas API order; on_canvas_resize takes (width, height).
+        let mut prev_canvas_size = (canvas.height(), canvas.width());
+        self.apply_background_and_clear(canvas);
 
         let animation = move |canvas: &mut Canvas| {
             if *self.needs_clear.borrow() {
-                let style = common::get_canvas_parent().unwrap().style();
-                style
-                    .set_property("background-color", &self.sim.bg_color().to_css_color())
-                    .unwrap();
-                self.sim.on_clear(canvas);
+                self.apply_background_and_clear(canvas);
                 *self.needs_clear.borrow_mut() = false;
             }
 
@@ -99,7 +98,10 @@ impl<S: Simulation> SimulationRunner<S> {
             }
 
             self.step_counter.borrow_mut().add_steps(steps_this_frame);
-            canvas.fill_canvas(self.render_config.alpha_retention_factor.get());
+            canvas.fill_canvas(
+                self.render_config.alpha_retention_factor.get(),
+                Some(self.sim.bg_color()),
+            );
 
             should_stop()
         };
