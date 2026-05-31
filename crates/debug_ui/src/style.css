@@ -41,6 +41,15 @@
     border: none;
 }
 
+.DebugUI-menu-btn {
+    font-size: 22px;
+    color: #f00;
+    cursor: pointer;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    border: none;
+}
+
 .DebugUI-reset-btn {
     display: inline-block;
     padding: 6px 12px;

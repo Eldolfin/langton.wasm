@@ -78,7 +78,7 @@ pub enum Color {
     Named(NamedColor),
 }
 impl Color {
-    fn to_css_color(self) -> String {
+    pub fn to_css_color(self) -> String {
         match self {
             Color::Rgb { r, g, b } => format!("#{r:0>2X}{g:0>2X}{b:0>2X}"),
             Color::Rgba { r, g, b, a } => format!("#{r:0>2X}{g:0>2X}{b:0>2X}{a:0>2X}"),

@@ -6,6 +6,7 @@ edition = "2024"
 
 [dependencies]
 canvas.workspace = true
+common.workspace = true
 debug_ui.workspace = true
 
 [dev-dependencies]

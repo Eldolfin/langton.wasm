@@ -220,28 +220,27 @@ impl Simulation for Game {
         let config = self.config.borrow();
         // (height, width) — indices are swapped when passing to board/move APIs
         let canvas_size = (self.height, self.width);
+        assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");
+        assert!(canvas_size.1 > 0, "Can't draw on a canvas of width 0 !");
         for ant in &mut self.ants {
-            assert!(canvas_size.0 > 0, "Can't draw on a canvas of height 0 !");
-            assert!(canvas_size.1 > 0, "Can't draw on a canvas of width 0 !");
             let current_cell_state = self.board[ant.x * canvas_size.0 + ant.y];
-            let new_cell_color;
-            match current_cell_state {
+            let new_cell_color = match current_cell_state {
                 None => {
                     ant.direction = ant.direction.right();
                     self.board[ant.x * canvas_size.0 + ant.y] = Some(ant.id);
-                    new_cell_color = ant.color;
+                    ant.color
                 }
                 Some(_) => {
                     ant.direction = ant.direction.left();
                     self.board[ant.x * canvas_size.0 + ant.y] = None;
                     let bg = config.common_cell_color.get();
-                    new_cell_color = Color::Rgb {
+                    Color::Rgb {
                         r: bg.r,
                         g: bg.g,
                         b: bg.b,
-                    };
+                    }
                 }
-            }
+            };
             canvas.fill_rect(ant.x, ant.y, new_cell_color);
             ant.move_forward(canvas_size.1, canvas_size.0);
         }

@@ -1,6 +1,7 @@
 use common::document;
 use common::window;
 use gloo::events::EventListener;
+use js_sys::Date;
 use num_traits::{FromPrimitive, Num, ToPrimitive};
 use std::collections::HashMap;
 use std::{
@@ -417,7 +418,11 @@ impl DebugUI {
                                 .dyn_into::<HtmlAnchorElement>()
                                 .unwrap();
                             a.set_href(&url);
-                            a.set_download("langton-recording.webm");
+                            let animation_name =
+                                get_url_param("animation").unwrap_or("menu".to_owned());
+                            let now = Date::new_0().to_iso_string();
+                            let file_name = format!("recording-{animation_name}-{now}.webm");
+                            a.set_download(&file_name);
                             a.click();
 
                             let url_to_revoke = url.clone();
@@ -894,12 +899,14 @@ impl DebugUI {
         let title_line = document.create_element("div").unwrap();
         let title_elt = document.create_element("h2").unwrap();
         let fullscreen_btn = document.create_element("button").unwrap();
+        let menu_btn = document.create_element("button").unwrap();
         let close_btn = document.create_element("button").unwrap();
         let reset_btn = document.create_element("button").unwrap();
         let clear_btn = document.create_element("button").unwrap();
 
         title_elt.set_text_content(Some(title.as_ref()));
         fullscreen_btn.set_text_content(Some("🎦"));
+        menu_btn.set_text_content(Some("↩"));
         close_btn.set_text_content(Some("❌"));
         reset_btn.set_text_content(Some("Reset params"));
         clear_btn.set_text_content(Some("Clear canvas"));
@@ -908,12 +915,14 @@ impl DebugUI {
         title_elt.set_class_name("DebugUI-title");
         title_line.set_class_name("DebugUI-title-line");
         fullscreen_btn.set_class_name("DebugUI-fullscreen-btn");
+        fullscreen_btn.set_class_name("DebugUI-menu-btn");
         close_btn.set_class_name("DebugUI-close-btn");
         reset_btn.set_class_name("DebugUI-reset-btn");
         clear_btn.set_class_name("DebugUI-clear-btn");
 
         title_line.append_child(&title_elt).unwrap();
         title_line.append_child(&fullscreen_btn).unwrap();
+        title_line.append_child(&menu_btn).unwrap();
         title_line.append_child(&close_btn).unwrap();
         root.append_child(&title_line).unwrap();
         root.append_child(&reset_btn).unwrap();
@@ -967,6 +976,15 @@ impl DebugUI {
             .forget();
         }
         {
+            EventListener::new(&menu_btn, "click", move |_event| {
+                modify_url_params(|params| {
+                    params.retain(|p, _| p.as_str() == URL_TAG_DEBUG);
+                });
+                reload();
+            })
+            .forget();
+        }
+        {
             let root = root.clone();
             let state = state.clone();
             EventListener::new(&close_btn, "click", move |_event| {
@@ -977,7 +995,7 @@ impl DebugUI {
         {
             EventListener::new(&reset_btn, "click", move |_event| {
                 remove_all_url_params_except(DEBUG_UI_URL_TAGS);
-                window().location().reload().unwrap();
+                reload();
             })
             .forget();
         }
@@ -1129,8 +1147,19 @@ impl DebugUI {
     }
 }
 
+fn reload() {
+    window().location().reload().unwrap();
+}
+
 fn has_url_tag(tag: &str) -> bool {
     common::url().query_pairs().any(|param| param.0 == tag)
+}
+
+fn get_url_param(tag: &str) -> Option<String> {
+    common::url()
+        .query_pairs()
+        .find(|(param, _)| param == tag)
+        .map(|(_, value)| value.into_owned())
 }
 
 fn close_debug_ui(root: &Element, state: &Option<Rc<RefCell<DebugUIState>>>) {

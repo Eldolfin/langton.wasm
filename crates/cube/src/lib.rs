@@ -85,11 +85,15 @@ pub const CUBE_PRESETS: &[(&str, &str)] = &[
     ),
     (
         "Neon Trails",
-        "cube_size=0.35&rotation_axis=6&rotation_speed=3&perspective=3&base_hue=280&color_cycle_speed=5&saturation=1&brightness=0.8&face_color_spread=90&cell_size=4&cell_border_size=0&alpha_retention=200&final_speed=1&background_color=%23050510",
+        "alpha_retention=252&background_color=%23050510&base_hue=280&brightness=0.8&cell_border_size=0&cell_size=4&color_cycle_speed=5&cube_size=0.35&debug=&face_color_spread=90&final_speed=2&perspective=3&rotation_axis=6&rotation_speed=3&saturation=1",
     ),
     (
         "Pastel Tumble",
         "cube_size=0.45&rotation_axis=3&rotation_speed=1.5&perspective=6&base_hue=30&color_cycle_speed=0.5&saturation=0.45&brightness=0.85&face_color_spread=50&cell_size=12&cell_border_size=0&alpha_retention=255&final_speed=1&background_color=%23F0F0F0",
+    ),
+    (
+        "Github",
+        "alpha_retention=240&background_color=%230D1117&base_hue=10&cell_size=12&cube_size=0.45&final_speed=1&speedup_frames=0",
     ),
 ];
 
