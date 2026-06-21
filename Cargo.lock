@@ -20,6 +20,7 @@ dependencies = [
  "cube",
  "debug_ui",
  "dummy",
+ "elementary",
  "engine",
  "langton",
  "sierpinski",
@@ -152,6 +153,17 @@ version = "0.1.0"
 dependencies = [
  "canvas",
  "engine",
+]
+
+[[package]]
+name = "elementary"
+version = "0.1.0"
+dependencies = [
+ "canvas",
+ "debug_ui",
+ "engine",
+ "engine_macros",
+ "rstest",
 ]
 
 [[package]]
