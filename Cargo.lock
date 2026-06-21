@@ -16,6 +16,7 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "canvas",
+ "cca",
  "console_error_panic_hook",
  "cube",
  "debug_ui",
@@ -52,6 +53,17 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "cca"
+version = "0.1.0"
+dependencies = [
+ "canvas",
+ "debug_ui",
+ "engine",
+ "engine_macros",
+ "rstest",
 ]
 
 [[package]]
