@@ -17,6 +17,7 @@ cube.workspace = true
 sierpinski.workspace = true
 life.workspace = true
 cca.workspace = true
+elementary.workspace = true
 console_error_panic_hook.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true

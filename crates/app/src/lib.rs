@@ -53,6 +53,12 @@ fn cca_start() -> StartFuture {
 fn cca_preview(el: web_sys::HtmlCanvasElement) -> StartFuture {
     Box::pin(run_preview_cca(el))
 }
+fn elementary_start() -> StartFuture {
+    Box::pin(start_elementary())
+}
+fn elementary_preview(el: web_sys::HtmlCanvasElement) -> StartFuture {
+    Box::pin(run_preview_elementary(el))
+}
 
 /// Single source of truth: add one entry here to register a new animation.
 const REGISTRY: &[AnimationEntry] = &[
@@ -91,6 +97,12 @@ const REGISTRY: &[AnimationEntry] = &[
         name: "Cyclic Automaton",
         start_fn: cca_start,
         preview_fn: cca_preview,
+    },
+    AnimationEntry {
+        id: "elementary",
+        name: "Elementary CA",
+        start_fn: elementary_start,
+        preview_fn: elementary_preview,
     },
 ];
 
@@ -758,4 +770,113 @@ async fn run_preview_cca(canvas_element: web_sys::HtmlCanvasElement) {
     let w = canvas_element.width() as usize;
     let h = canvas_element.height() as usize;
     run_preview(canvas_element, cca::CcaSim::preview(w, h), 3, 1.5, 255).await;
+}
+
+async fn start_elementary() {
+    let mut debug_ui = DebugUI::new("Elementary CA parameters");
+    debug_ui.presets(elementary::ELEMENTARY_PRESETS);
+    let elementary_config = elementary::ElementaryConfig::new(&mut debug_ui);
+    let cell_size = Rc::new(RefCell::new(elementary_config.cell_size.clone()));
+    let cell_border_size = Rc::new(RefCell::new(elementary_config.cell_border_size.clone()));
+
+    debug_ui.start_section("Animation Speed");
+    let final_steps_per_frame = debug_ui.param(ParamParam {
+        name: "final speed",
+        default_value: 4.0,
+        range: 1.0..=2000.0,
+        scale: debug_ui::Scale::Logarithmic,
+        ..Default::default()
+    });
+    let speedup_frames = debug_ui.param(ParamParam {
+        name: "speedup frames",
+        default_value: 0,
+        range: 0..=1500,
+        ..Default::default()
+    });
+    let speed_ease_in_power = debug_ui.param(ParamParam {
+        name: "speed ease-in power",
+        default_value: 1.0,
+        range: 1.0..=10.0,
+        step_size: 0.1,
+        ..Default::default()
+    });
+    let alpha_retention_factor = debug_ui.param(ParamParam {
+        name: "alpha retention",
+        default_value: 255,
+        range: 0..=255,
+        ..Default::default()
+    });
+
+    debug_ui.add_footer();
+
+    let config = Rc::new(RefCell::new(elementary_config));
+    let step_counter = Rc::new(RefCell::new(debug_ui.step_counter()));
+    let debug_ui = Rc::new(RefCell::new(debug_ui));
+    let needs_clear = debug_ui.borrow().needs_clear();
+
+    loop {
+        let mut canvas = Canvas::new(cell_border_size.clone(), cell_size.clone());
+        loop {
+            {
+                let c = config.borrow();
+                let bg = c.background_color.get();
+                let bg_color = canvas::Color::Rgb {
+                    r: bg.r,
+                    g: bg.g,
+                    b: bg.b,
+                };
+                canvas.clear(bg_color);
+            }
+
+            step_counter.borrow_mut().reset();
+            let debug_ui_ref = debug_ui.clone();
+            let stop_mode = Rc::new(RefCell::new(None));
+            let stop_mode_clone = stop_mode.clone();
+
+            let should_restart = Box::new(move || {
+                if let Some(mode) = debug_ui_ref.borrow_mut().take_restart_mode() {
+                    *stop_mode_clone.borrow_mut() = Some(mode);
+                    true
+                } else {
+                    false
+                }
+            });
+
+            let sim =
+                elementary::ElementarySim::new(config.clone(), canvas.width(), canvas.height());
+            let speed_config = SpeedConfig {
+                final_steps_per_frame: final_steps_per_frame.clone(),
+                speedup_frames: speedup_frames.clone(),
+                speed_ease_in_power: speed_ease_in_power.clone(),
+            };
+            let render_config = RenderConfig {
+                alpha_retention_factor: alpha_retention_factor.clone(),
+            };
+            let runner = SimulationRunner::new(
+                sim,
+                speed_config,
+                render_config,
+                needs_clear.clone(),
+                step_counter.clone(),
+            );
+            runner.run(&mut canvas, should_restart).await;
+
+            if *stop_mode.borrow() == Some(debug_ui::RestartMode::Full) {
+                break;
+            }
+        }
+    }
+}
+
+async fn run_preview_elementary(canvas_element: web_sys::HtmlCanvasElement) {
+    let w = canvas_element.width() as usize;
+    let h = canvas_element.height() as usize;
+    run_preview(
+        canvas_element,
+        elementary::ElementarySim::preview(w, h),
+        2,
+        8.0,
+        255,
+    )
+    .await;
 }
